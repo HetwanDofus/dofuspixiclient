@@ -201,16 +201,28 @@ export class BattlefieldPicking {
     }
 
     const pickableId = this.nextPickableId++;
-    pickingSystem.registerObject({
-      id: pickableId,
-      sprite: data.sprite,
-      parentContainer: data.container,
-      // V2 player renderer ships a multi-band silhouette alphaTest;
-      // V1 / legacy returns undefined and the picker falls back to
-      // single-source alpha extraction on `sprite.texture` (correct
-      // for V1's flattened strip).
-      alphaTest: data.alphaTest,
-    });
+    if ("crowd" in data) {
+      // Crowd-managed body: no baked strip sprite. Register a
+      // sprite-less crowd pickable resolved by the wasm point-in-path
+      // hit-test (`PickingSystem.crowdResolver`), keyed on playerId.
+      pickingSystem.registerObject({
+        id: pickableId,
+        crowd: true,
+        playerId,
+        parentContainer: data.container,
+      });
+    } else {
+      pickingSystem.registerObject({
+        id: pickableId,
+        sprite: data.sprite,
+        parentContainer: data.container,
+        // V2 player renderer ships a multi-band silhouette alphaTest;
+        // V1 / legacy returns undefined and the picker falls back to
+        // single-source alpha extraction on `sprite.texture` (correct
+        // for V1's flattened strip).
+        alphaTest: data.alphaTest,
+      });
+    }
 
     const isMonsterGroup =
       Array.isArray(monsterGroup) && monsterGroup.length > 0;

@@ -21,6 +21,7 @@ pub mod clip;
 pub mod ctx;
 pub mod emit;
 pub mod filter;
+pub mod hit_geometry;
 pub mod mount_transforms;
 pub mod phased;
 pub mod probe;
@@ -28,6 +29,7 @@ pub mod slot_depths;
 pub mod snapshot;
 pub mod sprite;
 pub mod union;
+pub mod zone_patch;
 
 pub use band::{render_body_band, render_body_band_dual};
 pub use bounds::{band_bounds, build_frame_state, symbol_bounds};
@@ -677,7 +679,52 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
     }
 
     let recolor_target = ctx.recolor_target;
+    // Colour-agnostic body bake: with `PlayerColors::default()` the zone
+    // subtrees reach here with `recolor_target == None` (placeholder fills),
+    // and `zone_patch` capture records where each solid zone colour lands in
+    // `draw_data` so the slab can patch the actor's palette in per-instance.
+    // See `render::zone_patch`. Inert unless a capture is active.
+    let capture_patches = recolor_target.is_none()
+        && ctx.recolor_zone.is_some()
+        && zone_patch::is_capturing();
+    let capture_hit = hit_geometry::is_capturing();
     for cmd in cmds.iter() {
+        if capture_hit {
+            // Path geometry is colour-independent, so capture BEFORE any
+            // recolor — the slab replays this exact `transform * path` for the
+            // crowd point-in-path hit test (see `render::hit_geometry`).
+            hit_geometry::push(hit_geometry::HitGeom {
+                path: cmd.path.clone(),
+                xform: transform,
+                stroke_width: match &cmd.kind {
+                    crate::shape::DrawKind::Stroke { width, .. } => Some(*width),
+                    crate::shape::DrawKind::Fill { .. } => None,
+                },
+            });
+        }
+        if capture_patches {
+            let solid_alpha = match &cmd.kind {
+                crate::shape::DrawKind::Fill {
+                    brush: vello::peniko::Brush::Solid(c),
+                    ..
+                }
+                | crate::shape::DrawKind::Stroke {
+                    brush: vello::peniko::Brush::Solid(c),
+                    ..
+                } => Some(c.to_rgba8().to_u8_array()[3]),
+                _ => None,
+            };
+            if let Some(alpha) = solid_alpha {
+                // emit_cmd appends exactly one `draw_data` word (the packed
+                // colour) for a solid fill/stroke, so the offset that word
+                // will occupy is the current length.
+                zone_patch::push(zone_patch::PatchOffset {
+                    draw_data_idx: ctx.scene.encoding().draw_data.len(),
+                    zone: ctx.recolor_zone.unwrap(),
+                    alpha,
+                });
+            }
+        }
         if let Some(target) = recolor_target {
             // Recolor needs a mutable copy. BezPath + Brush are
             // internally Arc-shared so the clone is cheap.

@@ -6,8 +6,10 @@
 //! no batch textures, no composite pass.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use vello::kurbo::Affine;
+use swf_spike::render::hit_geometry::HitGeom;
+use vello::kurbo::{Affine, BezPath, ParamCurveNearest, Point, Shape};
 use vello::wgpu;
 use vello::{Renderer, ReuseToken, Scene, SubHandle};
 use vello_encoding::{
@@ -106,13 +108,32 @@ fn waste_words(pinned: &SlabStreamTotals, live: &SlabStreamTotals) -> u64 {
     sum(pinned).saturating_sub(sum(live))
 }
 
-/// One actor look in paint order: the COMPACT interned-sub handle (bytes
-/// already live in the SubLibrary) plus this frame's world placement.
-/// No `Arc<Encoding>` is retained — that was the heap blow-up.
+/// One slot in paint order: the COMPACT interned-sub handle (bytes already
+/// live in the SubLibrary), this actor's world placement, and — for a body
+/// sub baked colour-agnostically — the actor's per-zone palette applied via
+/// the slab colour overlay (`None` for accessories, whose colours are baked
+/// in). No `Arc<Encoding>` is retained — that was the heap blow-up.
 #[derive(Clone, Copy)]
 pub(crate) struct SlabEmit {
     pub look: CachedLook,
     pub world: Affine,
+    /// Per-zone RGBA (`[zone1, zone2, zone3]`) for a colour-agnostic body
+    /// sub; the slab expander patches it in per `ZonePatchGpu`. `None`
+    /// leaves the sub's authored colours.
+    pub overlay: Option<[[u8; 4]; 3]>,
+}
+
+/// One slot of a cached look layout (port of wc3's body segments + mount
+/// accessories). A look's full layout is the ordered list of these; each
+/// references a SHARED interned sub (body band or accessory), so all actors
+/// with the same body/accessory reuse the same handle.
+#[derive(Clone)]
+pub(crate) struct LayoutSlot {
+    pub look: CachedLook,
+    pub is_body: bool,
+    /// Colour-independent draw-op geometry for this sub, shared (`Arc`) with
+    /// every actor reusing the same interned sub. Used only by [`hit_test`].
+    pub hit: Arc<Vec<HitGeom>>,
 }
 
 /// What the crowd caches per unique `(sig|frame)` look: the SubLibrary
@@ -125,6 +146,17 @@ pub(crate) struct CachedLook {
     pub n_paths: u32,
     pub n_path_segments: u32,
     pub n_clips: u32,
+}
+
+/// One actor's hit-test record, captured in paint order each crowd tick: the
+/// actor's index (returned on a hit), its world placement `place`, and the
+/// cached layout slots (each carrying the shared per-sub hit geometry). The
+/// hit test inverts `world` then each op's `xform` to map the cursor into
+/// path-local space — exactly the inverse of the compose's `place * xform`.
+pub(crate) struct HitActor {
+    pub idx: u32,
+    pub world: Affine,
+    pub slots: Arc<Vec<LayoutSlot>>,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -156,48 +188,180 @@ struct RetainedSlab {
 
 #[derive(Default)]
 pub(crate) struct SlabCrowdState {
-    /// Compact per-look cache: `(sig|frame)` → interned handle + counts.
-    /// Grows with the map's distinct looks (like wc3's interned set); no
-    /// cap needed because each entry is tiny and the SubLibrary itself
-    /// grows-to-fit then degrades gracefully. Cleared on crowd (re)setup.
+    /// Per-SUB cache: a colour-agnostic body band or accessory's stable key
+    /// → interned handle + counts. Body bands key on `(gfx,export,frame,
+    /// flip,band)` and accessories on `(bundle,export,slot,side,frame,flip)`
+    /// — NO colour in the key, so every actor sharing a body/accessory reuses
+    /// one interned sub (the dedup that bounds the SubLibrary: 24 breeds ×
+    /// 8 dir × frames × bands, not 300 unique full looks × frames). Tiny
+    /// entries; cleared on crowd (re)setup.
     handle_by_look: HashMap<String, CachedLook>,
-    /// Per-signature fallback: `sig` (look+anim+direction, frame-agnostic)
-    /// → the most-recently-baked frame for it. When an actor's exact
-    /// `(sig|frame)` isn't baked yet and the frame's bake budget is spent,
-    /// it renders this nearby frame instead of vanishing — so the crowd is
-    /// always full and animation merely catches up as frames warm. Without
-    /// it, hundreds of fully-unique animating actors pop in and out under
-    /// the per-frame bake budget.
-    fallback_by_sig: HashMap<String, CachedLook>,
+    /// Parallel to `handle_by_look`: the same sub key → its colour-independent
+    /// hit geometry, shared (`Arc`) across every actor reusing the sub.
+    /// Populated alongside `cache_sub`; read into each `LayoutSlot::hit`.
+    hit_by_sub: HashMap<String, Arc<Vec<HitGeom>>>,
+    /// Per-look LAYOUT cache: `(sig|frame)` → the ordered slot list (body
+    /// bands + accessories) referencing shared sub handles. Built once per
+    /// distinct look+frame via the split bake; subsequent actors with the
+    /// same look+frame reuse it with zero SWF walk.
+    layout_by_sig: HashMap<String, std::sync::Arc<Vec<LayoutSlot>>>,
+    /// Per-signature fallback: `sig` (look+anim+direction, frame-agnostic) →
+    /// the most-recently-built layout. When an actor's exact `(sig|frame)`
+    /// layout isn't built yet and the bake budget is spent, it renders this
+    /// nearby frame's layout instead of vanishing — crowd stays full,
+    /// animation catches up as frames warm.
+    fallback_layout_by_sig: HashMap<String, std::sync::Arc<Vec<LayoutSlot>>>,
+    /// Per-actor hit records rebuilt every crowd tick (front-to-back paint
+    /// order). Cleared before the per-actor loop and pushed one entry per
+    /// drawn actor; read back-to-front by [`hit_test`].
+    pub(crate) hit_actors: Vec<HitActor>,
     high_water: SlabHighWater,
     retained: Option<RetainedSlab>,
     frame: u64,
     token_seq: u64,
     pub(crate) last: SlabFrameStats,
+    diag: CrowdDiag,
+}
+
+/// Rolling crowd diagnostics. Accumulated per frame and flushed to the console
+/// (`client::crowd`) once a second, plus an immediate HITCH line on any frame
+/// that could stutter — so the live render's behaviour is fully traceable.
+#[derive(Default)]
+struct CrowdDiag {
+    frames: u32,
+    interned: u32,
+    layouts: u32,
+    full: u32,
+    build_ms_sum: f64,
+    build_ms_max: f64,
+    run_ms_sum: f64,
+    run_ms_max: f64,
+    slots_max: u32,
+    overflow: u32,
 }
 
 impl SlabCrowdState {
-    pub(crate) fn cached_look(&self, key: &str) -> Option<CachedLook> {
+    /// Accumulate one frame of crowd stats; flush a per-second summary to the
+    /// console (`client::crowd`) and emit an immediate HITCH line on any frame
+    /// that could drop (intern burst, overflow, reuse_full, slow CPU build).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn diag_record(
+        &mut self,
+        interned: u32,
+        layouts: u32,
+        slots: u32,
+        overflow: u32,
+        build_ms: f64,
+        sublib_used: u64,
+        unique_subs: u64,
+        n_actors: u32,
+    ) {
+        let run_ms = self.last.replay_ms;
+        let full = !self.last.fast;
+        let frame = self.frame;
+        let sublib_mb = sublib_used as f64 / 1_048_576.0;
+        if overflow > 0 || interned > 40 || build_ms > 3.0 || full {
+            web_sys::console::warn_1(
+                &format!(
+                    "[crowd] HITCH f={frame} interned={interned} layouts={layouts} slots={slots} overflow={overflow} reuse_full={full} buildMs={build_ms:.2} runMs={run_ms:.2} sublibMB={sublib_mb:.1} subs={unique_subs}",
+                )
+                .into(),
+            );
+        }
+        let d = &mut self.diag;
+        d.frames += 1;
+        d.interned += interned;
+        d.layouts += layouts;
+        if full {
+            d.full += 1;
+        }
+        d.build_ms_sum += build_ms;
+        d.build_ms_max = d.build_ms_max.max(build_ms);
+        d.run_ms_sum += run_ms;
+        d.run_ms_max = d.run_ms_max.max(run_ms);
+        d.slots_max = d.slots_max.max(slots);
+        d.overflow += overflow;
+        if d.frames >= 60 {
+            let bf = d.frames as f64;
+            web_sys::console::log_1(
+                &format!(
+                    "[crowd {}f] actors={n_actors} slots<={} reuse_full={}/{} interned={} layouts={} subs={unique_subs} sublibMB={sublib_mb:.1} buildMs(avg={:.2} max={:.2}) runMs(avg={:.2} max={:.2}) overflow={}",
+                    d.frames, d.slots_max, d.full, d.frames, d.interned, d.layouts,
+                    d.build_ms_sum / bf, d.build_ms_max, d.run_ms_sum / bf, d.run_ms_max, d.overflow,
+                )
+                .into(),
+            );
+            *d = CrowdDiag::default();
+        }
+    }
+
+    pub(crate) fn cached_sub(&self, key: &str) -> Option<CachedLook> {
         self.handle_by_look.get(key).copied()
     }
 
-    pub(crate) fn fallback_look(&self, sig: &str) -> Option<CachedLook> {
-        self.fallback_by_sig.get(sig).copied()
+    pub(crate) fn cache_sub(&mut self, key: String, look: CachedLook) {
+        self.handle_by_look.insert(key, look);
     }
 
-    pub(crate) fn cache_look(&mut self, sig: &str, key: String, look: CachedLook) {
-        self.handle_by_look.insert(key, look);
-        self.fallback_by_sig.insert(sig.to_owned(), look);
+    pub(crate) fn cached_hit(&self, key: &str) -> Option<Arc<Vec<HitGeom>>> {
+        self.hit_by_sub.get(key).cloned()
+    }
+
+    pub(crate) fn cache_hit(&mut self, key: String, hit: Arc<Vec<HitGeom>>) {
+        self.hit_by_sub.insert(key, hit);
+    }
+
+    pub(crate) fn cached_layout(&self, key: &str) -> Option<std::sync::Arc<Vec<LayoutSlot>>> {
+        self.layout_by_sig.get(key).cloned()
+    }
+
+    pub(crate) fn fallback_layout(&self, sig: &str) -> Option<std::sync::Arc<Vec<LayoutSlot>>> {
+        self.fallback_layout_by_sig.get(sig).cloned()
+    }
+
+    pub(crate) fn cache_layout(
+        &mut self,
+        sig: &str,
+        key: String,
+        layout: std::sync::Arc<Vec<LayoutSlot>>,
+    ) {
+        self.fallback_layout_by_sig
+            .insert(sig.to_owned(), layout.clone());
+        self.layout_by_sig.insert(key, layout);
     }
 
     pub(crate) fn unique_looks(&self) -> usize {
         self.handle_by_look.len()
     }
 
+    /// Point-in-path hit test in crowd-texture pixel space — port of wc3's
+    /// `actor_batch/hit_test.rs`. Walks the actors front-to-back (reverse paint
+    /// order), maps the cursor into each actor's local space (`inv(world)`) and
+    /// each op's path-local space (`inv(xform)`), and tests fills with
+    /// `path.contains` and strokes against their centerline. Returns the first
+    /// hit actor's `idx`, or `-1` on a miss.
+    pub(crate) fn hit_test(&self, x: f64, y: f64) -> i32 {
+        let p = Point::new(x, y);
+        for actor in self.hit_actors.iter().rev() {
+            let Some(inv_world) = invert(actor.world) else {
+                continue;
+            };
+            let look_pt = inv_world * p;
+            for slot in actor.slots.iter() {
+                for g in slot.hit.iter() {
+                    if op_contains_point(&g.path, g.xform, g.stroke_width, look_pt) {
+                        return actor.idx as i32;
+                    }
+                }
+            }
+        }
+        -1
+    }
+
     /// Drop all retained slab state: frees the resident scene buffer,
-    /// resets the SubLibrary + pinned ramp/atlas caches, drops the handle
-    /// cache, and forgets the envelope. Call on crowd (re)setup — the
-    /// pinned caches are append-only within a crowd lifetime (wc3 resets
+    /// resets the SubLibrary + pinned ramp/atlas caches, drops the sub +
+    /// layout caches, and forgets the envelope. Call on crowd (re)setup —
+    /// the pinned caches are append-only within a crowd lifetime (wc3 resets
     /// per MapEpoch for the same reason); interned handles go stale the
     /// moment the SubLibrary is reset, so they must be dropped together.
     pub(crate) fn reset(&mut self, renderer: &mut Renderer) {
@@ -206,10 +370,14 @@ impl SlabCrowdState {
         }
         renderer.reset_slab_interns();
         self.handle_by_look.clear();
-        self.fallback_by_sig.clear();
+        self.hit_by_sub.clear();
+        self.hit_actors.clear();
+        self.layout_by_sig.clear();
+        self.fallback_layout_by_sig.clear();
         self.high_water = SlabHighWater::default();
         self.frame = 0;
     }
+
 }
 
 struct SlotEmit {
@@ -218,6 +386,7 @@ struct SlotEmit {
     n_paths: u32,
     n_path_segments: u32,
     n_clips: u32,
+    overlay: Option<[[u8; 4]; 3]>,
 }
 
 /// Build the whole-crowd slab scene. `emits` must already be in paint
@@ -256,6 +425,7 @@ pub(crate) fn build_crowd_slab_scene(
             n_paths: emit.look.n_paths,
             n_path_segments: emit.look.n_path_segments,
             n_clips: emit.look.n_clips,
+            overlay: emit.overlay,
         }));
     }
     let live_slot_count = u32::try_from(slots.len())
@@ -315,9 +485,10 @@ pub(crate) fn build_crowd_slab_scene(
         let desc = SlabSlotDesc {
             sub_offset: handle.offset,
             transform_idx: transforms_base + slot,
-            // Looks arrive with player colors already baked into the
-            // encoding (wc2 bakes at look-cache fill), so no per-slot
-            // zone overlay is needed yet.
+            // Body subs are baked colour-agnostic with `ZonePatchGpu`
+            // records; the per-zone palette rides in via the per-slot
+            // colour overlay below. The shader gates the patch apply on
+            // `zone_patches_count`, so this descriptor field is left inert.
             color_overlay_idx: u32::MAX,
             path_tags_words: handle.path_tags_words,
             path_data_words: handle.path_data_words,
@@ -343,7 +514,7 @@ pub(crate) fn build_crowd_slab_scene(
             desc,
             aux,
             Transform::from_kurbo(&slot_emit.world),
-            None,
+            slot_emit.overlay,
         );
         pt_running = pt_running.saturating_add(handle.path_tags_words);
         pd_running = pd_running.saturating_add(handle.path_data_words);
@@ -573,6 +744,43 @@ fn run_fast_writes(
                 );
             }
         }
+    }
+}
+
+/// Hit test one captured draw op the way Flash paints it: a fill hits on its
+/// interior (point-in-path), a stroke hits within `width/2` of its CENTERLINE.
+/// Port of wc3 `actor_batch/hit_test.rs::op_contains_point`. `p` is already in
+/// the sub's scene space; `transform` maps path-local → scene.
+fn op_contains_point(path: &BezPath, transform: Affine, stroke_width: Option<f64>, p: Point) -> bool {
+    let Some(inv) = invert(transform) else {
+        return false;
+    };
+    let lp = inv * p;
+    let bb = path.bounding_box();
+    match stroke_width {
+        None => bb.contains(lp) && path.contains(lp),
+        Some(w) => {
+            // Half-width plus ~half a pixel of antialiasing slop, in path-local
+            // units (the transform is uniform-ish; use the mean scale).
+            let scale = transform.determinant().abs().sqrt().max(f64::EPSILON);
+            let r = (w.max(1.0 / scale)) * 0.5 + 0.5 / scale;
+            if !bb.inflate(r, r).contains(lp) {
+                return false;
+            }
+            let r2 = r * r;
+            path.segments()
+                .any(|seg| seg.nearest(lp, 0.05).distance_sq <= r2)
+        }
+    }
+}
+
+/// kurbo's `inverse()` panics on a singular matrix; degenerate (zero-scale)
+/// placements exist in authored SWFs, so guard.
+fn invert(a: Affine) -> Option<Affine> {
+    if a.determinant().abs() < 1e-12 {
+        None
+    } else {
+        Some(a.inverse())
     }
 }
 

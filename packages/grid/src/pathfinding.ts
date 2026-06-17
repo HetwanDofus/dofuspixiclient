@@ -31,6 +31,42 @@ export class DofusPathfinding {
   private walkableSet: Set<number>;
   private occupiedCells: Set<number> = new Set();
 
+  // Reused A* scratch — `findPath` is synchronous and single-threaded and
+  // `reconstructPath` returns cellIds (never PathNodes), so the open/closed
+  // sets and a node arena can be cleared and reused every call instead of
+  // reallocated. With hundreds of actors repathing this is the difference
+  // between steady GC churn (visible pauses) and none.
+  private readonly openSetScratch = new Map<number, PathNode>();
+  private readonly closedSetScratch = new Map<number, number>();
+  private readonly nodePool: PathNode[] = [];
+  private poolIdx = 0;
+
+  private acquireNode(
+    cellId: number,
+    g: number,
+    v: number,
+    h: number,
+    f: number,
+    d: number,
+    parent: PathNode | null
+  ): PathNode {
+    let n = this.nodePool[this.poolIdx];
+    if (n === undefined) {
+      n = { cellId, g, v, h, f, d, parent };
+      this.nodePool[this.poolIdx] = n;
+    } else {
+      n.cellId = cellId;
+      n.g = g;
+      n.v = v;
+      n.h = h;
+      n.f = f;
+      n.d = d;
+      n.parent = parent;
+    }
+    this.poolIdx++;
+    return n;
+  }
+
   constructor(mapWidth: number, mapHeight: number, walkableCellIds: number[]) {
     this.mapWidth = mapWidth;
     this.totalRows = 2 * mapHeight - 1;
@@ -75,18 +111,21 @@ export class DofusPathfinding {
     }
     if (startId === goalId) return [startId];
 
-    const openSet = new Map<number, PathNode>();
-    const closedSet = new Map<number, number>();
+    this.openSetScratch.clear();
+    this.closedSetScratch.clear();
+    this.poolIdx = 0;
+    const openSet = this.openSetScratch;
+    const closedSet = this.closedSetScratch;
 
-    const startNode: PathNode = {
-      cellId: startId,
-      g: 0,
-      v: 0,
-      h: this.heuristic(startId, goalId),
-      f: 0,
-      d: -1,
-      parent: null,
-    };
+    const startNode = this.acquireNode(
+      startId,
+      0,
+      0,
+      this.heuristic(startId, goalId),
+      0,
+      -1,
+      null
+    );
     startNode.f = startNode.h;
     openSet.set(startId, startNode);
 
@@ -159,15 +198,15 @@ export class DofusPathfinding {
           closedSet.delete(neighborId);
 
           const h = this.heuristic(neighborId, goalId);
-          const node: PathNode = {
-            cellId: neighborId,
-            g: tentativeG,
-            v: tentativeV,
+          const node = this.acquireNode(
+            neighborId,
+            tentativeG,
+            tentativeV,
             h,
-            f: tentativeV + h,
-            d: dir,
-            parent: current,
-          };
+            tentativeV + h,
+            dir,
+            current
+          );
           openSet.set(neighborId, node);
         }
       }

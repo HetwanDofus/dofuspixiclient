@@ -317,19 +317,36 @@ export class PlayerMovement {
     }
   }
 
+  /** Reused scratch for {@link snapshotState} — `advance` calls it up to
+   *  3×/bot/frame and the result is consumed synchronously before the next
+   *  call, so a single mutated object avoids ~3 allocations per bot per
+   *  frame (a real GC driver with hundreds of moving actors). */
+  private readonly stateScratch = {
+    path: [] as number[],
+    pathIndex: 0,
+    moveDistance: 0,
+    moveCosRot: 0,
+    moveSinRot: 0,
+    movePixelSpeed: 0,
+    useRun: false,
+    isMounting: false,
+    speedModerator: 0,
+    moving: false,
+  };
+
   private snapshotState(player: ActivePlayer) {
-    return {
-      path: player.path,
-      pathIndex: player.pathIndex,
-      moveDistance: player.moveDistance,
-      moveCosRot: player.moveCosRot,
-      moveSinRot: player.moveSinRot,
-      movePixelSpeed: player.movePixelSpeed,
-      useRun: player.useRun,
-      isMounting: player.isMounting,
-      speedModerator: player.speedModerator,
-      moving: player.moving,
-    };
+    const s = this.stateScratch;
+    s.path = player.path;
+    s.pathIndex = player.pathIndex;
+    s.moveDistance = player.moveDistance;
+    s.moveCosRot = player.moveCosRot;
+    s.moveSinRot = player.moveSinRot;
+    s.movePixelSpeed = player.movePixelSpeed;
+    s.useRun = player.useRun;
+    s.isMounting = player.isMounting;
+    s.speedModerator = player.speedModerator;
+    s.moving = player.moving;
+    return s;
   }
 
   private cellPos(cellId: number): { x: number; y: number } {

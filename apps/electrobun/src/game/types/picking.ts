@@ -24,9 +24,25 @@ export interface AlphaMapAccessor {
 
 export interface PickableObject {
   id: number;
-  sprite: Sprite;
+  /**
+   * The rasterised sprite tested by `PickingSystem.pick`'s AABB +
+   * alpha pass. Optional because a crowd pickable (`crowd: true`)
+   * carries no baked strip sprite — it's resolved by the crowd
+   * hit-test (`crowdResolver`) keyed on `playerId`, not by a
+   * sprite-local AABB.
+   */
+  sprite?: Sprite;
   bounds?: PickableBounds;
   parentContainer?: Container;
+  /**
+   * Marks a crowd-managed pickable. The picker skips it in the
+   * sprite-AABB loop and instead resolves it via the registered
+   * crowd hit-test, gated by `parentContainer.zIndex` against the
+   * sprite candidates.
+   */
+  crowd?: boolean;
+  /** Player id this crowd pickable resolves to (crowd pickables only). */
+  playerId?: number;
   /**
    * Optional pixel-test override. Called by `PickingSystem.pick`
    * after the AABB pass has placed the hover point inside

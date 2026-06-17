@@ -552,13 +552,15 @@ class RenderWatchdog {
     };
   };
 
-  getSnapshot = (): RenderSnapshot => {
-    if (this.dirty) {
-      this.lastSnapshot = this.computeSnapshot();
-      this.dirty = false;
-    }
-    return this.lastSnapshot;
-  };
+  // `useSyncExternalStore` calls this on every render AND whenever React
+  // checks the store, so it MUST be cheap and return a STABLE reference
+  // between notifications — otherwise the subscriber (RenderDebugOverlay)
+  // re-renders every frame (recordFrame marks dirty every tick), allocating
+  // a full vdom tree + a fresh snapshot 60-120×/sec. That churn was ~2/3 of
+  // the per-frame GC pressure. The snapshot is now recomputed ONLY in
+  // `fireListeners` (throttled to NOTIFY_INTERVAL_MS), so this just returns
+  // the cached value and the overlay re-renders at the notify cadence.
+  getSnapshot = (): RenderSnapshot => this.lastSnapshot;
 
   // ── Internals ────────────────────────────────────────────────
 
@@ -582,6 +584,14 @@ class RenderWatchdog {
   }
 
   private fireListeners(): void {
+    // Recompute the snapshot at most once per notify (throttled to
+    // NOTIFY_INTERVAL_MS), not on every per-frame getSnapshot call — this is
+    // the only place `lastSnapshot` changes, giving subscribers a stable
+    // reference between notifies and capping the overlay's re-render rate.
+    if (this.dirty) {
+      this.lastSnapshot = this.computeSnapshot();
+      this.dirty = false;
+    }
     for (const l of this.listeners) {
       try {
         l();

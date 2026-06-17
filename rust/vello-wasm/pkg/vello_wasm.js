@@ -260,6 +260,18 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
+     * in crowd-texture pixel space; returns the front-most hit actor's index or
+     * `-1` on a miss.
+     * @param {number} x
+     * @param {number} y
+     * @returns {number}
+     */
+    crowdHitTest(x, y) {
+        const ret = wasm.vellorenderer_crowdHitTest(this.__wbg_ptr, x, y);
+        return ret;
+    }
+    /**
      * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
      * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
      * ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
@@ -2218,6 +2230,9 @@ function __wbg_get_imports() {
         __wbg_log_9e99203aee8a50b0: function(arg0, arg1) {
             console.log(getStringFromWasm0(arg0, arg1));
         },
+        __wbg_log_eb752234eec406d1: function(arg0) {
+            console.log(arg0);
+        },
         __wbg_mapAsync_7767a9f33865861e: function(arg0, arg1, arg2, arg3) {
             const ret = arg0.mapAsync(arg1 >>> 0, arg2, arg3);
             return ret;
@@ -3077,12 +3092,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 145, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 183, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 259, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
             return ret;
         },

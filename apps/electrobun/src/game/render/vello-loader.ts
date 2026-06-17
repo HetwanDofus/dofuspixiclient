@@ -1433,6 +1433,24 @@ function releaseLoadSlot(): void {
 const hydratedBundles = new Set<string>();
 
 /**
+ * Cross-session IDB scene-cache (hydrate on bundle load + periodic
+ * persist) toggle. DISABLED by default: profiling a 300-actor crowd
+ * showed the IDB transaction callbacks (`scene-cache-idb`) consuming
+ * ~20% of the main thread under load (300 unique bundles hydrating +
+ * the readwrite-per-read access bump + blob deserialize), saturating
+ * the thread and dropping frames. Cold bakes are fast (the slab bakes
+ * on first sight regardless), so the cross-session warm-start isn't
+ * worth the per-frame budget. Re-enable via `__sceneCacheIDB(true)`
+ * once the cache is made cheap (readonly reads, batched off-thread
+ * writes). */
+let sceneCacheIdbEnabled = false;
+(globalThis as { __sceneCacheIDB?: (on: boolean) => void }).__sceneCacheIDB = (
+  on: boolean,
+) => {
+  sceneCacheIdbEnabled = on;
+};
+
+/**
  * Fire-and-forget hydration helper called after `loadSwfBundle`
  * succeeds. Hashes the bundle bytes, fetches body+tile+acc rows
  * from IDB, calls the wasm `loadXSubsceneCache` for each present.
@@ -1441,6 +1459,7 @@ async function hydrateBundleOnLoad(
   name: string,
   bytes: Uint8Array,
 ): Promise<void> {
+  if (!sceneCacheIdbEnabled) return;
   if (hydratedBundles.has(name)) return;
   hydratedBundles.add(name);
   try {
@@ -1470,6 +1489,7 @@ async function hydrateBundleOnLoad(
  * 1 MB bundle that's <2 ms via SubtleCrypto.
  */
 export async function persistBundleSceneCaches(name: string): Promise<void> {
+  if (!sceneCacheIdbEnabled) return;
   const bytes = retainedSwfBundleBytes.get(name);
   if (!bytes) return;
   try {

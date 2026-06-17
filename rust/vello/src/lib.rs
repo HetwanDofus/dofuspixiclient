@@ -351,6 +351,17 @@ pub struct Renderer {
     /// allocated in [`Renderer::new`] so callers can call
     /// [`Renderer::intern_sub`] immediately.
     sub_library: Option<SubLibrary>,
+    /// PERSISTENT clone of the sub-library's GPU buffer handle, held for the
+    /// renderer's whole life. The render paths bind the sub-library via
+    /// `ExternalResource::Buffer` every frame; cloning `sub_library.buffer()`
+    /// per call produced a short-lived handle whose Drop the patched-wgpu
+    /// deferred-destroy GC (`tickDeferredDestroys`) reclaimed — destroying the
+    /// buffer while the SubLibrary still wrote/bound it ("[Buffer sub_library]
+    /// used in submit while destroyed" → frozen crowd). Binding a borrow of
+    /// this one persistent handle means no per-frame handle is ever dropped.
+    /// Valid for the session because the buffer is pre-sized above the reset
+    /// threshold (never `try_grow`-recreated) and `reset()` reuses it.
+    sub_library_buf: Option<wgpu::Buffer>,
     /// DOFUS persistent image atlas: the proxy reused across renders so the
     /// atlas texture (and `WgpuEngine::image_residency`) survive between
     /// frames. `None` until the first render that has images; reallocated
@@ -843,7 +854,17 @@ impl Renderer {
         #[cfg(feature = "debug_layers")]
         let debug = debug::DebugRenderer::new(device, wgpu::TextureFormat::Rgba8Unorm, &mut engine);
 
-        let sub_library = Some(SubLibrary::new(device, 64 * 1024 * 1024));
+        // Pre-size above the crowd's `SLAB_SUBLIB_RESET_BYTES` (384 MB) reset
+        // threshold so `try_grow` NEVER fires mid-session: a grow recreates the
+        // GPU buffer, and the deferred-destroy GC then reclaims the old one
+        // while the retained slab recording still binds it ("[Buffer
+        // sub_library] used in submit while destroyed" → frozen/garbage crowd).
+        // The reset path reuses this buffer (clears the mirror only), so with
+        // capacity > reset threshold the buffer is created exactly once.
+        let sub_library = Some(SubLibrary::new(device, 512 * 1024 * 1024));
+        // One persistent handle clone, kept alive for the renderer's life so no
+        // per-frame clone is ever dropped (see `sub_library_buf` field doc).
+        let sub_library_buf = sub_library.as_ref().map(|l| l.buffer().clone());
         Ok(Self {
             options,
             engine,
@@ -851,6 +872,7 @@ impl Renderer {
             shaders,
             reused_scene_bufs: HashMap::new(),
             sub_library,
+            sub_library_buf,
             image_atlas: None,
             device: device.clone(),
             slab_atlas_tex: None,
@@ -1078,9 +1100,9 @@ impl Renderer {
         // owned buffer. A `None` proxy means no slab dispatch was emitted
         // and the binding can be skipped entirely.
         let img_res = ExternalResource::Image(*target.as_image().unwrap(), texture);
-        match (sub_lib_proxy, self.sub_library_buffer()) {
+        match (sub_lib_proxy, self.sub_library_buf.as_ref()) {
             (Some(proxy), Some(buf)) => {
-                let externals = [img_res, ExternalResource::Buffer(proxy, &buf)];
+                let externals = [img_res, ExternalResource::Buffer(proxy, buf)];
                 self.engine.run_recording(
                     device,
                     queue,
@@ -1196,9 +1218,9 @@ impl Renderer {
         sub_lib_proxy: Option<low_level::BufferProxy>,
     ) -> Result<()> {
         let img_res = ExternalResource::Image(*target.as_image().unwrap(), texture);
-        match (sub_lib_proxy, self.sub_library_buffer()) {
+        match (sub_lib_proxy, self.sub_library_buf.as_ref()) {
             (Some(proxy), Some(buf)) => {
-                let externals = [img_res, ExternalResource::Buffer(proxy, &buf)];
+                let externals = [img_res, ExternalResource::Buffer(proxy, buf)];
                 self.engine.run_recording(
                     device,
                     queue,
@@ -1378,7 +1400,7 @@ impl Renderer {
     ) -> Result<()> {
         let scene_proxy = *scene_buf.as_buf().unwrap();
         let resident = &self.reused_scene_bufs[&token.0].buffer;
-        let sub_lib_buf = self.sub_library_buffer();
+        let sub_lib_buf = self.sub_library_buf.as_ref();
         let mut externals: Vec<ExternalResource> = Vec::with_capacity(5);
         externals.push(ExternalResource::Image(
             *out_image.as_image().unwrap(),
@@ -1387,7 +1409,7 @@ impl Renderer {
         externals.push(ExternalResource::Buffer(scene_proxy, resident));
         // DOFUS Tier 7: bind the sub-library buffer alongside the
         // resident scene buffer when the recording references it.
-        match (sub_lib_proxy, sub_lib_buf.as_ref()) {
+        match (sub_lib_proxy, sub_lib_buf) {
             (Some(proxy), Some(buf)) => externals.push(ExternalResource::Buffer(proxy, buf)),
             (Some(_), None) => log::error!(
                 "reuse_replay: recording references a sub-library proxy but no sub-library buffer is set"
@@ -1759,9 +1781,9 @@ impl Renderer {
         // DOFUS Tier 7: the async coarse pass needs the sub-library
         // bound when the encoding emitted a slab dispatch — same
         // pattern as the sync `render_to_texture` path.
-        match (sub_lib_proxy, self.sub_library_buffer()) {
+        match (sub_lib_proxy, self.sub_library_buf.as_ref()) {
             (Some(proxy), Some(buf)) => {
-                let externals = [ExternalResource::Buffer(proxy, &buf)];
+                let externals = [ExternalResource::Buffer(proxy, buf)];
                 self.engine.run_recording(
                     device,
                     queue,

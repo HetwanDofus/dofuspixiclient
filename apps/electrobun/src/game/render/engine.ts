@@ -173,7 +173,13 @@ export class Engine {
       ...(sharedGpu ? { gpu: sharedGpu } : {}),
       layout: {
         enableDebug: false,
-        throttle: 0,
+        // The LayoutSystem runs its `update` pass on EVERY prerender
+        // (throttle 0). Profiling a 300-actor crowd showed `_updateSize`
+        // recursing the display tree at ~8% of the main thread every
+        // frame, even though the stage itself carries no Yoga layout (see
+        // note below). UI layout is effectively static, so throttle the
+        // pass; the crowd/world transforms are driven directly, not by Yoga.
+        throttle: 250,
       },
     };
 

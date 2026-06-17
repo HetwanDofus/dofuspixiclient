@@ -81,6 +81,11 @@ interface CrowdVelloApi {
   realCrowdSetSlab?(enabled: boolean): void;
   /** Per-pass GPU timings of the last slab recording (gpu-timing builds only). */
   slabGpuTiming?(): Record<string, unknown> | null;
+  /** Point-in-path hit test over the crowd's current frame. Input is in
+   *  crowd-texture pixel space (== the crowd sprite's local space).
+   *  Returns the index into `order` of the topmost actor hit, or -1.
+   *  Optional: absent on older wasm builds. */
+  crowdHitTest?(x: number, y: number): number;
 }
 
 interface SetupInfo {
@@ -96,11 +101,22 @@ interface SetupInfo {
 const isEligible = (p: CrowdPlayerSnapshot): boolean =>
   p.committed && !p.mounted;
 
-/** Look signature (TS-side, for diffing only — the wasm recomputes its
- *  own cache key). Changes on anim/dir/flip/colour/accessory change. */
-function lookSig(p: CrowdPlayerSnapshot): string {
-  const accSig = p.acc.map((a) => `${a.bundle}:${a.export}:${a.slot}`).join(",");
-  return `${p.bundle}|${p.export}|${p.flipped ? 1 : 0}|${p.c1},${p.c2},${p.c3}|${accSig}`;
+/** Retained per-id look state (TS-side, for diffing only — the wasm
+ *  recomputes its own cache key). Stored across frames and compared
+ *  field-by-field so the common (unchanged) case allocates nothing — no
+ *  string building, no array allocation. The three small arrays hold the
+ *  last accessories' bundle/export/slot and are rewritten in place only
+ *  when a change is committed. */
+interface LookState {
+  bundle: string;
+  export: string;
+  flipped: boolean;
+  c1: number;
+  c2: number;
+  c3: number;
+  accB: string[];
+  accE: string[];
+  accS: number[];
 }
 
 export class CrowdRenderer {
@@ -119,8 +135,12 @@ export class CrowdRenderer {
   private indexOf = new Map<number, number>();
   private xy = new Float64Array(0);
   private frames = new Uint32Array(0);
-  /** Last look sig per id — diffed each tick to build sparse look updates. */
-  private lastLook = new Map<number, string>();
+  /** Last committed look state per id — diffed field-by-field each tick to
+   *  build sparse look updates without allocating in the unchanged case. */
+  private lastLook = new Map<number, LookState>();
+  /** Reused id → snapshot index map (rebuilt each tick in `updateAndRender`)
+   *  — avoids allocating a fresh Map per frame. */
+  private byIdScratch = new Map<number, CrowdPlayerSnapshot>();
   /** Eligible-player SET signature — rebuild when it changes. */
   private rosterKey = "";
   /** Roster key pending rebuild (the new one detected). Reset to "" once
@@ -133,11 +153,14 @@ export class CrowdRenderer {
   private active = false;
   private lastRenderMs = 0;
   private lastStats: Record<string, number> | null = null;
-  /** Slab toggle requested from the console, applied inside the next
-   *  render tick — direct wasm calls from the console throw the
-   *  wasm-bindgen re-entrancy guard while the live render's async
-   *  borrows are in flight; the tick is the proven-safe call window. */
-  private pendingSlabMode: boolean | null = null;
+  /** Slab toggle applied inside the next render tick — direct wasm calls
+   *  from the console throw the wasm-bindgen re-entrancy guard while the
+   *  live render's async borrows are in flight; the tick is the
+   *  proven-safe call window. Defaults to `true`: the wc3 Tier-7 slab is
+   *  the primary actor render path (and the only one with a point-in-path
+   *  hit-test for picking). `__crowdSlab(false)` reverts to the batched
+   *  append path for A/B comparison. */
+  private pendingSlabMode: boolean | null = true;
 
   constructor(parent: Container, resolution = 3) {
     this.parent = parent;
@@ -150,6 +173,8 @@ export class CrowdRenderer {
       this.pendingSlabMode = enabled;
       log.info(`slab mode ${enabled ? "ON" : "OFF"} queued for next tick`);
     };
+    // TEMP DIAG: verify the wasm point-in-path hit test in isolation.
+    g.__crowdHitTest = (x: number, y: number) => this.hitTest(x, y);
     g.__crowdSlabStats = () => {
       let gpu: unknown = null;
       try {
@@ -168,6 +193,29 @@ export class CrowdRenderer {
 
   isActive(): boolean {
     return this.active;
+  }
+
+  /**
+   * Point-in-path hit test for crowd-rendered actors. `globalX/globalY`
+   * are Pixi global (screen) coords. Maps them into the crowd sprite's
+   * local space (== crowd-texture px, the `place` space the wasm
+   * hit-test expects), runs the wasm point-in-path test, and returns the
+   * hit player id (mapped through `order`) or null on miss.
+   */
+  hitTest(globalX: number, globalY: number): number | null {
+    if (!this.active || !this.sprite) return null;
+    const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
+    if (!r?.crowdHitTest) return null;
+    const local = this.sprite.toLocal({ x: globalX, y: globalY });
+    let idx: number;
+    try {
+      idx = r.crowdHitTest(local.x, local.y);
+    } catch {
+      // Re-entrancy guard while the live render holds the borrow.
+      return null;
+    }
+    if (idx < 0 || idx >= this.order.length) return null;
+    return this.order[idx];
   }
 
   /** Player ids the crowd is currently rendering (so the caller hides
@@ -252,6 +300,71 @@ export class CrowdRenderer {
 
   // ── internals ────────────────────────────────────────────────────
 
+  /** True when the player's look differs from the last committed state.
+   *  All comparisons are `===`/`!==` — no string building, no array
+   *  allocation in the common (unchanged) case. */
+  private lookChanged(
+    p: CrowdPlayerSnapshot,
+    prev: LookState | undefined,
+  ): boolean {
+    if (!prev) return true;
+    if (
+      prev.bundle !== p.bundle ||
+      prev.export !== p.export ||
+      prev.flipped !== p.flipped ||
+      prev.c1 !== p.c1 ||
+      prev.c2 !== p.c2 ||
+      prev.c3 !== p.c3 ||
+      prev.accB.length !== p.acc.length
+    ) {
+      return true;
+    }
+    for (let i = 0; i < p.acc.length; i++) {
+      const a = p.acc[i];
+      if (
+        prev.accB[i] !== a.bundle ||
+        prev.accE[i] !== a.export ||
+        prev.accS[i] !== a.slot
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Commit the player's current look into the retained `LookState`,
+   *  reusing `prev` (and its accessory arrays) in place when present. Only
+   *  called on an actual change, so the array rewrites are rare. */
+  private storeLook(p: CrowdPlayerSnapshot, prev?: LookState): void {
+    const state = prev ?? {
+      bundle: "",
+      export: "",
+      flipped: false,
+      c1: 0,
+      c2: 0,
+      c3: 0,
+      accB: [] as string[],
+      accE: [] as string[],
+      accS: [] as number[],
+    };
+    state.bundle = p.bundle;
+    state.export = p.export;
+    state.flipped = p.flipped;
+    state.c1 = p.c1;
+    state.c2 = p.c2;
+    state.c3 = p.c3;
+    state.accB.length = p.acc.length;
+    state.accE.length = p.acc.length;
+    state.accS.length = p.acc.length;
+    for (let i = 0; i < p.acc.length; i++) {
+      const a = p.acc[i];
+      state.accB[i] = a.bundle;
+      state.accE[i] = a.export;
+      state.accS[i] = a.slot;
+    }
+    if (!prev) this.lastLook.set(p.id, state);
+  }
+
   private rebuild(
     r: CrowdVelloApi,
     eligible: CrowdPlayerSnapshot[],
@@ -278,7 +391,7 @@ export class CrowdRenderer {
     // was mounted at scale 1, so characters rendered `resolution`× too
     // large — the oversized-bots / fillrate-melt bug.)
     const setupPlayers = sorted.map((p) => {
-      this.lastLook.set(p.id, lookSig(p));
+      this.storeLook(p, this.lastLook.get(p.id));
       return {
         bundle: p.bundle,
         export: p.export,
@@ -380,8 +493,10 @@ export class CrowdRenderer {
     }
 
     // Index the live snapshot by id; build the flat per-tick uploads in
-    // the frozen setup order; collect sparse look changes.
-    const byId = new Map<number, CrowdPlayerSnapshot>();
+    // the frozen setup order; collect sparse look changes. The id→snapshot
+    // map is a reused scratch field (cleared, not reallocated, per tick).
+    const byId = this.byIdScratch;
+    byId.clear();
     for (const p of eligible) byId.set(p.id, p);
 
     const looks: Array<Record<string, unknown>> = [];
@@ -400,9 +515,9 @@ export class CrowdRenderer {
       this.xy[i * 2 + 1] = p.y;
       this.frames[i] = Math.max(0, p.frame | 0);
 
-      const sig = lookSig(p);
-      if (this.lastLook.get(id) !== sig) {
-        this.lastLook.set(id, sig);
+      const prev = this.lastLook.get(id);
+      if (this.lookChanged(p, prev)) {
+        this.storeLook(p, prev);
         looks.push({
           i,
           bundle: p.bundle,

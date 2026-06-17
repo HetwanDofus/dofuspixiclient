@@ -143,6 +143,12 @@ export class VelloRenderer {
      */
     createSwfSpellInstance(bundle: string, resolution: number): number;
     /**
+     * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
+     * in crowd-texture pixel space; returns the front-most hit actor's index or
+     * `-1` on a miss.
+     */
+    crowdHitTest(x: number, y: number): number;
+    /**
      * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
      * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
      * ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
@@ -1100,6 +1106,7 @@ export interface InitOutput {
     readonly vellorenderer_clearPathCache: (a: number) => void;
     readonly vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
     readonly vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_crowdHitTest: (a: number, b: number, c: number) => number;
     readonly vellorenderer_crowdTextureHandle: (a: number) => any;
     readonly vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
     readonly vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;

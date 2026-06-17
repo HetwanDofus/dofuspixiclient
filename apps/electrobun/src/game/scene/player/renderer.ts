@@ -120,7 +120,12 @@ export class PlayerRenderer {
    * tick and the whole crowd renders to one composited GPU texture.
    */
   private crowd: CrowdRenderer | null = null;
-  private crowdEnabled = false;
+  /**
+   * Crowd is now the DEFAULT body renderer (set true in the
+   * constructor). Mounts stay on the strip path via `isCrowdManaged`.
+   * The `window.__crowdRenderer` console toggle still flips this live.
+   */
+  private crowdEnabled = true;
   /** Player ids whose main composite sprite is currently suppressed
    *  (`renderable=false`) because the crowd renders them. Visibility +
    *  bounds stay intact so picking keeps working on these sprites. */
@@ -137,6 +142,13 @@ export class PlayerRenderer {
     number,
     { look: string; c1: number; c2: number; c3: number }
   >();
+  /** Reused per-id crowd snapshot objects — mutated in place each tick to
+   *  avoid allocating ~301 fresh objects (+ accessory arrays) per frame
+   *  (the GC-hitch fix). Pruned in `cleanupPlayer`. */
+  private readonly crowdSnapObjs = new Map<number, CrowdPlayerSnapshot>();
+  /** Reused output array for `crowdSnapshot()` — its length is reset and
+   *  the reused per-id objects are re-pushed each tick. */
+  private readonly crowdSnapOut: CrowdPlayerSnapshot[] = [];
 
   constructor(parentContainer: Container, config: PlayerRendererConfig) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
@@ -247,6 +259,26 @@ export class PlayerRenderer {
       isEnabled: () => this.crowdEnabled,
       setResolution: (res: number) => this.crowd?.setResolution(res),
       lastRenderMs: () => this.crowd?.getLastRenderMs() ?? 0,
+      // TEMP DIAG: sample a few crowd bots' anim state to see whether the
+      // frame cursor cycles and the anim/dir is correct.
+      debugBots: () =>
+        this.crowdSnapshot()
+          .slice(0, 4)
+          .map((p) => {
+            const live = this.players.get(p.id);
+            return {
+              id: p.id,
+              export: p.export,
+              frame: p.frame,
+              dir: p.dir,
+              flipped: p.flipped,
+              animation: live?.animation,
+              currentAnimName: live?.currentAnimName,
+              animReady: live?.animReady,
+              moving: live?.moving,
+              fc: live?.currentAnimData?.frameCount,
+            };
+          }),
     };
   }
 
@@ -540,14 +572,25 @@ export class PlayerRenderer {
    */
   getPlayerPickingData(
     id: number
-  ): {
-    sprite: Sprite;
-    container: Container;
-    alphaTest?: import("@/game/types").PickableObject["alphaTest"];
-  } | null {
+  ):
+    | {
+        sprite: Sprite;
+        container: Container;
+        alphaTest?: import("@/game/types").PickableObject["alphaTest"];
+      }
+    | { crowd: true; container: Container; playerId: number }
+    | null {
     const f = this.players.get(id);
     if (!f) {
       return null;
+    }
+    // Crowd-managed bodies have no baked strip sprite — they're picked
+    // by the wasm point-in-path hit-test (`CrowdRenderer.hitTest`),
+    // wired into the picking system as a crowd pickable. Return the
+    // crowd descriptor so `BattlefieldPicking.registerPlayer` takes the
+    // sprite-less registration path.
+    if (this.isCrowdManaged(f)) {
+      return { crowd: true, container: f.container, playerId: id };
     }
     const sprite = this.stripRenderer.getSlotSprite(id, "main");
     if (!sprite) {
@@ -969,6 +1012,7 @@ export class PlayerRenderer {
     this.hoveredIds.delete(id);
     this.crowdHiddenIds.delete(id);
     this.parsedLookCache.delete(id);
+    this.crowdSnapObjs.delete(id);
     this.container.removeChild(player.container);
     player.container.destroy({ children: true });
     this.players.delete(id);
@@ -1044,6 +1088,13 @@ export class PlayerRenderer {
         this.container,
         this.stripRenderer.getResolution(),
       );
+      // Route crowd picking through the wasm point-in-path hit-test.
+      // Idempotent — the crowd is created once, so this installs the
+      // resolver a single time. `pick()` gates the resolved id by
+      // z-order against the sprite candidates.
+      this.pickingSystem?.setCrowdResolver((gx, gy) =>
+        this.crowd?.hitTest(gx, gy) ?? null
+      );
     }
     this.crowd.sync(this.crowdSnapshot());
 
@@ -1066,6 +1117,15 @@ export class PlayerRenderer {
         this.setMainRenderable(id, false);
         this.crowdHiddenIds.add(id);
       }
+      // The crowd draws this bot's CURRENT anim every frame, so the
+      // strip-commit "never frozen" gate in `PlayerMovement.advance`
+      // (`if (!animReady) return`) must not hold its physics — the strip
+      // is suppressed and will never flip the flag. A crowd-rendered bot
+      // is on screen by definition, which is exactly what that gate waits
+      // for, so mark it ready. Without this, enabling the crowd freezes
+      // every bot mid-walk (movePlayer never resolves).
+      const p = this.players.get(id);
+      if (p && !p.animReady) p.animReady = true;
     }
   }
 
@@ -1092,7 +1152,12 @@ export class PlayerRenderer {
    * empty; this is the authoritative source.
    */
   crowdSnapshot(): CrowdPlayerSnapshot[] {
-    const out: CrowdPlayerSnapshot[] = [];
+    // Reuse the output array + per-id snapshot objects across frames — at
+    // 300 crowd actors a fresh array of objects (each with a fresh `.map()`-ed
+    // accessory array) was ~4MB of garbage per tick → GC hitches. We mutate
+    // the retained objects in place; the consumer (`CrowdRenderer.sync`)
+    // reads them synchronously this tick and retains nothing across frames.
+    this.crowdSnapOut.length = 0;
     for (const [id, p] of this.players) {
       if (!p.spriteReady || !p.currentAnimData) continue;
       const a = p.currentAnimData;
@@ -1108,31 +1173,68 @@ export class PlayerRenderer {
         };
         this.parsedLookCache.set(id, cached);
       }
-      out.push({
-        id,
-        committed: true,
-        mounted: !!p.mountLayers,
-        bundle: a.bundle,
-        export: a.exportName,
-        frame: p.frameIndex,
-        frameCount: a.frameCount,
-        fps: a.fps,
-        dir: animNameDir(p.currentAnimName),
-        flipped: isDirectionFlipped(p.direction),
-        c1: cached.c1,
-        c2: cached.c2,
-        c3: cached.c3,
-        x: (p.container as { x: number }).x,
-        y: (p.container as { y: number }).y,
-        acc: a.accessories.map((ac) => ({
-          bundle: ac.bundle,
-          export: ac.exportName,
-          slot: ac.slot,
-          animType: ac.animType,
-        })),
-      });
+
+      // Get-or-create the retained per-id object (with its own `acc` array).
+      let row = this.crowdSnapObjs.get(id);
+      if (!row) {
+        row = {
+          id,
+          committed: true,
+          mounted: false,
+          bundle: a.bundle,
+          export: a.exportName,
+          frame: 0,
+          frameCount: 0,
+          fps: 0,
+          dir: "S",
+          flipped: false,
+          c1: 0,
+          c2: 0,
+          c3: 0,
+          x: 0,
+          y: 0,
+          acc: [],
+        };
+        this.crowdSnapObjs.set(id, row);
+      }
+
+      row.id = id;
+      row.committed = true;
+      row.mounted = !!p.mountLayers;
+      row.bundle = a.bundle;
+      row.export = a.exportName;
+      row.frame = p.frameIndex;
+      row.frameCount = a.frameCount;
+      row.fps = a.fps;
+      row.dir = animNameDir(p.currentAnimName);
+      row.flipped = isDirectionFlipped(p.direction);
+      row.c1 = cached.c1;
+      row.c2 = cached.c2;
+      row.c3 = cached.c3;
+      row.x = (p.container as { x: number }).x;
+      row.y = (p.container as { y: number }).y;
+
+      // Reuse the existing `acc` array + its entries in place — only the
+      // count change resizes; entry objects are mutated, not reallocated.
+      const acc = row.acc;
+      acc.length = a.accessories.length;
+      for (let i = 0; i < a.accessories.length; i++) {
+        const ac = a.accessories[i];
+        let entry = acc[i];
+        if (!entry) {
+          entry = { bundle: ac.bundle, export: ac.exportName, slot: ac.slot, animType: ac.animType };
+          acc[i] = entry;
+        } else {
+          entry.bundle = ac.bundle;
+          entry.export = ac.exportName;
+          entry.slot = ac.slot;
+          entry.animType = ac.animType;
+        }
+      }
+
+      this.crowdSnapOut.push(row);
     }
-    return out;
+    return this.crowdSnapOut;
   }
 
   /**

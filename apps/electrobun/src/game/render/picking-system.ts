@@ -44,6 +44,20 @@ const NO_ALPHA_MAP_ACCESSOR: AlphaMapAccessor = {
  */
 export class PickingSystem {
   private pickableObjects: Map<number, PickableObject> = new Map();
+  /**
+   * Crowd-managed pickables keyed by playerId. These carry no sprite;
+   * the sprite-AABB loop skips them and `pick()` resolves them through
+   * `crowdResolver` (the wasm point-in-path hit-test) instead.
+   */
+  private crowdPickables = new Map<number, PickableObject>();
+  /**
+   * Maps screen coords → the front-most crowd player id (or null).
+   * Installed by the player renderer once the `CrowdRenderer` exists;
+   * delegates to `CrowdRenderer.hitTest`.
+   */
+  private crowdResolver:
+    | ((globalX: number, globalY: number) => number | null)
+    | null = null;
 
   constructor(_renderer: Renderer, _minPickInterval = 16) {
     // Renderer kept in the constructor signature for API stability —
@@ -56,16 +70,34 @@ export class PickingSystem {
     // No-op: CPU picking doesn't need a render texture
   }
 
+  /**
+   * Install / clear the crowd hit-test resolver. Called once by the
+   * player renderer after the `CrowdRenderer` is created; idempotent.
+   */
+  setCrowdResolver(
+    fn: ((globalX: number, globalY: number) => number | null) | null
+  ): void {
+    this.crowdResolver = fn;
+  }
+
   registerObject(object: PickableObject): void {
     this.pickableObjects.set(object.id, object);
+    if (object.crowd && object.playerId != null) {
+      this.crowdPickables.set(object.playerId, object);
+    }
   }
 
   unregisterObject(id: number): void {
+    const obj = this.pickableObjects.get(id);
+    if (obj?.crowd && obj.playerId != null) {
+      this.crowdPickables.delete(obj.playerId);
+    }
     this.pickableObjects.delete(id);
   }
 
   clear(): void {
     this.pickableObjects.clear();
+    this.crowdPickables.clear();
   }
 
   getStats(): {
@@ -134,6 +166,11 @@ export class PickingSystem {
     let bestZIndex = -Infinity;
 
     for (const [, obj] of this.pickableObjects) {
+      // Crowd / sprite-less pickables are resolved after this loop via
+      // `crowdResolver`, not by a sprite-local AABB.
+      if (obj.crowd || !obj.sprite) {
+        continue;
+      }
       const sprite = obj.sprite;
       const container = obj.parentContainer;
 
@@ -182,6 +219,25 @@ export class PickingSystem {
       }
     }
 
+    // Crowd resolution. The crowd hit-test already returns the
+    // front-most actor at the point; we only need to gate it by
+    // z-order against the sprite candidates above. `>=` lets a crowd
+    // hit win ties (crowd bodies share the unified world layer's
+    // zIndex and should out-rank sprite-less ground candidates).
+    if (this.crowdResolver) {
+      const pid = this.crowdResolver(screenX, screenY);
+      if (pid != null) {
+        const cobj = this.crowdPickables.get(pid);
+        if (cobj) {
+          const z = cobj.parentContainer?.zIndex ?? 0;
+          if (z >= bestZIndex) {
+            bestResult = { object: cobj, x: screenX, y: screenY };
+            bestZIndex = z;
+          }
+        }
+      }
+    }
+
     return bestResult;
   }
 
@@ -203,5 +259,6 @@ export class PickingSystem {
 
   destroy(): void {
     this.pickableObjects.clear();
+    this.crowdPickables.clear();
   }
 }

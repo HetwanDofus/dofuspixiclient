@@ -386,7 +386,12 @@ export class InteractionHandler {
 
     if (prevHovered?.object.id !== pickResult?.object.id) {
       if (prevHovered) {
-        prevHovered.object.sprite.filters = null;
+        // Crowd pickables carry no sprite — their hover tint is driven
+        // through the picking callbacks (`renderer.setHoverHighlight`),
+        // not this sprite-filter path.
+        if (prevHovered.object.sprite) {
+          prevHovered.object.sprite.filters = null;
+        }
       }
 
       if (pickResult) {
@@ -395,7 +400,9 @@ export class InteractionHandler {
         // this project's wgpu28 build — that was the leak that killed
         // the host after 15-30 seconds of normal mouse movement, even
         // though the watchdog HUD reported clean Vello-texture state.
-        pickResult.object.sprite.filters = [this.hoverTint];
+        if (pickResult.object.sprite) {
+          pickResult.object.sprite.filters = [this.hoverTint];
+        }
       }
 
       this.canvas.style.cursor = pickResult ? "pointer" : "default";

@@ -199,6 +199,13 @@ struct AnimPlayer {
     y: f64,
     acc: Vec<LookAcc>,
     sig: String,
+    /// Colour-AGNOSTIC look signature (`bundle|export|flip|acc`, no palette).
+    /// Keys the slab layout cache: the body-split layout + its shared subs are
+    /// identical for every actor with the same body + accessories regardless
+    /// of colour (the palette is applied per-instance via the slab overlay),
+    /// so all such actors reuse one cached layout — without this the
+    /// per-palette `sig` would force a fresh SWF walk per actor per frame.
+    layout_sig: String,
     /// Explicit current frame (LIVE path). Used in place of the global-clock
     /// derivation when `RealAnimCrowd::explicit_frames` is set (driven by
     /// `crowdUpdateFrames`). Lets the crowd track each player's real animation
@@ -681,6 +688,221 @@ fn emit_player_look(
         }
     }
     acc_drawn
+}
+
+/// One colour-agnostic sub produced by [`emit_player_look_split`]: a body
+/// band or an accessory, baked into its own scene at the look-intrinsic
+/// transform, with zone-patch records (body only) and a stable, palette-free
+/// cache key.
+struct SplitSub {
+    scene: vello::Scene,
+    patches: Vec<vello::ZonePatchGpu>,
+    key: String,
+    is_body: bool,
+    /// Colour-independent draw-op geometry captured during the bake, for the
+    /// crowd point-in-path hit test (see `slab_crowd::hit_test`).
+    hit_geom: Vec<swf_spike::render::hit_geometry::HitGeom>,
+}
+
+/// Pack an actor's `PlayerColors` (0xRRGGBB per zone) into the slab's
+/// per-slot overlay format: `[zone1, zone2, zone3]`, each `[R, G, B, A]`
+/// little-endian (the slab packs via `u32::from_le_bytes`; the shader reads
+/// R from the low byte and re-applies the patch's authored alpha). A zone the
+/// player leaves unset falls back to white, leaving the placeholder fill —
+/// matching the canonical "colour == -1 → no recolour" sentinel for the
+/// common crowd case (all stress bots carry a full palette).
+fn player_color_overlay(pc: swf_spike::recolor::PlayerColors) -> [[u8; 4]; 3] {
+    let zone = |z: u8| -> [u8; 4] {
+        match pc.lookup(z) {
+            Some(rgb) => [
+                ((rgb >> 16) & 0xFF) as u8,
+                ((rgb >> 8) & 0xFF) as u8,
+                (rgb & 0xFF) as u8,
+                255,
+            ],
+            None => [255, 255, 255, 255],
+        }
+    };
+    [zone(1), zone(2), zone(3)]
+}
+
+/// Body-split colour-agnostic bake — port of wc3's deferred prebake
+/// (`actor_batch/prebake.rs` `bake_body_frame` segments + mounts). Mirrors
+/// [`emit_player_look`] exactly (same symbol lookup, slot depths, mount
+/// transforms, flip handling) but renders each body band into its OWN scene
+/// with `PlayerColors::default()` — so zone fills stay placeholders and the
+/// geometry is identical for every actor with that body — while
+/// `zone_patch` capture records where each zone colour lands. Each accessory
+/// renders into its own scene (colours baked as authored). The caller interns
+/// each sub by its palette-free `key`, so the SubLibrary holds one copy per
+/// `(breed,dir,frame,band)` / `(accessory,…)` instead of one per unique
+/// coloured look × frame. Per-actor palette is applied at compose via the
+/// slab colour overlay (`ZonePatchGpu` + `instance_color_overlays`).
+#[allow(clippy::too_many_arguments)]
+fn emit_player_look_split(
+    ctx: &mut swf_spike::render::WgpuCtx,
+    bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
+    caches: &HashMap<String, swf_spike::render::cache::RenderCache>,
+    bundle: &str,
+    export: &str,
+    frame: u16,
+    flipped: bool,
+    acc: &[LookAcc],
+    base: vello::kurbo::Affine,
+) -> Vec<SplitSub> {
+    use swf_spike::render::ctx::RenderMode;
+    use swf_spike::render::{hit_geometry, zone_patch};
+    const MAX_SLOT: u8 = 5;
+    let mut out_subs: Vec<SplitSub> = Vec::new();
+    let Some(doc) = bundles.get(bundle) else {
+        return out_subs;
+    };
+    let Some(symbol) = doc.lookup_export(export) else {
+        return out_subs;
+    };
+    let Some(body_cache) = caches.get(bundle) else {
+        return out_subs;
+    };
+    let swf_spike::swf_doc::Symbol::Sprite(body_sprite) = symbol else {
+        return out_subs;
+    };
+    let mut equipped: HashMap<
+        u8,
+        (
+            &swf_spike::render::cache::RenderCache,
+            &swf_spike::swf_doc::SwfDoc,
+            &swf_spike::swf_doc::Symbol,
+            u8,
+            &str,
+            &str,
+        ),
+    > = HashMap::new();
+    for a in acc {
+        let Some(adoc) = bundles.get(&a.bundle) else {
+            continue;
+        };
+        let Some(asym) = adoc.lookup_export(&a.export) else {
+            continue;
+        };
+        let Some(acache) = caches.get(&a.bundle) else {
+            continue;
+        };
+        equipped.insert(
+            a.slot,
+            (acache, adoc, asym, a.anim_type, a.bundle.as_str(), a.export.as_str()),
+        );
+    }
+    let has_hat = equipped.contains_key(&1);
+    let (effective_sym, effective_xform) =
+        swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
+    let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
+    let (mount_mats, mount_pres) = swf_spike::render::mount_transforms::extract_mount_transforms(
+        doc, symbol, frame, 1, flipped, MAX_SLOT,
+    );
+    let body_xform = base * effective_xform;
+    let n = slots.len();
+    let flip_tag = u8::from(flipped);
+    for i in 0..=n {
+        let band = swf_spike::render::band_range(&slots, i);
+        let mut band_scene = vello::Scene::new();
+        zone_patch::begin_capture();
+        hit_geometry::begin_capture();
+        swf_spike::render::render_body_band(
+            ctx,
+            doc,
+            effective_sym,
+            &mut band_scene,
+            body_xform,
+            frame,
+            band,
+            RenderMode::Colour,
+            swf_spike::recolor::PlayerColors::default(),
+            body_cache,
+            flipped,
+            has_hat,
+        );
+        let patches = zone_patch::take_capture();
+        let body_hit = hit_geometry::take_capture();
+        // Empty bands (a body part not drawn this frame) contribute no
+        // geometry — skip the intern + slot, exactly as wc3 skips empty
+        // segments. Their absence is a stable property of the look.
+        if !band_scene.encoding().draw_tags.is_empty() {
+            let gpu_patches: Vec<vello::ZonePatchGpu> = patches
+                .iter()
+                .map(|p| {
+                    // PatchOffset zones are 1-indexed; the overlay array is
+                    // 0-indexed (slot*3 + 0/1/2).
+                    vello::ZonePatchGpu::pack(
+                        p.draw_data_idx as u16,
+                        p.zone.saturating_sub(1),
+                        p.alpha,
+                    )
+                })
+                .collect();
+            out_subs.push(SplitSub {
+                scene: band_scene,
+                patches: gpu_patches,
+                key: format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"),
+                is_body: true,
+                hit_geom: body_hit,
+            });
+        }
+
+        if i < n {
+            let sd = &slots[i];
+            let slot_us = sd.slot as usize;
+            if mount_pres.get(slot_us).copied().unwrap_or(0) == 1 {
+                if let Some(&(acache, adoc, asym, at, abundle, aexport)) = equipped.get(&sd.slot) {
+                    let off = slot_us * 6;
+                    if off + 6 <= mount_mats.len() {
+                        let m = vello::kurbo::Affine::new([
+                            f64::from(mount_mats[off]),
+                            f64::from(mount_mats[off + 1]),
+                            f64::from(mount_mats[off + 2]),
+                            f64::from(mount_mats[off + 3]),
+                            f64::from(mount_mats[off + 4]),
+                            f64::from(mount_mats[off + 5]),
+                        ]);
+                        let side = sd.side.as_deref().unwrap_or("R");
+                        let acc_frame = swf_spike::render::pick_accessory_frame(
+                            adoc, asym, sd.slot, at, side, frame,
+                        );
+                        let mut acc_scene = vello::Scene::new();
+                        // No hit-geometry capture for accessories: the body
+                        // silhouette is the click target, and skipping
+                        // accessory geometry keeps per-intern cost + the
+                        // retained hit-geometry heap bounded (hat/weapon/cape
+                        // BezPaths would otherwise ~double it). Body bands above
+                        // stay pixel-exact. With no active capture sink here,
+                        // `render_shape_into` records nothing.
+                        swf_spike::render::render_symbol_with_shared_cache(
+                            ctx,
+                            adoc,
+                            asym,
+                            &mut acc_scene,
+                            base * m,
+                            acc_frame,
+                            swf_spike::recolor::PlayerColors::default(),
+                            acache,
+                        );
+                        if !acc_scene.encoding().draw_tags.is_empty() {
+                            out_subs.push(SplitSub {
+                                scene: acc_scene,
+                                patches: Vec::new(),
+                                key: format!(
+                                    "A|{abundle}|{aexport}|{}|{side}|{acc_frame}|{flip_tag}",
+                                    sd.slot
+                                ),
+                                is_body: false,
+                                hit_geom: Vec::new(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out_subs
 }
 
 #[wasm_bindgen]
@@ -4575,9 +4797,9 @@ impl VelloRenderer {
         resolution: f32,
         retain: bool,
     ) -> JsValue {
-        // A new crowd invalidates every interned look: the SubLibrary's
-        // pinned ramp/atlas caches are append-only within a crowd
-        // lifetime (wc3 resets these per MapEpoch for the same reason).
+        // A new crowd invalidates every interned look: the SubLibrary's pinned
+        // ramp/atlas caches are append-only within a crowd lifetime (wc3 resets
+        // these per MapEpoch for the same reason).
         self.slab_crowd.reset(&mut self.renderer);
         let scale = f64::from(resolution) / 20.0;
         let pos_scale = f64::from(resolution);
@@ -4656,11 +4878,8 @@ impl VelloRenderer {
                 acc_sig.push_str(&a.slot.to_string());
                 acc_sig.push(',');
             }
-            let sig = format!(
-                "{bundle}|{export}|{}|{:?}|{acc_sig}",
-                u8::from(flipped),
-                colors.0
-            );
+            let layout_sig = format!("{bundle}|{export}|{}|{acc_sig}", u8::from(flipped));
+            let sig = format!("{layout_sig}|{:?}", colors.0);
             players_vec.push(AnimPlayer {
                 bundle,
                 export,
@@ -4672,6 +4891,7 @@ impl VelloRenderer {
                 y: get_f64(&o, "y"),
                 acc,
                 sig,
+                layout_sig,
                 frame: 0,
             });
         }
@@ -4798,6 +5018,14 @@ impl VelloRenderer {
         set("posScale", pos_scale);
         set("scale", scale);
         result.into()
+    }
+
+    /// Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
+    /// in crowd-texture pixel space; returns the front-most hit actor's index or
+    /// `-1` on a miss.
+    #[wasm_bindgen(js_name = "crowdHitTest")]
+    pub fn crowd_hit_test(&self, x: f64, y: f64) -> i32 {
+        self.slab_crowd.hit_test(x, y)
     }
 
     /// DIAG: advance the animated crowd to `time_ms`, re-emitting only the
@@ -5110,19 +5338,18 @@ impl VelloRenderer {
                 height: th,
                 antialiasing_method: AaConfig::Area,
             };
-            // Bound the cumulative interned set: if it has grown near the
-            // SubLibrary cap, drop it and re-intern the active set this
-            // frame (fallback covers the brief refill). Prevents the
-            // overflow-to-sentinel state where past-cap looks render blank.
-            let sublib_over = self
-                .renderer
-                .sub_library_stats()
-                .is_some_and(|l| l.used_bytes() > SLAB_SUBLIB_RESET_BYTES);
-            if sublib_over {
-                self.slab_crowd.reset(&mut self.renderer);
-            }
+            // LIVE render (wc3 model): NO mid-run SubLibrary reset. The
+            // content-deduped working set (body bands shared across same-gfx
+            // actors + per-accessory subs) is bounded and fits the pre-sized
+            // 512 MB buffer. The old 384 MB reset force-dropped every intern
+            // and re-baked en masse — that WAS the "random sluggishness" + the
+            // appear/disappear (bots fell back / vanished during the refill).
+            // Memory is tracked in the per-second `[crowd]` log; if it ever
+            // approaches the cap that log will show it, and the correct
+            // response is a per-MapEpoch reset at map-change, never mid-run.
             let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
-            let mut baked_this_frame: u32 = 0;
+            let mut interned_this_frame: u32 = 0;
+            let mut layouts_built_this_frame: u32 = 0;
             {
                 let RealAnimCrowd {
                     ref players,
@@ -5141,16 +5368,9 @@ impl VelloRenderer {
                 };
                 let bundles = &self.swf_bundles;
                 let caches = &self.swf_render_caches;
-                // Per-frame bake budget (wc3's "1-decode-per-frame" idea,
-                // time-bounded): a look not yet interned is baked + interned
-                // synchronously, but only until this budget is spent — then
-                // un-baked actors are skipped THIS frame and picked up over
-                // the next few frames. Keeps the frame from stalling when a
-                // burst of new (look,dir,frame) combos appears (spawn /
-                // direction changes) while staying smooth at 60 fps. At
-                // steady state (all looks cached) zero bakes happen.
-                let bake_t0 = web_time::Instant::now();
-                let mut bake_budget_left = true;
+                // Rebuild the per-actor hit records fresh each crowd tick so
+                // hit_test sees the current placements in paint order.
+                self.slab_crowd.hit_actors.clear();
                 for &idx in &sorted_idx {
                     let p = &players[idx];
                     let fc = p.frame_count.max(1);
@@ -5160,41 +5380,9 @@ impl VelloRenderer {
                         let fps = f64::from(p.fps.max(0.001));
                         (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                     };
-                    let key = format!("{}|{}", p.sig, tf);
-                    let look = if let Some(c) = self.slab_crowd.cached_look(&key) {
-                        Some(c)
-                    } else if bake_budget_left {
-                        // Bake the look once, intern its bytes compactly
-                        // (no Arc retained), cache the tiny handle.
-                        let mut sub = vello::Scene::new();
-                        emit_player_look(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
-                            p.colors, &p.acc, scale_aff, &mut sub,
-                        );
-                        let enc = sub.encoding();
-                        let handle = ctx.renderer.intern_sub_transient(ctx.queue, enc, &[]);
-                        let c = slab_crowd::CachedLook {
-                            handle,
-                            n_paths: enc.n_paths,
-                            n_path_segments: enc.n_path_segments,
-                            n_clips: enc.n_clips,
-                        };
-                        self.slab_crowd.cache_look(&p.sig, key, c);
-                        baked_this_frame += 1;
-                        if bake_t0.elapsed().as_secs_f64() * 1000.0 > SLAB_BAKE_BUDGET_MS {
-                            bake_budget_left = false;
-                        }
-                        Some(c)
-                    } else {
-                        // Budget spent: show a nearby already-baked frame of
-                        // the same look/direction so the actor stays visible
-                        // (animation catches up as its exact frame warms)
-                        // instead of popping out.
-                        self.slab_crowd.fallback_look(&p.sig)
-                    };
-                    let Some(c) = look else {
-                        continue;
-                    };
+                    let sig_key = format!("{}|{}", p.layout_sig, tf);
+                    // Per-actor world placement (shared by all the actor's
+                    // sub-slots) and per-zone palette overlay for body subs.
                     let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
                         p.x * pos_scale + off_x,
                         p.y * pos_scale + off_y,
@@ -5204,9 +5392,68 @@ impl VelloRenderer {
                     } else {
                         translate
                     };
-                    emits.push(slab_crowd::SlabEmit {
-                        look: c,
+                    let overlay = player_color_overlay(p.colors);
+                    // LIVE (wc3 model): every actor renders its EXACT current
+                    // (look|frame) EVERY frame. On first sight the look is encoded
+                    // + each colour-agnostic sub interned (content-deduped: body
+                    // bands shared across same-gfx actors, accessories per gfx);
+                    // thereafter it's a cache hit and the per-frame cost is just
+                    // the slot emit. NO budget, NO fallback — the rendered frame is
+                    // always the actor's real current frame/direction (a budget
+                    // would render a stale layout = wrong frame/direction).
+                    let layout = if let Some(l) = self.slab_crowd.cached_layout(&sig_key) {
+                        l
+                    } else {
+                        let subs = emit_player_look_split(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                            &p.acc, scale_aff,
+                        );
+                        let mut layout_vec = Vec::with_capacity(subs.len());
+                        for sub in subs {
+                            let (look, hit) = if let (Some(c), Some(h)) = (
+                                self.slab_crowd.cached_sub(&sub.key),
+                                self.slab_crowd.cached_hit(&sub.key),
+                            ) {
+                                (c, h)
+                            } else {
+                                let enc = sub.scene.encoding();
+                                let handle = ctx
+                                    .renderer
+                                    .intern_sub_transient(ctx.queue, enc, &sub.patches);
+                                let c = slab_crowd::CachedLook {
+                                    handle,
+                                    n_paths: enc.n_paths,
+                                    n_path_segments: enc.n_path_segments,
+                                    n_clips: enc.n_clips,
+                                };
+                                let h = std::sync::Arc::new(sub.hit_geom);
+                                self.slab_crowd.cache_sub(sub.key.clone(), c);
+                                self.slab_crowd.cache_hit(sub.key.clone(), h.clone());
+                                interned_this_frame += 1;
+                                (c, h)
+                            };
+                            layout_vec.push(slab_crowd::LayoutSlot {
+                                look,
+                                is_body: sub.is_body,
+                                hit,
+                            });
+                        }
+                        layouts_built_this_frame += 1;
+                        let arc = std::sync::Arc::new(layout_vec);
+                        self.slab_crowd.cache_layout(&p.layout_sig, sig_key, arc.clone());
+                        arc
+                    };
+                    for ls in layout.iter() {
+                        emits.push(slab_crowd::SlabEmit {
+                            look: ls.look,
+                            world: place,
+                            overlay: if ls.is_body { Some(overlay) } else { None },
+                        });
+                    }
+                    self.slab_crowd.hit_actors.push(slab_crowd::HitActor {
+                        idx: idx as u32,
                         world: place,
+                        slots: layout.clone(),
                     });
                 }
             }
@@ -5225,9 +5472,29 @@ impl VelloRenderer {
                 &params,
                 &crowd.view,
             );
-            // Slab path keeps no `look_cache` scenes — its working set is
-            // the compact handle cache. Report its size + this frame's bakes.
+            // Crowd working set = the content-deduped interned sub count + GPU
+            // bytes used in the SubLibrary (tracked so growth toward the cap is
+            // visible in the log rather than silently overflowing → blanks).
+            let (sublib_used, unique_subs) = self
+                .renderer
+                .sub_library_stats()
+                .map(|l| (l.used_bytes(), l.unique_subs()))
+                .unwrap_or((0, 0));
             let cache_size = self.slab_crowd.unique_looks() as u32;
+            // Structured crowd diagnostics → console target `client::crowd`:
+            // a per-second summary plus an immediate HITCH line on intern
+            // bursts / overflow / reuse_full / slow builds, so the random
+            // sluggishness is fully traceable from the logs.
+            self.slab_crowd.diag_record(
+                interned_this_frame,
+                layouts_built_this_frame,
+                used,
+                overflow,
+                build_ms,
+                sublib_used,
+                unique_subs,
+                n_players,
+            );
             self.real_anim_crowd = Some(crowd);
             let s = self.slab_crowd.last;
             let result = js_sys::Object::new();
@@ -5239,8 +5506,23 @@ impl VelloRenderer {
             let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
             let _ = js_sys::Reflect::set(
                 &result,
-                &"bakedThisFrame".into(),
-                &JsValue::from(baked_this_frame),
+                &"internedThisFrame".into(),
+                &JsValue::from(interned_this_frame),
+            );
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"layoutsThisFrame".into(),
+                &JsValue::from(layouts_built_this_frame),
+            );
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"sublibMB".into(),
+                &JsValue::from(sublib_used as f64 / 1_048_576.0),
+            );
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"uniqueSubs".into(),
+                &JsValue::from(unique_subs as f64),
             );
             let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
             let _ =
@@ -6667,11 +6949,15 @@ impl VelloRenderer {
                 acc_sig.push_str(&a.slot.to_string());
                 acc_sig.push(',');
             }
-            let sig = format!(
-                "{bundle}|{export}|{}|{:?}|{acc_sig}",
-                u8::from(flipped),
-                colors.0
-            );
+            // Colour-AGNOSTIC layout signature, recomputed on every look
+            // change. The slab layout cache keys on `p.layout_sig` (+frame);
+            // forgetting to update it here left it pinned at the spawn-time
+            // value, so a bot that turned or switched walk/run kept rendering
+            // its ORIGINAL anim/direction's cached layout (the "walking with
+            // the wrong animation/direction" bug). Must match the spawn-path
+            // format exactly so the same look hits the same cache entry.
+            let layout_sig = format!("{bundle}|{export}|{}|{acc_sig}", u8::from(flipped));
+            let sig = format!("{layout_sig}|{:?}", colors.0);
             let fc = (get_f64(&o, "frameCount") as u16).max(1);
             let fps = get_f64(&o, "fps") as f32;
             new_bundles.push(bundle.clone());
@@ -6684,6 +6970,7 @@ impl VelloRenderer {
             p.colors = colors;
             p.acc = acc;
             p.sig = sig;
+            p.layout_sig = layout_sig;
             if p.frame >= fc {
                 p.frame = fc - 1;
             }

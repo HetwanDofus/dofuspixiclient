@@ -15,6 +15,7 @@ export const vellorenderer_clearBodySceneCache: (a: number) => number;
 export const vellorenderer_clearPathCache: (a: number) => void;
 export const vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
 export const vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+export const vellorenderer_crowdHitTest: (a: number, b: number, c: number) => number;
 export const vellorenderer_crowdTextureHandle: (a: number) => any;
 export const vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
 export const vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
