@@ -260,6 +260,32 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * Per-band frontmost actor index (in `realCrowdSetup` order), one per
+     * band, `-1` for an empty band. The JS calls this each tick (cheap, no
+     * texture wrappers) to refresh each band sprite's zIndex as actors move.
+     * @returns {Int32Array}
+     */
+    crowdBandFrontmost() {
+        const ret = wasm.vellorenderer_crowdBandFrontmost(this.__wbg_ptr);
+        var v1 = getArrayI32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Per-Y-band texture handles for the z-interleaved compositing path.
+     * Returns an array (back-to-front) of `{texture, width, height,
+     * frontmost}` — one per rendered band. `frontmost` is the player index
+     * (in `realCrowdSetup` order) of the band's frontmost actor; the JS maps
+     * it to the band sprite's zIndex (`playerZIndex(cellId)`) so the band
+     * slots between the right object2 tiles. Empty until the first slab
+     * render. Falls back to `crowdTextureHandle` if a band path isn't wanted.
+     * @returns {any}
+     */
+    crowdBandHandles() {
+        const ret = wasm.vellorenderer_crowdBandHandles(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
      * in crowd-texture pixel space; returns the front-most hit actor's index or
      * `-1` on a miss.
@@ -3310,6 +3336,11 @@ function getArrayF64FromWasm0(ptr, len) {
     return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
+function getArrayI32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayJsValueFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     const mem = getDataViewMemory0();
@@ -3353,6 +3384,14 @@ function getFloat64ArrayMemory0() {
         cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
     }
     return cachedFloat64ArrayMemory0;
+}
+
+let cachedInt32ArrayMemory0 = null;
+function getInt32ArrayMemory0() {
+    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.byteLength === 0) {
+        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -3527,6 +3566,7 @@ function __wbg_finalize_init(instance, module) {
     cachedDataViewMemory0 = null;
     cachedFloat32ArrayMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
+    cachedInt32ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
