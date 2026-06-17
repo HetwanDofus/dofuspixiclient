@@ -15,6 +15,7 @@
 //! - `snapshot` — AVM1-resolved tree consumer (DestIn alpha mask, blend modes)
 
 pub mod band;
+pub mod body_deferred;
 pub mod bounds;
 pub mod cache;
 pub mod clip;
@@ -265,6 +266,46 @@ pub fn render_symbol_with_shared_cache(
         .with_frame(frame)
         .with_player_colors(player_colors);
     render_symbol_into(&mut ctx, sym);
+}
+
+/// Walk a character body symbol capturing its leaf fills + accessory
+/// mount points in canonical SWF walk order, then bake one segment per
+/// mount (plus a tail). The crowd compositor interleaves each accessory
+/// at its mount's segment boundary — the canonical render order,
+/// including nested mounts the depth-band split could not represent.
+///
+/// `body_xform` already includes the actor's base + the effective-body
+/// descent transform; `flipped` drives the canonical `bFix` X-mirror so
+/// the strip is correct once the whole composite is JS/`flip_x`-flipped.
+/// `hat_equipped` pins `mcToHide` hair-toggle sprites. Colour is left
+/// authored (per-actor palette applied via the slab overlay from the
+/// per-segment zone patches).
+#[allow(clippy::too_many_arguments)]
+pub fn capture_body_segments(
+    wgpu: &mut WgpuCtx,
+    doc: &SwfDoc,
+    effective_sym: &Symbol,
+    body_xform: Affine,
+    frame: u16,
+    flipped: bool,
+    hat_equipped: bool,
+    cache: &RenderCache,
+) -> Vec<body_deferred::BakedSegment> {
+    body_deferred::begin_capture();
+    let mut dummy = Scene::new();
+    {
+        let inner = reborrow_wgpu(wgpu);
+        let mut ctx = RenderCtx::new(doc, &mut dummy, cache)
+            .with_wgpu(inner)
+            .with_transform(body_xform)
+            .with_frame(frame)
+            .with_player_colors(crate::recolor::PlayerColors::default())
+            .with_b_fix(flipped)
+            .with_hat_equipped(hat_equipped);
+        render_symbol_into(&mut ctx, effective_sym);
+    }
+    let items = body_deferred::take_capture();
+    body_deferred::bake_segments(items)
 }
 
 pub fn render_symbol_xformed(
@@ -623,6 +664,21 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
     let transform = ctx.transform;
     let color_xform = ctx.color_xform;
     let cmds = ctx.cache.shape_cmds(shape, ctx.doc);
+
+    // Crowd body-deferred capture: record this leaf's AUTHORED cmds in walk
+    // order so the compositor can split the body into segments at each mount.
+    // Per-actor colour is applied via the slab overlay (zone patches are built
+    // when each segment is baked), so capture the authored brushes + recolor
+    // zone, not the resolved target. Inert unless a body walk is capturing.
+    if ctx.output_mode != ctx::RenderMode::ZoneId && body_deferred::is_capturing() {
+        body_deferred::push_fill(body_deferred::BodyFill {
+            cmds: cmds.iter().cloned().collect(),
+            transform,
+            color_xform,
+            recolor_zone: ctx.recolor_zone,
+        });
+        return;
+    }
 
     // RETAINED-VELLO union capture: record this leaf (zone-recolored cmds + world
     // transform + depth-path identity) and SKIP emission. The union bake re-emits

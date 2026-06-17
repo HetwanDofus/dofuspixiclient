@@ -165,16 +165,34 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
         // "WR", "B") which the accessory frame resolver uses to pick
         // the right directional frame range.
         //
-        // Path B: `disable_accessories=true` skips this block — the
-        // accessory pass bakes accessories independently and the Pixi
-        // compositor stacks them between body bands at runtime.
-        if !disable_accessories
-            && let Some(dict) = child.accessories
-            && let Some(mounts) = child.doc.accessory_mounts.get(&id)
-        {
-            for mount in mounts {
-                if let Some(entry) = dict.get(&mount.slot) {
-                    super::render_accessory_at(&mut child, entry, mount);
+        // Accessory composition has two modes:
+        //
+        // - Body-deferred capture (crowd path): record each mount in
+        //   canonical walk order onto the ordered sink, with the body
+        //   part's world transform (b_fix already applied). The
+        //   compositor splits the body into segments at these points
+        //   and interleaves each accessory — preserving nested mount
+        //   order the depth-band split could not.
+        // - Immediate mode (tile / preview): render the matching
+        //   accessory SWF at the body part's world transform.
+        // - Path B (`disable_accessories=true`): skip — the legacy
+        //   band path bakes accessories separately.
+        if let Some(mounts) = child.doc.accessory_mounts.get(&id) {
+            if super::body_deferred::is_capturing() {
+                for mount in mounts {
+                    super::body_deferred::push_mount(super::body_deferred::BodyMount {
+                        slot: mount.slot,
+                        side: mount.side.clone(),
+                        transform: child.transform,
+                    });
+                }
+            } else if !disable_accessories
+                && let Some(dict) = child.accessories
+            {
+                for mount in mounts {
+                    if let Some(entry) = dict.get(&mount.slot) {
+                        super::render_accessory_at(&mut child, entry, mount);
+                    }
                 }
             }
         }

@@ -750,9 +750,6 @@ fn emit_player_look_split(
     acc: &[LookAcc],
     base: vello::kurbo::Affine,
 ) -> Vec<SplitSub> {
-    use swf_spike::render::ctx::RenderMode;
-    use swf_spike::render::{hit_geometry, zone_patch};
-    const MAX_SLOT: u8 = 5;
     let mut out_subs: Vec<SplitSub> = Vec::new();
     let Some(doc) = bundles.get(bundle) else {
         return out_subs;
@@ -763,7 +760,7 @@ fn emit_player_look_split(
     let Some(body_cache) = caches.get(bundle) else {
         return out_subs;
     };
-    let swf_spike::swf_doc::Symbol::Sprite(body_sprite) = symbol else {
+    let swf_spike::swf_doc::Symbol::Sprite(_) = symbol else {
         return out_subs;
     };
     let mut equipped: HashMap<
@@ -795,12 +792,7 @@ fn emit_player_look_split(
     let has_hat = equipped.contains_key(&1);
     let (effective_sym, effective_xform) =
         swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
-    let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
-    let (mount_mats, mount_pres) = swf_spike::render::mount_transforms::extract_mount_transforms(
-        doc, symbol, frame, 1, flipped, MAX_SLOT,
-    );
     let body_xform = base * effective_xform;
-    let n = slots.len();
     let flip_tag = u8::from(flipped);
     // Canonical character direction letter (wc3: export name = stem +
     // direction::letter, so the body export's last char IS the direction).
@@ -819,139 +811,112 @@ fn emit_player_look_split(
             last
         }
     };
-    for i in 0..=n {
-        let band = swf_spike::render::band_range(&slots, i);
-        let mut band_scene = vello::Scene::new();
-        zone_patch::begin_capture();
-        hit_geometry::begin_capture();
-        swf_spike::render::render_body_band(
-            ctx,
-            doc,
-            effective_sym,
-            &mut band_scene,
-            body_xform,
-            frame,
-            band,
-            RenderMode::Colour,
-            swf_spike::recolor::PlayerColors::default(),
-            body_cache,
-            flipped,
-            has_hat,
-        );
-        let patches = zone_patch::take_capture();
-        let body_hit = hit_geometry::take_capture();
-        // Empty bands (a body part not drawn this frame) contribute no
-        // geometry — skip the intern + slot, exactly as wc3 skips empty
-        // segments. Their absence is a stable property of the look.
-        if !band_scene.encoding().draw_tags.is_empty() {
-            let gpu_patches: Vec<vello::ZonePatchGpu> = patches
+    // Single ordered body walk: capture leaf fills + mount points in
+    // canonical SWF walk order, then bake one segment per mount (plus a
+    // tail). Replaces the depth-band split, which cut only the TOP-LEVEL
+    // display list and so mis-ordered mounts declared inside nested body
+    // parts (capes/hats layered wrong vs the body in some directions).
+    let segments = swf_spike::render::capture_body_segments(
+        ctx,
+        doc,
+        effective_sym,
+        body_xform,
+        frame,
+        flipped,
+        has_hat,
+        body_cache,
+    );
+
+    for (seg_idx, seg) in segments.into_iter().enumerate() {
+        // Body segment. Empty segments (a body part not drawn this frame)
+        // emit no geometry but still carry their mount so the accessory
+        // emits; their absence is a stable property of the look.
+        if !seg.scene.encoding().draw_tags.is_empty() {
+            let gpu_patches: Vec<vello::ZonePatchGpu> = seg
+                .patches
                 .iter()
                 .map(|p| {
                     // PatchOffset zones are 1-indexed; the overlay array is
                     // 0-indexed (slot*3 + 0/1/2).
-                    vello::ZonePatchGpu::pack(
-                        p.draw_data_idx as u16,
-                        p.zone.saturating_sub(1),
-                        p.alpha,
-                    )
+                    vello::ZonePatchGpu::pack(p.draw_data_idx as u16, p.zone.saturating_sub(1), p.alpha)
                 })
                 .collect();
             out_subs.push(SplitSub {
-                scene: band_scene,
+                scene: seg.scene,
                 patches: gpu_patches,
-                key: format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"),
+                key: format!("B|{bundle}|{export}|{frame}|{flip_tag}|{seg_idx}"),
                 is_body: true,
-                hit_geom: body_hit,
+                hit_geom: seg.hit,
             });
         }
 
-        if i < n {
-            let sd = &slots[i];
-            let slot_us = sd.slot as usize;
-            if mount_pres.get(slot_us).copied().unwrap_or(0) == 1 {
-                if let Some(&(acache, adoc, asym, at, abundle, aexport)) = equipped.get(&sd.slot) {
-                    let off = slot_us * 6;
-                    if off + 6 <= mount_mats.len() {
-                        let m = vello::kurbo::Affine::new([
-                            f64::from(mount_mats[off]),
-                            f64::from(mount_mats[off + 1]),
-                            f64::from(mount_mats[off + 2]),
-                            f64::from(mount_mats[off + 3]),
-                            f64::from(mount_mats[off + 4]),
-                            f64::from(mount_mats[off + 5]),
-                        ]);
-                        let side = sd.side.as_deref().unwrap_or("R");
-                        // Pets (slot 3) ship as full-character bundles with their
-                        // own static/walk/run<dir> timeline; the body mount tells
-                        // us nothing about which anim to play. Rendering the pet's
-                        // equipped symbol as a flat 3-frame body part FREEZES it —
-                        // `acc_frame` (frame%3 cycle) barely moves, so the slab
-                        // dedup key is near-constant and the geometry is reused.
-                        // Resolve the pet's own anim symbol for the active char
-                        // anim+direction and fold the resolved export into the key
-                        // so every pet frame dedups distinctly (it walks when the
-                        // player walks).
-                        let (use_sym, use_export): (&swf_spike::swf_doc::Symbol, String) =
-                            if sd.slot == 3 {
-                                let base_name = match at {
-                                    2 => "run",
-                                    1 => "walk",
-                                    _ => "static",
-                                };
-                                let cand = [
-                                    format!("{base_name}{char_dir}"),
-                                    format!("{base_name}{side}"),
-                                    format!("static{char_dir}"),
-                                    "staticR".to_string(),
-                                ];
-                                let mut found: Option<(&swf_spike::swf_doc::Symbol, String)> =
-                                    None;
-                                for name in cand {
-                                    if let Some(s) = adoc.lookup_export(&name) {
-                                        found = Some((s, name));
-                                        break;
-                                    }
-                                }
-                                found.unwrap_or((asym, aexport.to_string()))
-                            } else {
-                                (asym, aexport.to_string())
-                            };
-                        let acc_frame = swf_spike::render::pick_accessory_frame(
-                            adoc, use_sym, sd.slot, at, side, frame,
-                        );
-                        let mut acc_scene = vello::Scene::new();
-                        // No hit-geometry capture for accessories: the body
-                        // silhouette is the click target, and skipping
-                        // accessory geometry keeps per-intern cost + the
-                        // retained hit-geometry heap bounded (hat/weapon/cape
-                        // BezPaths would otherwise ~double it). Body bands above
-                        // stay pixel-exact. With no active capture sink here,
-                        // `render_shape_into` records nothing.
-                        swf_spike::render::render_symbol_with_shared_cache(
-                            ctx,
-                            adoc,
-                            use_sym,
-                            &mut acc_scene,
-                            base * m,
-                            acc_frame,
-                            swf_spike::recolor::PlayerColors::default(),
-                            acache,
-                        );
-                        if !acc_scene.encoding().draw_tags.is_empty() {
-                            out_subs.push(SplitSub {
-                                scene: acc_scene,
-                                patches: Vec::new(),
-                                key: format!(
-                                    "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
-                                    sd.slot
-                                ),
-                                is_body: false,
-                                hit_geom: Vec::new(),
-                            });
-                        }
-                    }
+        let Some(mount) = seg.mount else {
+            continue;
+        };
+        let Some(&(acache, adoc, asym, at, abundle, aexport)) = equipped.get(&mount.slot) else {
+            continue;
+        };
+        let side = mount.side.as_deref().unwrap_or("R");
+        // Pets (slot 3) ship as full-character bundles with their own
+        // static/walk/run<dir> timeline; the body mount tells us nothing
+        // about which anim to play. Rendering the pet's equipped symbol as a
+        // flat 3-frame body part FREEZES it — `acc_frame` (frame%3 cycle)
+        // barely moves, so the slab dedup key is near-constant and the
+        // geometry is reused. Resolve the pet's own anim symbol for the
+        // active char anim+direction and fold the resolved export into the
+        // key so every pet frame dedups distinctly (it walks when the player
+        // walks).
+        let (use_sym, use_export): (&swf_spike::swf_doc::Symbol, String) = if mount.slot == 3 {
+            let base_name = match at {
+                2 => "run",
+                1 => "walk",
+                _ => "static",
+            };
+            let cand = [
+                format!("{base_name}{char_dir}"),
+                format!("{base_name}{side}"),
+                format!("static{char_dir}"),
+                "staticR".to_string(),
+            ];
+            let mut found: Option<(&swf_spike::swf_doc::Symbol, String)> = None;
+            for name in cand {
+                if let Some(s) = adoc.lookup_export(&name) {
+                    found = Some((s, name));
+                    break;
                 }
             }
+            found.unwrap_or((asym, aexport.to_string()))
+        } else {
+            (asym, aexport.to_string())
+        };
+        let acc_frame =
+            swf_spike::render::pick_accessory_frame(adoc, use_sym, mount.slot, at, side, frame);
+        let mut acc_scene = vello::Scene::new();
+        // No hit-geometry capture for accessories: the body silhouette is the
+        // click target. The accessory renders at the mount's captured world
+        // transform (b_fix already applied during the walk) — no separate
+        // mount-transform table.
+        swf_spike::render::render_symbol_with_shared_cache(
+            ctx,
+            adoc,
+            use_sym,
+            &mut acc_scene,
+            mount.transform,
+            acc_frame,
+            swf_spike::recolor::PlayerColors::default(),
+            acache,
+        );
+        if !acc_scene.encoding().draw_tags.is_empty() {
+            out_subs.push(SplitSub {
+                scene: acc_scene,
+                patches: Vec::new(),
+                key: format!(
+                    "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
+                    mount.slot
+                ),
+                is_body: false,
+                hit_geom: Vec::new(),
+            });
         }
     }
     out_subs
