@@ -305,6 +305,14 @@ impl SlabCrowdState {
         self.handle_by_look.get(key).copied()
     }
 
+    /// True when a sub's geometry AND hit record are both already interned,
+    /// so the bake can skip re-encoding it (the caller reuses the handle).
+    /// `cache_sub`+`cache_hit` are always inserted together, so this is the
+    /// "don't re-encode this sub" signal the emit path checks.
+    pub(crate) fn has_sub(&self, key: &str) -> bool {
+        self.handle_by_look.contains_key(key) && self.hit_by_sub.contains_key(key)
+    }
+
     pub(crate) fn cache_sub(&mut self, key: String, look: CachedLook) {
         self.handle_by_look.insert(key, look);
     }

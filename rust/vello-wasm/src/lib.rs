@@ -758,6 +758,7 @@ fn player_color_overlay(pc: swf_spike::recolor::PlayerColors) -> [[u8; 4]; 3] {
 /// coloured look × frame. Per-actor palette is applied at compose via the
 /// slab colour overlay (`ZonePatchGpu` + `instance_color_overlays`).
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn emit_player_look_split(
     ctx: &mut swf_spike::render::WgpuCtx,
     bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
@@ -768,6 +769,16 @@ fn emit_player_look_split(
     flipped: bool,
     acc: &[LookAcc],
     base: vello::kurbo::Affine,
+    // Already-interned sub keys: a colour-AGNOSTIC body band / accessory is
+    // shared across every actor with the same gfx/accessory, so its geometry
+    // is interned ONCE and cached. The per-(look|frame) LAYOUT churns (every
+    // moving actor's frame + accessory combo is ~unique), but the SUBS don't —
+    // so on a layout miss we must NOT re-encode subs that are already
+    // interned (the caller would discard the fresh encode anyway). When this
+    // returns true for a sub key, emit a marker (no scene) and skip the
+    // expensive `render_body_band` / accessory bake. THIS is what keeps the
+    // bake cheap for moving crowds instead of relying on a layout cache.
+    is_cached: &dyn Fn(&str) -> bool,
 ) -> Vec<SplitSub> {
     use swf_spike::render::ctx::RenderMode;
     use swf_spike::render::{hit_geometry, zone_patch};
@@ -839,50 +850,66 @@ fn emit_player_look_split(
         }
     };
     for i in 0..=n {
-        let band = swf_spike::render::band_range(&slots, i);
-        let mut band_scene = vello::Scene::new();
-        zone_patch::begin_capture();
-        hit_geometry::begin_capture();
-        swf_spike::render::render_body_band(
-            ctx,
-            doc,
-            effective_sym,
-            &mut band_scene,
-            body_xform,
-            frame,
-            band,
-            RenderMode::Colour,
-            swf_spike::recolor::PlayerColors::default(),
-            body_cache,
-            flipped,
-            has_hat,
-        );
-        let patches = zone_patch::take_capture();
-        let body_hit = hit_geometry::take_capture();
-        // Empty bands (a body part not drawn this frame) contribute no
-        // geometry — skip the intern + slot, exactly as wc3 skips empty
-        // segments. Their absence is a stable property of the look.
-        if !band_scene.encoding().draw_tags.is_empty() {
-            let gpu_patches: Vec<vello::ZonePatchGpu> = patches
-                .iter()
-                .map(|p| {
-                    // PatchOffset zones are 1-indexed; the overlay array is
-                    // 0-indexed (slot*3 + 0/1/2).
-                    vello::ZonePatchGpu::pack(
-                        p.draw_data_idx as u16,
-                        p.zone.saturating_sub(1),
-                        p.alpha,
-                    )
-                })
-                .collect();
+        let band_key = format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}");
+        if is_cached(&band_key) {
+            // Already interned — emit a marker (no scene). The caller reuses
+            // the cached handle + hit geometry; we skip the expensive
+            // band walk + fill encode. A cached key was non-empty when first
+            // baked, so its slot still counts.
             out_subs.push(SplitSub {
-                scene: band_scene,
-                patches: gpu_patches,
-                key: format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"),
+                scene: vello::Scene::new(),
+                patches: Vec::new(),
+                key: band_key,
                 is_body: true,
                 acc_mount_world: None,
-                hit_geom: body_hit,
+                hit_geom: Vec::new(),
             });
+        } else {
+            let band = swf_spike::render::band_range(&slots, i);
+            let mut band_scene = vello::Scene::new();
+            zone_patch::begin_capture();
+            hit_geometry::begin_capture();
+            swf_spike::render::render_body_band(
+                ctx,
+                doc,
+                effective_sym,
+                &mut band_scene,
+                body_xform,
+                frame,
+                band,
+                RenderMode::Colour,
+                swf_spike::recolor::PlayerColors::default(),
+                body_cache,
+                flipped,
+                has_hat,
+            );
+            let patches = zone_patch::take_capture();
+            let body_hit = hit_geometry::take_capture();
+            // Empty bands (a body part not drawn this frame) contribute no
+            // geometry — skip the intern + slot, exactly as wc3 skips empty
+            // segments. Their absence is a stable property of the look.
+            if !band_scene.encoding().draw_tags.is_empty() {
+                let gpu_patches: Vec<vello::ZonePatchGpu> = patches
+                    .iter()
+                    .map(|p| {
+                        // PatchOffset zones are 1-indexed; the overlay array is
+                        // 0-indexed (slot*3 + 0/1/2).
+                        vello::ZonePatchGpu::pack(
+                            p.draw_data_idx as u16,
+                            p.zone.saturating_sub(1),
+                            p.alpha,
+                        )
+                    })
+                    .collect();
+                out_subs.push(SplitSub {
+                    scene: band_scene,
+                    patches: gpu_patches,
+                    key: band_key,
+                    is_body: true,
+                    acc_mount_world: None,
+                    hit_geom: body_hit,
+                });
+            }
         }
 
         if i < n {
@@ -939,46 +966,53 @@ fn emit_player_look_split(
                         let acc_frame = swf_spike::render::pick_accessory_frame(
                             adoc, use_sym, sd.slot, at, side, frame,
                         );
-                        let mut acc_scene = vello::Scene::new();
-                        // Bake the accessory POSE-AGNOSTIC: at `base` (scale)
-                        // only, NOT `base * m`. The per-frame mount transform
-                        // `m` (which animates as the body part swings) is
-                        // applied per-instance at compose instead, so one
-                        // interned accessory sub is shared across actors AND
-                        // animation frames. Baking `m` into the geometry froze
-                        // the accessory on the first frame's anchor (the slab
-                        // dedup key has no per-frame component) while the body
-                        // animated away — capes stopped swaying, hats/shields
-                        // drifted off their anchor.
-                        //
-                        // No hit-geometry capture for accessories: the body
-                        // silhouette is the click target.
-                        swf_spike::render::render_symbol_with_shared_cache(
-                            ctx,
-                            adoc,
-                            use_sym,
-                            &mut acc_scene,
-                            base,
-                            acc_frame,
-                            swf_spike::recolor::PlayerColors::default(),
-                            acache,
-                        );
                         // Per-instance world contribution: `base * m * base⁻¹`
                         // so that `place * (this) * (base * acc_geom)` ==
                         // `place * base * m * acc_geom` (the intended anchor).
+                        // The accessory geometry is baked POSE-AGNOSTIC (at
+                        // `base`), so `m` (the per-frame mount, which animates
+                        // as the limb swings) rides on the per-instance world,
+                        // NOT in the geometry — one interned sub serves every
+                        // actor + frame.
                         let mount_world = base * m * base.inverse();
-                        if !acc_scene.encoding().draw_tags.is_empty() {
+                        let acc_key = format!(
+                            "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
+                            sd.slot
+                        );
+                        if is_cached(&acc_key) {
+                            // Already interned — marker, skip the accessory bake.
                             out_subs.push(SplitSub {
-                                scene: acc_scene,
+                                scene: vello::Scene::new(),
                                 patches: Vec::new(),
-                                key: format!(
-                                    "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
-                                    sd.slot
-                                ),
+                                key: acc_key,
                                 is_body: false,
                                 acc_mount_world: Some(mount_world),
                                 hit_geom: Vec::new(),
                             });
+                        } else {
+                            let mut acc_scene = vello::Scene::new();
+                            // No hit-geometry capture for accessories: the body
+                            // silhouette is the click target.
+                            swf_spike::render::render_symbol_with_shared_cache(
+                                ctx,
+                                adoc,
+                                use_sym,
+                                &mut acc_scene,
+                                base,
+                                acc_frame,
+                                swf_spike::recolor::PlayerColors::default(),
+                                acache,
+                            );
+                            if !acc_scene.encoding().draw_tags.is_empty() {
+                                out_subs.push(SplitSub {
+                                    scene: acc_scene,
+                                    patches: Vec::new(),
+                                    key: acc_key,
+                                    is_body: false,
+                                    acc_mount_world: Some(mount_world),
+                                    hit_geom: Vec::new(),
+                                });
+                            }
                         }
                     }
                 }
@@ -5531,10 +5565,26 @@ impl VelloRenderer {
                     let layout = if let Some(l) = self.slab_crowd.cached_layout(&sig_key) {
                         l
                     } else {
-                        let subs = emit_player_look_split(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
-                            &p.acc, scale_aff,
-                        );
+                        // Skip re-encoding subs already interned — the layout
+                        // churns per moving actor, but the colour-agnostic subs
+                        // don't, so the bake only encodes genuinely-new geometry.
+                        // Scoped so the immutable `slab_crowd` borrow ends before
+                        // the `cache_sub`/`cache_layout` writes below.
+                        let subs = {
+                            let already = &self.slab_crowd;
+                            emit_player_look_split(
+                                &mut ctx,
+                                bundles,
+                                caches,
+                                &p.bundle,
+                                &p.export,
+                                tf,
+                                p.flipped,
+                                &p.acc,
+                                scale_aff,
+                                &|k| already.has_sub(k),
+                            )
+                        };
                         let mut layout_vec = Vec::with_capacity(subs.len());
                         for sub in subs {
                             let (look, hit) = if let (Some(c), Some(h)) = (
