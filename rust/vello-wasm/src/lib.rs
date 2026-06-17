@@ -5537,10 +5537,12 @@ impl VelloRenderer {
                     });
                 }
             }
+            self.slab_crowd.begin_tick(&mut self.renderer);
             let (slab_scene, used, overflow) = slab_crowd::build_crowd_slab_scene(
                 &mut self.renderer,
                 &mut self.slab_crowd,
                 &emits,
+                0,
             );
             let build_ms = t_build.elapsed().as_secs_f64() * 1000.0;
             let render_result = slab_crowd::render_crowd_slab(
@@ -5551,6 +5553,7 @@ impl VelloRenderer {
                 &slab_scene,
                 &params,
                 &crowd.view,
+                0,
             );
             // Crowd working set = the content-deduped interned sub count + GPU
             // bytes used in the SubLibrary (tracked so growth toward the cap is
