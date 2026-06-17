@@ -38,7 +38,6 @@ import {
   getVelloRenderer,
 } from "@/game/render/vello-loader";
 import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
-import { playerZIndex } from "@/game/constants/z-index";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("CrowdRenderer");
@@ -76,19 +75,6 @@ interface CrowdVelloApi {
     width: number;
     height: number;
   } | null;
-  /** Per-Y-band texture handles for z-interleaving with map object2 tiles.
-   *  One entry per band (back-to-front); `frontmost` is the player index (in
-   *  `order`) of the band's frontmost actor, or -1 for an empty band.
-   *  Optional: absent on older wasm builds (falls back to single sprite). */
-  crowdBandHandles?(): Array<{
-    texture: GPUTexture;
-    width: number;
-    height: number;
-    frontmost: number;
-  }> | null;
-  /** Cheap per-tick refresh of each band's frontmost actor index (no texture
-   *  wrappers). Drives the band sprites' zIndex as actors move. */
-  crowdBandFrontmost?(): Int32Array;
   realCrowdFree(): void;
   tickDeferredDestroys?(a: number, n: number): void;
   /** Tier-7 slab path toggle (wc3 port). Optional: absent on older wasm builds. */
@@ -140,15 +126,6 @@ export class CrowdRenderer {
   private sprite: Sprite | null = null;
   private source: ExternalSource | null = null;
   private texture: Texture | null = null;
-
-  /** Per-Y-band sprites (parallel arrays). When the wasm exposes
-   *  `crowdBandHandles`, the crowd composites as K band sprites at
-   *  per-band zIndexes (interleaving with object2 tiles) instead of the
-   *  single `sprite` above. Empty if the band path isn't active. */
-  private bandSprites: Sprite[] = [];
-  private bandSources: ExternalSource[] = [];
-  private bandTextures: Texture[] = [];
-  private bandActive = false;
 
   /** Eligible player ids in the exact order handed to `realCrowdSetup`
    *  (sorted by id, frozen until the next roster rebuild). All the flat
@@ -226,13 +203,10 @@ export class CrowdRenderer {
    * hit player id (mapped through `order`) or null on miss.
    */
   hitTest(globalX: number, globalY: number): number | null {
-    // Any band sprite shares the crowd-texture local space (all full-size,
-    // same position/scale), so either path's sprite maps screen→texture px.
-    const ref = this.sprite ?? this.bandSprites[0] ?? null;
-    if (!this.active || !ref) return null;
+    if (!this.active || !this.sprite) return null;
     const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
     if (!r?.crowdHitTest) return null;
-    const local = ref.toLocal({ x: globalX, y: globalY });
+    const local = this.sprite.toLocal({ x: globalX, y: globalY });
     let idx: number;
     try {
       idx = r.crowdHitTest(local.x, local.y);
@@ -312,7 +286,6 @@ export class CrowdRenderer {
   destroy(): void {
     const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
     r?.realCrowdFree();
-    this.teardownBandSprites();
     this.sprite?.destroy();
     this.source?.destroy();
     this.sprite = null;
@@ -457,81 +430,20 @@ export class CrowdRenderer {
     );
   }
 
-  private teardownBandSprites(): void {
-    for (const s of this.bandSprites) s.destroy();
-    for (const s of this.bandSources) s.destroy();
-    this.bandSprites = [];
-    this.bandSources = [];
-    this.bandTextures = [];
-    this.bandActive = false;
-  }
-
-  private teardownSingleSprite(): void {
-    this.sprite?.destroy();
-    this.source?.destroy();
-    this.sprite = null;
-    this.source = null;
-    this.texture = null;
-  }
-
   private adoptTexture(r: CrowdVelloApi): void {
     const pixiRenderer = getPixiRenderer();
     if (!pixiRenderer || !this.setup) return;
-
-    // Texture-local (offX, offY) == world (0,0): a player at world wx lands
-    // at texture-local wx*resolution + offX, shown at (-offX + that)/
-    // resolution = wx. Same position/scale for every band (all full-size).
-    const inv = 1 / this.resolution;
-    const px = -this.setup.offX * inv;
-    const py = -this.setup.offY * inv;
-
-    // Per-Y-band path: one sprite per band, each at a zIndex (set per frame
-    // from the band's frontmost actor's cellId) that interleaves with the
-    // map's object2 tiles. Falls back to the single sprite on older wasm.
-    const bands = r.crowdBandHandles?.() ?? null;
-    if (bands && bands.length > 0) {
-      this.teardownBandSprites();
-      this.teardownSingleSprite();
-      for (let b = 0; b < bands.length; b++) {
-        const h = bands[b];
-        const source = new ExternalSource({
-          resource: h.texture,
-          renderer: pixiRenderer,
-          width: h.width,
-          height: h.height,
-          label: `crowd-band-${b}`,
-        });
-        source.alphaMode = "no-premultiply-alpha";
-        source.scaleMode = "linear";
-        source.format = "rgba8unorm";
-        source.autoGarbageCollect = false;
-        const texture = new Texture({ source });
-        const sprite = new Sprite(texture);
-        sprite.label = `crowd-band-${b}`;
-        sprite.scale.set(inv);
-        sprite.position.set(px, py);
-        sprite.zIndex = 0;
-        // Hidden until the first render sets a real frontmost/zIndex.
-        sprite.visible = false;
-        this.parent.addChild(sprite);
-        this.bandSources.push(source);
-        this.bandTextures.push(texture);
-        this.bandSprites.push(sprite);
-      }
-      this.bandActive = true;
-      this.active = true;
-      return;
-    }
-
-    // Single-sprite fallback (older wasm without per-band handles).
-    this.bandActive = false;
     const handle = r.crowdTextureHandle();
     if (!handle) {
       log.warn("crowdTextureHandle returned null");
       return;
     }
+
+    // The underlying wgpu texture was just freed + recreated by setup,
+    // so the previous adoption is stale.
     this.source?.destroy();
     this.texture?.destroy();
+
     const source = new ExternalSource({
       resource: handle.texture,
       renderer: pixiRenderer,
@@ -545,6 +457,7 @@ export class CrowdRenderer {
     source.autoGarbageCollect = false;
     this.source = source;
     this.texture = new Texture({ source });
+
     if (!this.sprite) {
       this.sprite = new Sprite(this.texture);
       this.sprite.label = "crowd-sprite";
@@ -553,8 +466,17 @@ export class CrowdRenderer {
     } else {
       this.sprite.texture = this.texture;
     }
+    // Texture-local (offX, offY) == world (0,0): a player at world wx lands
+    // at texture-local wx+offX, shown at -offX + (wx+offX) = wx.
+    // Texture is at resolution density; downscale by 1/resolution so it
+    // maps to world units (the container zoom then applies once), and
+    // offset by the (also resolution-density) content origin converted to
+    // world units. A player at world wx lands at texture-local
+    // wx*resolution + offX, shown at (-offX + wx*resolution + offX)/
+    // resolution = wx.
+    const inv = 1 / this.resolution;
     this.sprite.scale.set(inv);
-    this.sprite.position.set(px, py);
+    this.sprite.position.set(-this.setup.offX * inv, -this.setup.offY * inv);
     this.sprite.visible = true;
     this.active = true;
   }
@@ -563,8 +485,7 @@ export class CrowdRenderer {
     r: CrowdVelloApi,
     eligible: CrowdPlayerSnapshot[],
   ): void {
-    if (!this.setup) return;
-    if (!this.bandActive && !this.sprite) return;
+    if (!this.setup || !this.sprite) return;
     if (this.pendingSlabMode !== null) {
       r.realCrowdSetSlab?.(this.pendingSlabMode);
       log.info(`slab mode ${this.pendingSlabMode ? "ON" : "OFF"} applied`);
@@ -620,33 +541,14 @@ export class CrowdRenderer {
     this.lastStats = r.realCrowdRenderBatched(BATCH_CAP, 0);
     this.lastRenderMs = performance.now() - t0;
 
-    // The wgpu target(s) were re-rendered in place: invalidate the Pixi
-    // source(s). In the band path also refresh each band sprite's zIndex
-    // from its frontmost actor's cellId so it interleaves with object2 tiles.
-    if (this.bandActive) {
-      const fm = r.crowdBandFrontmost?.() ?? null;
-      for (let b = 0; b < this.bandSprites.length; b++) {
-        this.bandSources[b].update();
-        this.bandTextures[b].update();
-        const front = fm && b < fm.length ? fm[b] : -1;
-        if (front >= 0 && front < this.order.length) {
-          const sp = byId.get(this.order[front]);
-          this.bandSprites[b].visible = true;
-          this.bandSprites[b].zIndex = sp ? playerZIndex(sp.cellId) : 0;
-        } else {
-          this.bandSprites[b].visible = false;
-        }
-      }
-    } else {
-      this.source?.update();
-      this.texture?.update();
-    }
+    // The wgpu target was re-rendered in place: invalidate the Pixi source.
+    this.source?.update();
+    this.texture?.update();
     r.tickDeferredDestroys?.(2, 8192);
   }
 
   private hideSprite(): void {
     if (this.sprite) this.sprite.visible = false;
-    for (const s of this.bandSprites) s.visible = false;
     this.active = false;
   }
 }

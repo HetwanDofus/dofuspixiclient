@@ -1193,7 +1193,6 @@ export class PlayerRenderer {
           c3: 0,
           x: 0,
           y: 0,
-          cellId: 0,
           acc: [],
         };
         this.crowdSnapObjs.set(id, row);
@@ -1214,7 +1213,6 @@ export class PlayerRenderer {
       row.c3 = cached.c3;
       row.x = (p.container as { x: number }).x;
       row.y = (p.container as { y: number }).y;
-      row.cellId = p.cellId;
 
       // Reuse the existing `acc` array + its entries in place — only the
       // count change resizes; entry objects are mutated, not reallocated.

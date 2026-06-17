@@ -219,13 +219,6 @@ struct AnimPlayer {
 ///   - `retain = true`: RETAINED — encode each unique `(sig, frame)` look
 ///     ONCE into `look_cache`, then per tick just `scene.append` the cached
 ///     encoding at each player's transform (the "Flash display list" model).
-/// Number of Y-bands the crowd is split into for z-interleaving with the
-/// map's object2 tiles. Each band is a separate full-size render target +
-/// Pixi sprite at its own zIndex. More bands = finer occlusion granularity
-/// (less within-band over-occlusion) at the cost of K render targets + K
-/// passes; 8 is a balance for the 300-500 actor target.
-const CROWD_BAND_COUNT: usize = 8;
-
 struct RealAnimCrowd {
     players: Vec<AnimPlayer>,
     off_x: f64,
@@ -251,23 +244,6 @@ struct RealAnimCrowd {
     crowd_frame: u64,
     target: wgpu::Texture,
     view: wgpu::TextureView,
-    /// Per-Y-BAND slab targets. The crowd is rendered in K bands (grouped by
-    /// feet-Y) to these K full-size targets so each band can be composited as
-    /// its own Pixi sprite at a zIndex that interleaves with the map's
-    /// object2 tiles — a single sprite at one zIndex can only sit wholly in
-    /// front of or behind the foreground tiles. Allocated in `realCrowdSetup`
-    /// (same descriptor as `target`); `band_views[k]` is the k-th band's
-    /// render target. `target`/`view` above stay for the batched fallback.
-    band_targets: Vec<wgpu::Texture>,
-    band_views: Vec<wgpu::TextureView>,
-    /// Number of bands actually rendered last tick (≤ `band_targets.len()`;
-    /// fewer than K when there are fewer actors than bands).
-    band_active_count: usize,
-    /// Per-band frontmost (max-Y) actor index from the last tick. The JS maps
-    /// `band_frontmost[b]` → that actor's cellId → the band sprite's zIndex
-    /// (`playerZIndex`), so the band slots between the right object2 tiles.
-    /// `-1` for an empty band.
-    band_frontmost: Vec<i32>,
     /// Batched-render scratch (created on demand by `realCrowdRenderBatched`
     /// when actor count exceeds the single-scene ceiling). One texture per
     /// batch of `batch_size` actors + one composite-target view. Reused
@@ -5071,35 +5047,6 @@ impl VelloRenderer {
         });
         let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Per-Y-band slab targets (see `RealAnimCrowd::band_targets`): K
-        // full-size targets, one per Y-band, so each band composites as its
-        // own Pixi sprite at an interleaving zIndex.
-        let mut band_targets: Vec<wgpu::Texture> = Vec::with_capacity(CROWD_BAND_COUNT);
-        let mut band_views: Vec<wgpu::TextureView> = Vec::with_capacity(CROWD_BAND_COUNT);
-        for b in 0..CROWD_BAND_COUNT {
-            let t = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("real-anim-crowd-band"),
-                size: wgpu::Extent3d {
-                    width: tw,
-                    height: th,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::STORAGE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            });
-            let v = t.create_view(&wgpu::TextureViewDescriptor::default());
-            band_targets.push(t);
-            band_views.push(v);
-            let _ = b;
-        }
-
         let count = players_vec.len() as u32;
         self.real_anim_crowd = Some(RealAnimCrowd {
             players: players_vec,
@@ -5116,10 +5063,6 @@ impl VelloRenderer {
             crowd_frame: 0,
             target,
             view,
-            band_targets,
-            band_views,
-            band_active_count: 0,
-            band_frontmost: Vec::new(),
             batch_size: 0,
             batch_targets: Vec::new(),
             batch_views: Vec::new(),
@@ -5477,16 +5420,7 @@ impl VelloRenderer {
             // Memory is tracked in the per-second `[crowd]` log; if it ever
             // approaches the cap that log will show it, and the correct
             // response is a per-MapEpoch reset at map-change, never mid-run.
-            let n_sorted = sorted_idx.len();
-            // Split the Y-sorted actors into K contiguous bands (back-to-front).
-            // Each band's emits render to their own target so the band can
-            // composite at a zIndex that interleaves with the map's object2
-            // tiles. `band_frontmost[b]` = the player index of band b's
-            // frontmost (max-Y) actor — the JS maps it to the band's zIndex.
-            let band_count = CROWD_BAND_COUNT.min(n_sorted.max(1));
-            let mut emits_by_band: Vec<Vec<slab_crowd::SlabEmit>> =
-                (0..band_count).map(|_| Vec::new()).collect();
-            let mut band_frontmost: Vec<i32> = vec![-1; band_count];
+            let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
             let mut interned_this_frame: u32 = 0;
             let mut layouts_built_this_frame: u32 = 0;
             {
@@ -5510,13 +5444,8 @@ impl VelloRenderer {
                 // Rebuild the per-actor hit records fresh each crowd tick so
                 // hit_test sees the current placements in paint order.
                 self.slab_crowd.hit_actors.clear();
-                for (pos, &idx) in sorted_idx.iter().enumerate() {
+                for &idx in &sorted_idx {
                     let p = &players[idx];
-                    // Band assignment by Y-rank (sorted_idx is ascending by Y).
-                    // sorted_idx is ascending, so the LAST actor written to a
-                    // band is its frontmost (max-Y) — used for the band zIndex.
-                    let band = (pos * band_count) / n_sorted.max(1);
-                    band_frontmost[band] = idx as i32;
                     let fc = p.frame_count.max(1);
                     let tf = if explicit_frames {
                         p.frame.min(fc - 1)
@@ -5589,7 +5518,7 @@ impl VelloRenderer {
                         arc
                     };
                     for ls in layout.iter() {
-                        emits_by_band[band].push(slab_crowd::SlabEmit {
+                        emits.push(slab_crowd::SlabEmit {
                             look: ls.look,
                             // Body bands compose at the actor's placement; an
                             // accessory composes at `place * mount` so it
@@ -5609,33 +5538,23 @@ impl VelloRenderer {
                 }
             }
             self.slab_crowd.begin_tick(&mut self.renderer);
-            let mut used = 0u32;
-            let mut overflow = 0u32;
-            let mut render_result: Result<(), vello::Error> = Ok(());
-            for band in 0..band_count {
-                let (slab_scene, u, o) = slab_crowd::build_crowd_slab_scene(
-                    &mut self.renderer,
-                    &mut self.slab_crowd,
-                    &emits_by_band[band],
-                    band,
-                );
-                used = used.saturating_add(u);
-                overflow = overflow.saturating_add(o);
-                let r = slab_crowd::render_crowd_slab(
-                    &mut self.renderer,
-                    &mut self.slab_crowd,
-                    &self.device,
-                    &self.queue,
-                    &slab_scene,
-                    &params,
-                    &crowd.band_views[band],
-                    band,
-                );
-                if r.is_err() {
-                    render_result = r;
-                }
-            }
+            let (slab_scene, used, overflow) = slab_crowd::build_crowd_slab_scene(
+                &mut self.renderer,
+                &mut self.slab_crowd,
+                &emits,
+                0,
+            );
             let build_ms = t_build.elapsed().as_secs_f64() * 1000.0;
+            let render_result = slab_crowd::render_crowd_slab(
+                &mut self.renderer,
+                &mut self.slab_crowd,
+                &self.device,
+                &self.queue,
+                &slab_scene,
+                &params,
+                &crowd.view,
+                0,
+            );
             // Crowd working set = the content-deduped interned sub count + GPU
             // bytes used in the SubLibrary (tracked so growth toward the cap is
             // visible in the log rather than silently overflowing → blanks).
@@ -5659,8 +5578,6 @@ impl VelloRenderer {
                 unique_subs,
                 n_players,
             );
-            crowd.band_active_count = band_count;
-            crowd.band_frontmost = band_frontmost;
             self.real_anim_crowd = Some(crowd);
             let s = self.slab_crowd.last;
             let result = js_sys::Object::new();
@@ -6991,50 +6908,6 @@ impl VelloRenderer {
         result.into()
     }
 
-    /// Per-Y-band texture handles for the z-interleaved compositing path.
-    /// Returns an array (back-to-front) of `{texture, width, height,
-    /// frontmost}` — one per rendered band. `frontmost` is the player index
-    /// (in `realCrowdSetup` order) of the band's frontmost actor; the JS maps
-    /// it to the band sprite's zIndex (`playerZIndex(cellId)`) so the band
-    /// slots between the right object2 tiles. Empty until the first slab
-    /// render. Falls back to `crowdTextureHandle` if a band path isn't wanted.
-    #[wasm_bindgen(js_name = "crowdBandHandles")]
-    pub fn crowd_band_handles(&self) -> JsValue {
-        let Some(crowd) = self.real_anim_crowd.as_ref() else {
-            return JsValue::NULL;
-        };
-        let arr = js_sys::Array::new();
-        // Return ALL band textures (created at setup); `frontmost == -1`
-        // marks a band with no actors this tick so the JS hides that sprite.
-        let _ = crowd.band_active_count;
-        let k = crowd.band_targets.len();
-        for b in 0..k {
-            let o = js_sys::Object::new();
-            let _ = js_sys::Reflect::set(
-                &o,
-                &"texture".into(),
-                &extract_gpu_texture(&crowd.band_targets[b]),
-            );
-            let _ = js_sys::Reflect::set(&o, &"width".into(), &JsValue::from(crowd.tw));
-            let _ = js_sys::Reflect::set(&o, &"height".into(), &JsValue::from(crowd.th));
-            let fm = crowd.band_frontmost.get(b).copied().unwrap_or(-1);
-            let _ = js_sys::Reflect::set(&o, &"frontmost".into(), &JsValue::from(fm));
-            arr.push(&o);
-        }
-        arr.into()
-    }
-
-    /// Per-band frontmost actor index (in `realCrowdSetup` order), one per
-    /// band, `-1` for an empty band. The JS calls this each tick (cheap, no
-    /// texture wrappers) to refresh each band sprite's zIndex as actors move.
-    #[wasm_bindgen(js_name = "crowdBandFrontmost")]
-    pub fn crowd_band_frontmost(&self) -> Vec<i32> {
-        self.real_anim_crowd
-            .as_ref()
-            .map(|c| c.band_frontmost.clone())
-            .unwrap_or_default()
-    }
-
     /// LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same
     /// order as `realCrowdSetup`) WITHOUT re-setup. Re-`setup` clears the look cache, so
     /// per-frame movement must update positions only; the next `realCrowdRenderBatched`
@@ -7201,9 +7074,6 @@ impl VelloRenderer {
             // Explicitly destroy the crowd target + batch textures (patched-wgpu Drop is
             // a no-op, so dropping alone would leak them).
             crowd.target.destroy();
-            for t in &crowd.band_targets {
-                t.destroy();
-            }
             for t in &crowd.batch_targets {
                 t.destroy();
             }
