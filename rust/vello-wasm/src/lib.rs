@@ -8,6 +8,7 @@ use wasm_bindgen::prelude::*;
 
 mod bake_telemetry;
 mod bitmap_bridge;
+mod crowd_blob;
 mod scene_cache;
 mod slab_crowd;
 
@@ -759,6 +760,14 @@ fn player_color_overlay(pc: swf_spike::recolor::PlayerColors) -> [[u8; 4]; 3] {
 /// slab colour overlay (`ZonePatchGpu` + `instance_color_overlays`).
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
+/// DIAG: round-trip self-test for the off-thread crowd-bake blob
+/// (de)serialization, run on the real wasm target (the crate can't build for
+/// host). Returns true iff every field survives serialize → deserialize.
+#[wasm_bindgen(js_name = "crowdBlobSelftest")]
+pub fn crowd_blob_selftest() -> bool {
+    crowd_blob::selftest()
+}
+
 fn emit_player_look_split(
     ctx: &mut swf_spike::render::WgpuCtx,
     bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
@@ -1109,6 +1118,17 @@ pub struct VelloRenderer {
     crowd_composite_pipeline: Option<bitmap_bridge::MultiCompositePipeline>,
     /// Tier-7 slab crowd state (interned-look render path; see `slab_crowd`).
     slab_crowd: slab_crowd::SlabCrowdState,
+    /// OFF-THREAD BAKE: content-hash → shared `Blob` for bitmap images
+    /// reconstructed from worker blobs. The image atlas dedups by `Blob::id()`,
+    /// but each worker blob would otherwise rebuild a fresh `Blob` (new id) per
+    /// sub → every one of an actor's frames re-uploads the same body bitmap.
+    /// Interning the reconstructed `Blob` by content here gives identical
+    /// bitmaps one shared id → one atlas upload, not thousands.
+    crowd_image_dedup: std::collections::HashMap<u64, vello::peniko::Blob<u8>>,
+    /// DIAG: accumulated per-phase `internCrowdLook` time (ms) — deserialize,
+    /// intern loop, layout cache — to attribute the spawn-burst cost. Read +
+    /// reset via `crowdInternProf`.
+    cpf: (f64, f64, f64, u32),
     /// Routes `realCrowdRenderBatched` through the slab path when set via
     /// `realCrowdSetSlab`. The batch/composite path stays the default.
     slab_mode: bool,
@@ -1626,6 +1646,8 @@ impl VelloRenderer {
             textures: HashMap::new(),
             next_texture_id: 0,
             queued_frames: Vec::new(),
+            crowd_image_dedup: std::collections::HashMap::new(),
+            cpf: (0.0, 0.0, 0.0, 0),
             swf_bundles: HashMap::new(),
             real_anim_crowd: None,
             crowd_composite_pipeline: None,
@@ -4918,6 +4940,9 @@ impl VelloRenderer {
         // ramp/atlas caches are append-only within a crowd lifetime (wc3 resets
         // these per MapEpoch for the same reason).
         self.slab_crowd.reset(&mut self.renderer);
+        // The image atlas was just reset; drop the worker-blob image dedup so it
+        // re-pins fresh (its `Blob` ids must match the new atlas generation).
+        self.crowd_image_dedup.clear();
         let scale = f64::from(resolution) / 20.0;
         let pos_scale = f64::from(resolution);
         let get_f64 = |o: &JsValue, k: &str| -> f64 {
@@ -5176,6 +5201,453 @@ impl VelloRenderer {
         self.slab_crowd.hit_test(x, y)
     }
 
+    /// DIAG: bake a look and report each sub's patch-kind breakdown, so we know
+    /// what the off-thread blob path must carry (ramp gradients vs image
+    /// bitmaps vs glyphs). Returns an array of
+    /// `{key, isBody, ramp, image, glyph, colorStops}`.
+    #[wasm_bindgen(js_name = "crowdLookPatchDiag")]
+    pub fn crowd_look_patch_diag(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        frame: u32,
+        flipped: bool,
+        scale: f64,
+    ) -> JsValue {
+        self.swf_render_caches.entry(bundle.to_string()).or_default();
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+        let subs = emit_player_look_split(
+            &mut ctx,
+            &self.swf_bundles,
+            &self.swf_render_caches,
+            bundle,
+            export,
+            frame as u16,
+            flipped,
+            &[],
+            scale_aff,
+            &|_| false,
+        );
+        let arr = js_sys::Array::new();
+        for s in &subs {
+            let e = s.scene.encoding();
+            let mut ramp = 0u32;
+            let mut image = 0u32;
+            let mut glyph = 0u32;
+            for p in &e.resources.patches {
+                match p {
+                    vello_encoding::Patch::Ramp { .. } => ramp += 1,
+                    vello_encoding::Patch::Image { .. } => image += 1,
+                    vello_encoding::Patch::GlyphRun { .. } => glyph += 1,
+                }
+            }
+            let o = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&o, &"key".into(), &JsValue::from_str(&s.key));
+            let _ = js_sys::Reflect::set(&o, &"isBody".into(), &JsValue::from_bool(s.is_body));
+            let _ = js_sys::Reflect::set(&o, &"ramp".into(), &JsValue::from_f64(f64::from(ramp)));
+            let _ = js_sys::Reflect::set(&o, &"image".into(), &JsValue::from_f64(f64::from(image)));
+            let _ = js_sys::Reflect::set(&o, &"glyph".into(), &JsValue::from_f64(f64::from(glyph)));
+            let _ = js_sys::Reflect::set(
+                &o,
+                &"colorStops".into(),
+                &JsValue::from_f64(e.resources.color_stops.len() as f64),
+            );
+            arr.push(&o);
+        }
+        arr.into()
+    }
+
+    /// OFF-THREAD BAKE — worker side. Walk + vello-encode one look's subs
+    /// (body bands + accessories) WITHOUT interning to the GPU, returning a
+    /// flat blob the main thread reconstructs and interns. `acc` matches the
+    /// per-player `acc` shape from `realCrowdSetup`; `scale` is
+    /// `resolution / 20` and MUST equal the main crowd's bake scale (the
+    /// interned geometry is shared across threads only if baked identically).
+    /// Returns the blob (Uint8Array), or the fallback marker when the look
+    /// has patch-bearing (gradient/image) subs that must bake on the main
+    /// thread.
+    #[wasm_bindgen(js_name = "bakeCrowdLook")]
+    pub fn bake_crowd_look(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        frame: u32,
+        flipped: bool,
+        acc: JsValue,
+        scale: f64,
+    ) -> Vec<u8> {
+        let get_str = |o: &JsValue, k: &str| -> String {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        };
+        let get_f64 = |o: &JsValue, k: &str| -> f64 {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+        };
+        let mut acc_vec: Vec<LookAcc> = Vec::new();
+        if acc.is_truthy() {
+            let aarr = js_sys::Array::from(&acc);
+            for j in 0..aarr.length() {
+                let a = aarr.get(j);
+                let ab = get_str(&a, "bundle");
+                let ae = get_str(&a, "export");
+                if ab.is_empty() || ae.is_empty() {
+                    continue;
+                }
+                acc_vec.push(LookAcc {
+                    bundle: ab,
+                    export: ae,
+                    slot: get_f64(&a, "slot") as u8,
+                    anim_type: get_f64(&a, "animType") as u8,
+                });
+            }
+        }
+        // Per-bundle render caches (match real_crowd_setup) + filter pipelines.
+        self.swf_render_caches.entry(bundle.to_string()).or_default();
+        for a in &acc_vec {
+            self.swf_render_caches.entry(a.bundle.clone()).or_default();
+        }
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+        let bundles = &self.swf_bundles;
+        let caches = &self.swf_render_caches;
+        // `|_| false`: the worker shares no cache with the main thread, so it
+        // bakes every sub fully (no skip markers). The main thread dedups on
+        // intern.
+        let subs = emit_player_look_split(
+            &mut ctx,
+            bundles,
+            caches,
+            bundle,
+            export,
+            frame as u16,
+            flipped,
+            &acc_vec,
+            scale_aff,
+            &|_| false,
+        );
+        let parts: Vec<crowd_blob::SubParts> = subs
+            .iter()
+            .map(|s| crowd_blob::SubParts {
+                key: &s.key,
+                is_body: s.is_body,
+                acc_mount_world: s.acc_mount_world,
+                enc: s.scene.encoding(),
+                zone_patches: &s.patches,
+                hit_geom: &s.hit_geom,
+            })
+            .collect();
+        crowd_blob::serialize_look(&parts)
+    }
+
+    /// OFF-THREAD BAKE — main side. Reconstruct + GPU-intern a look baked by a
+    /// worker (`bakeCrowdLook` output), then cache its ordered layout under
+    /// `layoutSig`/`sigKey` so the next crowd tick renders it from cache. The
+    /// only GPU work is the per-sub `intern_sub_transient` upload — no CPU
+    /// walk. Returns the count of newly-interned subs, `-1` if the blob
+    /// signalled a fallback (caller bakes this look synchronously), or `-2` on
+    /// a malformed blob.
+    #[wasm_bindgen(js_name = "internCrowdLook")]
+    pub fn intern_crowd_look(&mut self, blob: &[u8], layout_sig: &str, sig_key: &str) -> i32 {
+        // Skip the heavy block (geometry + bitmap image) of any sub we already
+        // have — the body bitmap rides in every frame's blob, and the most
+        // common case here is a NEW layout whose SUBS are already interned.
+        let t0 = perf_now();
+        let parsed = {
+            let already = &self.slab_crowd;
+            let dedup = &mut self.crowd_image_dedup;
+            match crowd_blob::deserialize_look(blob, &|k| already.has_sub(k), dedup) {
+                Some(crowd_blob::LookBlob::Subs(s)) => s,
+                Some(crowd_blob::LookBlob::Fallback) => return -1,
+                None => return -2,
+            }
+        };
+        let t1 = perf_now();
+        let mut layout_vec = Vec::with_capacity(parsed.len());
+        let mut interned = 0i32;
+        for sub in parsed {
+            let (look, is_body, acc_mount_world, hit) = match sub {
+                crowd_blob::DeSub::Cached {
+                    key,
+                    is_body,
+                    acc_mount_world,
+                } => {
+                    // `has_sub` was true at parse time → both caches present.
+                    match (
+                        self.slab_crowd.cached_sub(&key),
+                        self.slab_crowd.cached_hit(&key),
+                    ) {
+                        (Some(c), Some(h)) => (c, is_body, acc_mount_world, h),
+                        // Lost between parse and now (no eviction today, but be
+                        // safe): drop the slot rather than render garbage.
+                        _ => continue,
+                    }
+                }
+                crowd_blob::DeSub::Full(s) => {
+                    let (c, h) = if let (Some(c), Some(h)) = (
+                        self.slab_crowd.cached_sub(&s.key),
+                        self.slab_crowd.cached_hit(&s.key),
+                    ) {
+                        (c, h)
+                    } else {
+                        // Worker PRE-PACKED the geometry: intern the bytes
+                        // directly (resolve patches + memcpy), no Encoding
+                        // rebuild / clone / re-pack on the main thread.
+                        let handle = self.renderer.intern_packed_sub(
+                            &self.queue,
+                            &s.packed,
+                            s.template,
+                            &s.patches,
+                            &s.zone_patches,
+                        );
+                        let c = slab_crowd::CachedLook {
+                            handle,
+                            n_paths: s.n_paths,
+                            n_path_segments: s.n_path_segments,
+                            n_clips: s.n_clips,
+                        };
+                        let h = std::sync::Arc::new(s.hit_geom);
+                        self.slab_crowd.cache_sub(s.key.clone(), c);
+                        self.slab_crowd.cache_hit(s.key.clone(), h.clone());
+                        interned += 1;
+                        (c, h)
+                    };
+                    (c, s.is_body, s.acc_mount_world, h)
+                }
+            };
+            layout_vec.push(slab_crowd::LayoutSlot {
+                look,
+                is_body,
+                acc_mount_world,
+                hit,
+            });
+        }
+        let t2 = perf_now();
+        let arc = std::sync::Arc::new(layout_vec);
+        self.slab_crowd
+            .cache_layout(layout_sig, sig_key.to_string(), arc);
+        let t3 = perf_now();
+        self.cpf.0 += t1 - t0;
+        self.cpf.1 += t2 - t1;
+        self.cpf.2 += t3 - t2;
+        self.cpf.3 += 1;
+        // Clear the in-flight guard so the emit loop stops re-queueing it.
+        self.slab_crowd.mark_baked(sig_key);
+        interned
+    }
+
+    /// OFF-THREAD BAKE — enable/disable. When ON, the crowd emit loop never
+    /// bakes synchronously on a cache miss; it queues the look for the worker
+    /// pool (drained by `crowdTakePendingBakes`) and renders the last-good
+    /// frame meanwhile. The JS driver MUST be draining + interning/falling
+    /// back, or queued looks never render — so this stays OFF until the
+    /// worker pool is up.
+    #[wasm_bindgen(js_name = "setCrowdOffThreadBake")]
+    pub fn set_crowd_off_thread_bake(&mut self, on: bool) {
+        self.slab_crowd.set_off_thread_bake(on);
+    }
+
+    /// DIAG: read + reset the accumulated `internCrowdLook` phase timings.
+    #[wasm_bindgen(js_name = "crowdInternProf")]
+    pub fn crowd_intern_prof(&mut self) -> JsValue {
+        let o = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&o, &JsValue::from_str(k), &JsValue::from_f64(v));
+        };
+        set("deserMs", self.cpf.0);
+        set("loopMs", self.cpf.1);
+        set("layoutMs", self.cpf.2);
+        set("calls", f64::from(self.cpf.3));
+        self.cpf = (0.0, 0.0, 0.0, 0);
+        o.into()
+    }
+
+    /// OFF-THREAD BAKE — drain the looks the emit loop couldn't render from
+    /// cache since the last call. Returns an array of
+    /// `{bundle, export, frame, flipped, acc:[{bundle,export,slot,animType}],
+    /// layoutSig, sigKey}`; the JS driver dispatches each to the worker pool
+    /// and feeds the result back via `internCrowdLook` (or `crowdBakeLookSync`
+    /// on fallback).
+    #[wasm_bindgen(js_name = "crowdTakePendingBakes")]
+    pub fn crowd_take_pending_bakes(&mut self) -> JsValue {
+        let pending = self.slab_crowd.take_pending_bakes();
+        let arr = js_sys::Array::new();
+        for b in pending {
+            let o = js_sys::Object::new();
+            let set = |k: &str, v: &JsValue| {
+                let _ = js_sys::Reflect::set(&o, &JsValue::from_str(k), v);
+            };
+            set("bundle", &JsValue::from_str(&b.bundle));
+            set("export", &JsValue::from_str(&b.export));
+            set("frame", &JsValue::from_f64(f64::from(b.frame)));
+            set("flipped", &JsValue::from_bool(b.flipped));
+            set("layoutSig", &JsValue::from_str(&b.layout_sig));
+            set("sigKey", &JsValue::from_str(&b.sig_key));
+            let acc_arr = js_sys::Array::new();
+            for a in &b.acc {
+                let ao = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(&ao, &"bundle".into(), &JsValue::from_str(&a.bundle));
+                let _ = js_sys::Reflect::set(&ao, &"export".into(), &JsValue::from_str(&a.export));
+                let _ = js_sys::Reflect::set(&ao, &"slot".into(), &JsValue::from_f64(f64::from(a.slot)));
+                let _ = js_sys::Reflect::set(
+                    &ao,
+                    &"animType".into(),
+                    &JsValue::from_f64(f64::from(a.anim_type)),
+                );
+                acc_arr.push(&ao);
+            }
+            set("acc", &acc_arr);
+            arr.push(&o);
+        }
+        arr.into()
+    }
+
+    /// OFF-THREAD BAKE — synchronous fallback for one look (worker pool
+    /// unavailable, or a look with patch-bearing/gradient subs the blob path
+    /// can't carry). Bakes + interns inline on the main thread — the proven
+    /// default path, just callable per-look from JS — then caches the layout
+    /// under `layoutSig`/`sigKey` and clears the in-flight guard. Returns subs
+    /// interned.
+    #[wasm_bindgen(js_name = "crowdBakeLookSync")]
+    pub fn crowd_bake_look_sync(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        frame: u32,
+        flipped: bool,
+        acc: JsValue,
+        layout_sig: &str,
+        sig_key: &str,
+        scale: f64,
+    ) -> i32 {
+        let get_str = |o: &JsValue, k: &str| -> String {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        };
+        let get_f64 = |o: &JsValue, k: &str| -> f64 {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+        };
+        let mut acc_vec: Vec<LookAcc> = Vec::new();
+        if acc.is_truthy() {
+            let aarr = js_sys::Array::from(&acc);
+            for j in 0..aarr.length() {
+                let a = aarr.get(j);
+                let ab = get_str(&a, "bundle");
+                let ae = get_str(&a, "export");
+                if ab.is_empty() || ae.is_empty() {
+                    continue;
+                }
+                acc_vec.push(LookAcc {
+                    bundle: ab,
+                    export: ae,
+                    slot: get_f64(&a, "slot") as u8,
+                    anim_type: get_f64(&a, "animType") as u8,
+                });
+            }
+        }
+        self.swf_render_caches.entry(bundle.to_string()).or_default();
+        for a in &acc_vec {
+            self.swf_render_caches.entry(a.bundle.clone()).or_default();
+        }
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+        let subs = {
+            let already = &self.slab_crowd;
+            emit_player_look_split(
+                &mut ctx,
+                &self.swf_bundles,
+                &self.swf_render_caches,
+                bundle,
+                export,
+                frame as u16,
+                flipped,
+                &acc_vec,
+                scale_aff,
+                &|k| already.has_sub(k),
+            )
+        };
+        let mut layout_vec = Vec::with_capacity(subs.len());
+        let mut interned = 0i32;
+        for sub in subs {
+            let (look, hit) = if let (Some(c), Some(h)) = (
+                self.slab_crowd.cached_sub(&sub.key),
+                self.slab_crowd.cached_hit(&sub.key),
+            ) {
+                (c, h)
+            } else {
+                let enc = sub.scene.encoding();
+                let handle = ctx
+                    .renderer
+                    .intern_sub_transient(ctx.queue, enc, &sub.patches);
+                let c = slab_crowd::CachedLook {
+                    handle,
+                    n_paths: enc.n_paths,
+                    n_path_segments: enc.n_path_segments,
+                    n_clips: enc.n_clips,
+                };
+                let h = std::sync::Arc::new(sub.hit_geom);
+                self.slab_crowd.cache_sub(sub.key.clone(), c);
+                self.slab_crowd.cache_hit(sub.key.clone(), h.clone());
+                interned += 1;
+                (c, h)
+            };
+            layout_vec.push(slab_crowd::LayoutSlot {
+                look,
+                is_body: sub.is_body,
+                acc_mount_world: sub.acc_mount_world,
+                hit,
+            });
+        }
+        let arc = std::sync::Arc::new(layout_vec);
+        self.slab_crowd
+            .cache_layout(layout_sig, sig_key.to_string(), arc);
+        self.slab_crowd.mark_baked(sig_key);
+        interned
+    }
+
     /// DIAG: advance the animated crowd to `time_ms`, re-emitting only the
     /// players whose animation frame changed, then render one frame to the
     /// crowd's target texture (NO readback — clean GPU timing). Returns
@@ -5407,6 +5879,7 @@ impl VelloRenderer {
     pub fn real_crowd_set_slab(&mut self, enabled: bool) {
         if self.slab_mode != enabled {
             self.slab_crowd.reset(&mut self.renderer);
+            self.crowd_image_dedup.clear();
         }
         self.slab_mode = enabled;
     }
@@ -5564,6 +6037,36 @@ impl VelloRenderer {
                     // would render a stale layout = wrong frame/direction).
                     let layout = if let Some(l) = self.slab_crowd.cached_layout(&sig_key) {
                         l
+                    } else if self.slab_crowd.off_thread_bake_enabled() {
+                        // OFF-THREAD BAKE: hand the miss to the JS-driven worker
+                        // pool (drained via `crowdTakePendingBakes`), then render
+                        // the last-good same-direction frame so the actor keeps
+                        // animating while the exact frame bakes; a never-seen
+                        // direction skips (invisible) until its first bake lands
+                        // (a few frames). NO synchronous walk on the render
+                        // thread → no first-sight hitch.
+                        let _ = self.slab_crowd.record_pending_bake(slab_crowd::PendingBake {
+                            bundle: p.bundle.clone(),
+                            export: p.export.clone(),
+                            frame: tf,
+                            flipped: p.flipped,
+                            acc: p
+                                .acc
+                                .iter()
+                                .map(|a| slab_crowd::PendingAcc {
+                                    bundle: a.bundle.clone(),
+                                    export: a.export.clone(),
+                                    slot: a.slot,
+                                    anim_type: a.anim_type,
+                                })
+                                .collect(),
+                            layout_sig: p.layout_sig.clone(),
+                            sig_key: sig_key.clone(),
+                        });
+                        match self.slab_crowd.fallback_layout(&p.layout_sig) {
+                            Some(l) => l,
+                            None => continue,
+                        }
                     } else {
                         // Skip re-encoding subs already interned — the layout
                         // churns per moving actor, but the colour-agnostic subs
@@ -5647,6 +6150,10 @@ impl VelloRenderer {
                 &emits,
             );
             let build_ms = t_build.elapsed().as_secs_f64() * 1000.0;
+            // Upload all crowd subs deferred since the last render (off-thread
+            // bake interns + the sync emit path both defer their GPU writes) in
+            // ONE write, before the slab render reads the SubLibrary buffer.
+            self.renderer.sub_library_flush(&self.queue);
             let render_result = slab_crowd::render_crowd_slab(
                 &mut self.renderer,
                 &mut self.slab_crowd,

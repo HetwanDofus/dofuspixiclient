@@ -51,10 +51,23 @@ interface BakeWorkerBakeMsg {
   bundle: string;
   resolution: number;
 }
+/** Crowd slab off-thread bake: walk + vello-encode ONE look's subs into a
+ *  flat blob (no GPU intern — that stays on the main thread). */
+interface BakeWorkerCrowdMsg {
+  type: "bakeCrowdLook";
+  reqId: number;
+  bundle: string;
+  export: string;
+  frame: number;
+  flipped: boolean;
+  acc: Array<{ bundle: string; export: string; slot: number; animType: number }>;
+  scale: number;
+}
 type BakeWorkerInMsg =
   | BakeWorkerInitMsg
   | BakeWorkerLoadBundleMsg
-  | BakeWorkerBakeMsg;
+  | BakeWorkerBakeMsg
+  | BakeWorkerCrowdMsg;
 
 let renderer: VelloRenderer | null = null;
 const loaded = new Set<string>();
@@ -291,6 +304,32 @@ function handleBake(msg: BakeWorkerBakeMsg): void {
   );
 }
 
+/**
+ * Crowd off-thread bake: run `bakeCrowdLook` (the CPU walk + vello encode,
+ * NO GPU intern) and post the serialized blob back. The blob's backing
+ * `ArrayBuffer` is transferred zero-copy. `null` on a miss (bundle/export
+ * not found) so the main thread can fall back to a synchronous bake.
+ */
+function handleCrowdBake(msg: BakeWorkerCrowdMsg): void {
+  if (!renderer) throw new Error("bake-worker: not initialised");
+  const blob: Uint8Array | null = (
+    renderer as unknown as {
+      bakeCrowdLook: (
+        b: string,
+        e: string,
+        f: number,
+        flip: boolean,
+        acc: unknown,
+        scale: number,
+      ) => Uint8Array | null;
+    }
+  ).bakeCrowdLook(msg.bundle, msg.export, msg.frame, msg.flipped, msg.acc, msg.scale);
+  workerSelf.postMessage(
+    { type: "crowdBakeResult", reqId: msg.reqId, blob },
+    blob ? [blob.buffer] : [],
+  );
+}
+
 workerSelf.onmessage = (e: MessageEvent<BakeWorkerInMsg>) => {
   const msg = e.data;
   try {
@@ -303,6 +342,9 @@ workerSelf.onmessage = (e: MessageEvent<BakeWorkerInMsg>) => {
         return;
       case "bakeClassAtlas":
         handleBake(msg);
+        return;
+      case "bakeCrowdLook":
+        handleCrowdBake(msg);
         return;
     }
   } catch (err) {

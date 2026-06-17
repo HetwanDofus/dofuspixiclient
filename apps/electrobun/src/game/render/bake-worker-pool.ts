@@ -45,7 +45,20 @@ type WorkerOutMsg =
   | { type: "ready" }
   | { type: "bundleLoaded"; name: string }
   | { type: "bakeResult"; reqId: number; result: VelloSwfClassAtlasResult | null }
+  | { type: "crowdBakeResult"; reqId: number; blob: Uint8Array | null }
   | { type: "error"; message: string };
+
+/** A crowd slab look to bake off-thread (one actor's bundle/export/frame/
+ *  flip/accessories). `scale` MUST equal the main crowd's `resolution / 20`
+ *  so the baked geometry is interchangeable with main-thread bakes. */
+export interface CrowdBakeRequest {
+  bundle: string;
+  export: string;
+  frame: number;
+  flipped: boolean;
+  acc: Array<{ bundle: string; export: string; slot: number; animType: number }>;
+  scale: number;
+}
 
 /** Bundle hash for shard dispatch. Stable per-string FNV-1a 32-bit —
  *  deterministic across sessions so the same bundle always lands on
@@ -71,6 +84,13 @@ class BakeWorkerPool {
     number,
     {
       resolve: (r: VelloSwfClassAtlasResult | null) => void;
+      reject: (e: Error) => void;
+    }
+  >();
+  private pendingCrowdBakes = new Map<
+    number,
+    {
+      resolve: (b: Uint8Array | null) => void;
       reject: (e: Error) => void;
     }
   >();
@@ -118,6 +138,44 @@ class BakeWorkerPool {
     }
     await this.ensureBundleLoaded(slot, bundle);
     return this.dispatchBake(slot, bundle, resolution);
+  }
+
+  /** Bake one crowd look off-thread. Loads the body + every accessory
+   *  bundle into the chosen worker first, then dispatches the walk+encode.
+   *  Resolves with the serialized blob (or null if the worker couldn't
+   *  bake — caller falls back to a main-thread bake). Sharded by body
+   *  bundle so a worker's swf render caches stay warm across this gfx's
+   *  frames/directions. */
+  async bakeCrowdLook(req: CrowdBakeRequest): Promise<Uint8Array | null> {
+    if (this.slots.length === 0) {
+      throw new Error("bake-worker pool not initialised");
+    }
+    const slot = this.shardByBundle
+      ? this.slots[fnv1a32(req.bundle) % this.slots.length]
+      : ((): PoolSlot => {
+          const s = this.slots[this.nextIdx];
+          this.nextIdx = (this.nextIdx + 1) % this.slots.length;
+          return s;
+        })();
+    // The worker needs every bundle this look references (body + accessories).
+    await this.ensureBundleLoaded(slot, req.bundle);
+    for (const a of req.acc) {
+      if (a.bundle) await this.ensureBundleLoaded(slot, a.bundle);
+    }
+    const reqId = this.nextReqId++;
+    return new Promise<Uint8Array | null>((resolve, reject) => {
+      this.pendingCrowdBakes.set(reqId, { resolve, reject });
+      slot.worker.postMessage({
+        type: "bakeCrowdLook",
+        reqId,
+        bundle: req.bundle,
+        export: req.export,
+        frame: req.frame,
+        flipped: req.flipped,
+        acc: req.acc,
+        scale: req.scale,
+      });
+    });
   }
 
   setShardByBundle(on: boolean): void {
@@ -177,6 +235,14 @@ class BakeWorkerPool {
                 wt.mainReceivedAt = recv;
               }
               cb.resolve(msg.result);
+            }
+            return;
+          }
+          case "crowdBakeResult": {
+            const cb = this.pendingCrowdBakes.get(msg.reqId);
+            if (cb) {
+              this.pendingCrowdBakes.delete(msg.reqId);
+              cb.resolve(msg.blob);
             }
             return;
           }
@@ -353,6 +419,18 @@ export async function bakeClassAtlasViaWorkerPool(
 ): Promise<VelloSwfClassAtlasResult | null> {
   if (!pool) return null;
   return pool.bakeClassAtlas(bundle, resolution);
+}
+
+/**
+ * Dispatch a crowd-look bake to the worker pool. Returns the serialized
+ * blob, or `null` if the pool is not initialised / the worker couldn't bake
+ * — callers MUST fall back to a synchronous main-thread bake in that case.
+ */
+export async function bakeCrowdLookViaWorkerPool(
+  req: CrowdBakeRequest,
+): Promise<Uint8Array | null> {
+  if (!pool) return null;
+  return pool.bakeCrowdLook(req);
 }
 
 export function isBakeWorkerPoolReady(): boolean {

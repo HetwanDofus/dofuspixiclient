@@ -43,6 +43,18 @@ export class VelloRenderer {
      */
     analyzeFrameStability(max_looks: number): any;
     /**
+     * OFF-THREAD BAKE — worker side. Walk + vello-encode one look's subs
+     * (body bands + accessories) WITHOUT interning to the GPU, returning a
+     * flat blob the main thread reconstructs and interns. `acc` matches the
+     * per-player `acc` shape from `realCrowdSetup`; `scale` is
+     * `resolution / 20` and MUST equal the main crowd's bake scale (the
+     * interned geometry is shared across threads only if baked identically).
+     * Returns the blob (Uint8Array), or the fallback marker when the look
+     * has patch-bearing (gradient/image) subs that must bake on the main
+     * thread.
+     */
+    bakeCrowdLook(bundle: string, _export: string, frame: number, flipped: boolean, acc: any, scale: number): Uint8Array;
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
@@ -143,11 +155,49 @@ export class VelloRenderer {
      */
     createSwfSpellInstance(bundle: string, resolution: number): number;
     /**
+     * Atlas layout for the per-actor compositing path: `{cols, cellW, cellH,
+     * anchorX, anchorY}`. Actor at `realCrowdSetup` index `i` occupies cell
+     * `(i % cols, i / cols)`; its feet are at `(anchorX, anchorY)` inside the
+     * `cellW × cellH` cell. The JS makes one Pixi sprite per actor sampling
+     * its cell, anchored at the feet, at the actor's world position +
+     * `playerZIndex(cellId)`.
+     */
+    crowdAtlasInfo(): any;
+    /**
+     * OFF-THREAD BAKE — synchronous fallback for one look (worker pool
+     * unavailable, or a look with patch-bearing/gradient subs the blob path
+     * can't carry). Bakes + interns inline on the main thread — the proven
+     * default path, just callable per-look from JS — then caches the layout
+     * under `layoutSig`/`sigKey` and clears the in-flight guard. Returns subs
+     * interned.
+     */
+    crowdBakeLookSync(bundle: string, _export: string, frame: number, flipped: boolean, acc: any, layout_sig: string, sig_key: string, scale: number): number;
+    /**
      * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
      * in crowd-texture pixel space; returns the front-most hit actor's index or
      * `-1` on a miss.
      */
     crowdHitTest(x: number, y: number): number;
+    /**
+     * DIAG: read + reset the accumulated `internCrowdLook` phase timings.
+     */
+    crowdInternProf(): any;
+    /**
+     * DIAG: bake a look and report each sub's patch-kind breakdown, so we know
+     * what the off-thread blob path must carry (ramp gradients vs image
+     * bitmaps vs glyphs). Returns an array of
+     * `{key, isBody, ramp, image, glyph, colorStops}`.
+     */
+    crowdLookPatchDiag(bundle: string, _export: string, frame: number, flipped: boolean, scale: number): any;
+    /**
+     * OFF-THREAD BAKE — drain the looks the emit loop couldn't render from
+     * cache since the last call. Returns an array of
+     * `{bundle, export, frame, flipped, acc:[{bundle,export,slot,animType}],
+     * layoutSig, sigKey}`; the JS driver dispatches each to the worker pool
+     * and feeds the result back via `internCrowdLook` (or `crowdBakeLookSync`
+     * on fallback).
+     */
+    crowdTakePendingBakes(): any;
     /**
      * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
      * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
@@ -306,6 +356,16 @@ export class VelloRenderer {
      * so JS can pass `{ adapter, device }` to Pixi.js.
      */
     static init(): Promise<any>;
+    /**
+     * OFF-THREAD BAKE — main side. Reconstruct + GPU-intern a look baked by a
+     * worker (`bakeCrowdLook` output), then cache its ordered layout under
+     * `layoutSig`/`sigKey` so the next crowd tick renders it from cache. The
+     * only GPU work is the per-sub `intern_sub_transient` upload — no CPU
+     * walk. Returns the count of newly-interned subs, `-1` if the blob
+     * signalled a fallback (caller bakes this look synchronously), or `-2` on
+     * a malformed blob.
+     */
+    internCrowdLook(blob: Uint8Array, layout_sig: string, sig_key: string): number;
     /**
      * List every loaded SWF bundle by the name passed to
      * `loadSwfBundle`. Used by diagnostic sweeps that need to iterate
@@ -877,6 +937,15 @@ export class VelloRenderer {
      */
     setClassAtlasForcePerVariant(force: boolean): void;
     /**
+     * OFF-THREAD BAKE — enable/disable. When ON, the crowd emit loop never
+     * bakes synchronously on a cache miss; it queues the look for the worker
+     * pool (drained by `crowdTakePendingBakes`) and renders the last-good
+     * frame meanwhile. The JS driver MUST be draining + interning/falling
+     * back, or queued looks never render — so this stays OFF until the
+     * worker pool is up.
+     */
+    setCrowdOffThreadBake(on: boolean): void;
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -1088,13 +1157,34 @@ export class VelloRenderer {
     wasmHeapBytes(): number;
 }
 
+/**
+ * Body-split colour-agnostic bake — port of wc3's deferred prebake
+ * (`actor_batch/prebake.rs` `bake_body_frame` segments + mounts). Mirrors
+ * [`emit_player_look`] exactly (same symbol lookup, slot depths, mount
+ * transforms, flip handling) but renders each body band into its OWN scene
+ * with `PlayerColors::default()` — so zone fills stay placeholders and the
+ * geometry is identical for every actor with that body — while
+ * `zone_patch` capture records where each zone colour lands. Each accessory
+ * renders into its own scene (colours baked as authored). The caller interns
+ * each sub by its palette-free `key`, so the SubLibrary holds one copy per
+ * `(breed,dir,frame,band)` / `(accessory,…)` instead of one per unique
+ * coloured look × frame. Per-actor palette is applied at compose via the
+ * slab colour overlay (`ZonePatchGpu` + `instance_color_overlays`).
+ * DIAG: round-trip self-test for the off-thread crowd-bake blob
+ * (de)serialization, run on the real wasm target (the crate can't build for
+ * host). Returns true iff every field survives serialize → deserialize.
+ */
+export function crowdBlobSelftest(): boolean;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_vellorenderer_free: (a: number, b: number) => void;
+    readonly crowdBlobSelftest: () => number;
     readonly vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_analyzeFrameStability: (a: number, b: number) => any;
+    readonly vellorenderer_bakeCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any, i: number) => [number, number];
     readonly vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
     readonly vellorenderer_benchmarkBatchedAppend: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_benchmarkBatchedChars: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -1106,7 +1196,12 @@ export interface InitOutput {
     readonly vellorenderer_clearPathCache: (a: number) => void;
     readonly vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
     readonly vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_crowdAtlasInfo: (a: number) => any;
+    readonly vellorenderer_crowdBakeLookSync: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any, i: number, j: number, k: number, l: number, m: number) => number;
     readonly vellorenderer_crowdHitTest: (a: number, b: number, c: number) => number;
+    readonly vellorenderer_crowdInternProf: (a: number) => any;
+    readonly vellorenderer_crowdLookPatchDiag: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
+    readonly vellorenderer_crowdTakePendingBakes: (a: number) => any;
     readonly vellorenderer_crowdTextureHandle: (a: number) => any;
     readonly vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
     readonly vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
@@ -1125,6 +1220,7 @@ export interface InitOutput {
     readonly vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
     readonly vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly vellorenderer_init: () => any;
+    readonly vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
     readonly vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;
     readonly vellorenderer_loadAsset: (a: number, b: number, c: number, d: number) => number;
@@ -1173,6 +1269,7 @@ export interface InitOutput {
     readonly vellorenderer_serializeTileSubsceneCache: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
     readonly vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
+    readonly vellorenderer_setCrowdOffThreadBake: (a: number, b: number) => void;
     readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
     readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;

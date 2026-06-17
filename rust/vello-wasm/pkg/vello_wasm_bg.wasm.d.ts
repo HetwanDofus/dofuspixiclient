@@ -2,8 +2,10 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_vellorenderer_free: (a: number, b: number) => void;
+export const crowdBlobSelftest: () => number;
 export const vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_analyzeFrameStability: (a: number, b: number) => any;
+export const vellorenderer_bakeCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any, i: number) => [number, number];
 export const vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
 export const vellorenderer_benchmarkBatchedAppend: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_benchmarkBatchedChars: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -15,7 +17,12 @@ export const vellorenderer_clearBodySceneCache: (a: number) => number;
 export const vellorenderer_clearPathCache: (a: number) => void;
 export const vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
 export const vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+export const vellorenderer_crowdAtlasInfo: (a: number) => any;
+export const vellorenderer_crowdBakeLookSync: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any, i: number, j: number, k: number, l: number, m: number) => number;
 export const vellorenderer_crowdHitTest: (a: number, b: number, c: number) => number;
+export const vellorenderer_crowdInternProf: (a: number) => any;
+export const vellorenderer_crowdLookPatchDiag: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
+export const vellorenderer_crowdTakePendingBakes: (a: number) => any;
 export const vellorenderer_crowdTextureHandle: (a: number) => any;
 export const vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
 export const vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
@@ -34,6 +41,7 @@ export const vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d
 export const vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
 export const vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const vellorenderer_init: () => any;
+export const vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
 export const vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
 export const vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;
 export const vellorenderer_loadAsset: (a: number, b: number, c: number, d: number) => number;
@@ -82,6 +90,7 @@ export const vellorenderer_serializeBodySubsceneCache: (a: number, b: number, c:
 export const vellorenderer_serializeTileSubsceneCache: (a: number, b: number, c: number) => [number, number];
 export const vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
 export const vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
+export const vellorenderer_setCrowdOffThreadBake: (a: number, b: number) => void;
 export const vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
 export const vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;

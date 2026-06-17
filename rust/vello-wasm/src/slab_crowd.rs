@@ -227,6 +227,42 @@ pub(crate) struct SlabCrowdState {
     token_seq: u64,
     pub(crate) last: SlabFrameStats,
     diag: CrowdDiag,
+    /// OFF-THREAD BAKE. When true, the emit loop NEVER bakes synchronously on
+    /// a `(sig|frame)` miss: it records the look in `pending_bakes` for the
+    /// JS-driven worker pool and renders the last-good same-direction frame
+    /// (or skips a never-seen direction until its first bake lands). Default
+    /// false → the proven synchronous bake. Toggled via `setCrowdOffThreadBake`
+    /// once the worker pool is up AND the crowd renderer is draining pending.
+    off_thread_bake: bool,
+    /// Looks (`sig_key`) whose bake has been handed to JS this run and not yet
+    /// completed — so the emit loop enqueues each miss exactly once instead of
+    /// every frame while it's in flight. Cleared per entry on `mark_baked`.
+    requested: std::collections::HashSet<String>,
+    /// Misses recorded this frame for JS to drain via `crowdTakePendingBakes`.
+    pending_bakes: Vec<PendingBake>,
+}
+
+/// One accessory descriptor carried in a [`PendingBake`] (mirror of the
+/// look's `LookAcc`, kept primitive so this module stays independent of
+/// `lib.rs`).
+pub(crate) struct PendingAcc {
+    pub bundle: String,
+    pub export: String,
+    pub slot: u8,
+    pub anim_type: u8,
+}
+
+/// A look the emit loop couldn't render from cache, queued for the off-thread
+/// baker. Carries everything `bakeCrowdLook` needs plus the cache keys the
+/// returned blob is interned under.
+pub(crate) struct PendingBake {
+    pub bundle: String,
+    pub export: String,
+    pub frame: u16,
+    pub flipped: bool,
+    pub acc: Vec<PendingAcc>,
+    pub layout_sig: String,
+    pub sig_key: String,
 }
 
 /// Rolling crowd diagnostics. Accumulated per frame and flushed to the console
@@ -348,6 +384,46 @@ impl SlabCrowdState {
         self.handle_by_look.len()
     }
 
+    // ── off-thread bake ────────────────────────────────────────────────
+
+    pub(crate) fn off_thread_bake_enabled(&self) -> bool {
+        self.off_thread_bake
+    }
+
+    pub(crate) fn set_off_thread_bake(&mut self, on: bool) {
+        self.off_thread_bake = on;
+        if !on {
+            // Returning to synchronous bakes: drop any queued/in-flight
+            // requests so the emit loop bakes them itself next frame.
+            self.requested.clear();
+            self.pending_bakes.clear();
+        }
+    }
+
+    /// Queue a `(sig|frame)` miss for the off-thread baker, exactly once per
+    /// in-flight window. Returns false if it was already requested.
+    pub(crate) fn record_pending_bake(&mut self, bake: PendingBake) -> bool {
+        if self.requested.contains(&bake.sig_key) {
+            return false;
+        }
+        self.requested.insert(bake.sig_key.clone());
+        self.pending_bakes.push(bake);
+        true
+    }
+
+    /// Drain the looks queued since the last call (the JS worker-pool driver
+    /// dispatches these). The `requested` guard persists so they aren't
+    /// re-enqueued until `mark_baked`.
+    pub(crate) fn take_pending_bakes(&mut self) -> Vec<PendingBake> {
+        std::mem::take(&mut self.pending_bakes)
+    }
+
+    /// A queued look finished baking (interned, or fell back to a sync bake):
+    /// clear its in-flight guard so a later eviction could re-request it.
+    pub(crate) fn mark_baked(&mut self, sig_key: &str) {
+        self.requested.remove(sig_key);
+    }
+
     /// Point-in-path hit test in crowd-texture pixel space — port of wc3's
     /// `actor_batch/hit_test.rs`. Walks the actors front-to-back (reverse paint
     /// order), maps the cursor into each actor's local space (`inv(world)`) and
@@ -390,6 +466,11 @@ impl SlabCrowdState {
         self.fallback_layout_by_sig.clear();
         self.high_water = SlabHighWater::default();
         self.frame = 0;
+        // Off-thread queues reference looks interned into the now-reset
+        // SubLibrary — drop them so stale in-flight requests don't intern
+        // against the new crowd. (`off_thread_bake` is config, kept.)
+        self.requested.clear();
+        self.pending_bakes.clear();
     }
 
 }

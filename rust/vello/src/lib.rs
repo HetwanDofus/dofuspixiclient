@@ -120,7 +120,27 @@ pub mod util;
 mod wgpu_engine;
 
 #[cfg(feature = "wgpu")]
-pub use sub_library::{SubHandle, SubLibrary, ZonePatchGpu};
+pub use sub_library::{SubHandle, SubLibrary, ZonePatchGpu, pack_sub_bytes, sub_handle_for};
+
+/// DOFUS off-thread crowd bake: a resolved-on-main patch for a sub whose
+/// geometry was PRE-PACKED by a worker (`pack_sub_bytes`). `word_off` is the
+/// u32-word offset, within the packed bytes, of the `draw_data` word the
+/// resolved ramp-id / image-atlas-coordinate gets written into. Lets the main
+/// thread intern a worker-packed sub without rebuilding/cloning an `Encoding`.
+pub enum PackedSubPatch {
+    /// Gradient ramp — `stops` resolve to a pinned ramp row on the main
+    /// renderer's ramp cache.
+    Ramp {
+        word_off: u32,
+        stops: Vec<peniko::ColorStop>,
+        extend: peniko::Extend,
+    },
+    /// Bitmap image — pinned into the main renderer's image atlas.
+    Image {
+        word_off: u32,
+        image: peniko::ImageData,
+    },
+}
 
 pub mod low_level {
     //! Utilities which can be used to create an alternative Vello renderer to [`Renderer`][crate::Renderer].
@@ -495,10 +515,10 @@ struct ReusedScene {
 #[cfg(feature = "wgpu")]
 fn resolve_sub_patches(
     resolver: &mut Resolver,
-    sub: &std::sync::Arc<vello_encoding::Encoding>,
+    sub: &vello_encoding::Encoding,
 ) -> Option<(vello_encoding::Encoding, Vec<(peniko::ImageData, u32, u32)>)> {
     use vello_encoding::Patch;
-    let mut resolved = vello_encoding::Encoding::clone(sub.as_ref());
+    let mut resolved = vello_encoding::Encoding::clone(sub);
     // Images pinned for the FIRST time by this sub — the caller uploads
     // their pixels into the persistent slab atlas texture right away.
     let mut new_pins: Vec<(peniko::ImageData, u32, u32)> = Vec::new();
@@ -925,7 +945,7 @@ impl Renderer {
         // resolved bytes keyed on the original Arc's identity. The
         // resolver's ramp/image caches use pinned entries so the
         // resolved `ramp_id` / atlas xy stay valid across frames.
-        let resolved = resolve_sub_patches(&mut self.resolver, sub);
+        let resolved = resolve_sub_patches(&mut self.resolver, sub.as_ref());
         if let Some((resolved, new_pins)) = resolved {
             upload_slab_pins(
                 &self.device,
@@ -967,11 +987,9 @@ impl Renderer {
         if enc.resources.patches.is_empty() {
             return library.intern_transient(queue, enc, zone_patches);
         }
-        // Patches present (gradient/image fills): resolve into a private
-        // clone — the temp `Arc` is only for the resolver API and is
-        // dropped here; nothing is pinned beyond the packed bytes.
-        let tmp = std::sync::Arc::new(enc.clone());
-        let resolved = resolve_sub_patches(&mut self.resolver, &tmp);
+        // Patches present (gradient/image fills): resolve into a private clone
+        // (no extra `Arc`/clone — `resolve_sub_patches` borrows `enc` directly).
+        let resolved = resolve_sub_patches(&mut self.resolver, enc);
         if let Some((resolved, new_pins)) = resolved {
             upload_slab_pins(
                 &self.device,
@@ -993,6 +1011,77 @@ impl Renderer {
         }
     }
 
+    /// DOFUS off-thread crowd bake: intern a sub whose geometry a worker
+    /// already PRE-PACKED (`pack_sub_bytes`), so the main thread does NO
+    /// `Encoding` reconstruction / clone / re-pack — it resolves the patches
+    /// (ramp rows / image-atlas slots, which must use THIS renderer's caches),
+    /// uploads any new pins, then `memcpy`s the packed bytes into the
+    /// SubLibrary and writes the resolved words in place. `template` is the
+    /// worker-built `SubHandle` (offset/zone fields overwritten here).
+    pub fn intern_packed_sub(
+        &mut self,
+        queue: &Queue,
+        packed: &[u8],
+        template: SubHandle,
+        patches: &[PackedSubPatch],
+        zone_patches: &[ZonePatchGpu],
+    ) -> SubHandle {
+        if self.sub_library.is_none() {
+            return bytemuck::Zeroable::zeroed();
+        }
+        // Resolve each patch against THIS renderer's caches → (word, value)
+        // edits, collecting images pinned for the first time.
+        let mut resolved_words: Vec<(u32, u32)> = Vec::with_capacity(patches.len());
+        let mut new_pins: Vec<(peniko::ImageData, u32, u32)> = Vec::new();
+        let mut had_ramp = false;
+        for patch in patches {
+            match patch {
+                PackedSubPatch::Ramp {
+                    word_off,
+                    stops,
+                    extend,
+                } => {
+                    had_ramp = true;
+                    let ramp_id = self.resolver.ramp_cache_mut().add_pinned(stops);
+                    resolved_words.push((*word_off, (ramp_id << 2) | (*extend as u32)));
+                }
+                PackedSubPatch::Image { word_off, image } => {
+                    let before = self.resolver.image_cache_mut().pinned_count();
+                    match self.resolver.image_cache_mut().add_pinned_image(image) {
+                        Some((x, y)) => {
+                            if self.resolver.image_cache_mut().pinned_count() > before {
+                                new_pins.push((image.clone(), x, y));
+                            }
+                            resolved_words.push((*word_off, (x << 16) | y));
+                        }
+                        // Atlas full → zero the slot so the GPU sees a no-op.
+                        None => resolved_words.push((*word_off, 0)),
+                    }
+                }
+            }
+        }
+        if !new_pins.is_empty() {
+            upload_slab_pins(
+                &self.device,
+                queue,
+                &mut self.slab_atlas_tex,
+                self.resolver.image_cache_mut().atlas_size(),
+                &new_pins,
+            );
+        }
+        if had_ramp {
+            refresh_slab_ramps(
+                &self.device,
+                queue,
+                &mut self.slab_ramps_tex,
+                &mut self.slab_ramps_rows_uploaded,
+                self.resolver.ramp_cache_mut().ramps(),
+            );
+        }
+        let library = self.sub_library.as_mut().unwrap();
+        library.intern_packed(queue, packed, template, &resolved_words, zone_patches)
+    }
+
     /// Clone of the SubLibrary's GPU buffer handle. `wgpu::Buffer` is
     /// internally Arc'd so the clone is cheap; returning owned breaks
     /// the borrow chain with `&mut self.engine.run_recording` in the
@@ -1006,6 +1095,15 @@ impl Renderer {
     pub fn sub_library_frame_step(&mut self) {
         if let Some(library) = self.sub_library.as_mut() {
             library.frame_step();
+        }
+    }
+
+    /// DOFUS off-thread crowd bake: upload the deferred-intern range (subs the
+    /// crowd packed since the last flush) in ONE `write_buffer`. Call after the
+    /// crowd's interns and before the crowd render reads the SubLibrary buffer.
+    pub fn sub_library_flush(&mut self, queue: &Queue) {
+        if let Some(library) = self.sub_library.as_mut() {
+            library.flush(queue);
         }
     }
 

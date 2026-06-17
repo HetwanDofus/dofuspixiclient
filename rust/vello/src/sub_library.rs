@@ -121,6 +121,15 @@ pub struct SubLibrary {
     sentinel: SubHandle,
     intern_count: u64,
     overflow: bool,
+    /// DOFUS off-thread crowd bake: byte offset of the first mirror byte not
+    /// yet written to the GPU buffer. The crowd intern path appends to
+    /// `mirror` WITHOUT a per-sub `write_buffer` (the spawn burst is thousands
+    /// of subs/frame → thousands of tiny GPU writes); [`flush`](Self::flush)
+    /// then uploads the whole appended range in ONE write before the crowd
+    /// render reads the buffer. `None` = fully synced. The tile path still
+    /// writes immediately (it flushes any pending deferred range first to keep
+    /// the buffer order intact).
+    deferred_lo: Option<u64>,
 }
 
 impl SubLibrary {
@@ -137,6 +146,7 @@ impl SubLibrary {
             sentinel: SubHandle::zeroed(),
             intern_count: 0,
             overflow: false,
+            deferred_lo: None,
         };
         // The empty-sub at offset 0 is the no-op slot descriptor slabs target
         // when a slot is unfilled. Seeded here so callers can always trust
@@ -244,6 +254,10 @@ impl SubLibrary {
         self.used = 4;
         self.intern_count = 0;
         self.overflow = false;
+        // The mirror was cleared + the buffer is reused as-is; nothing is
+        // pending upload (the sentinel word is written lazily on next flush /
+        // immediate write). Drop any stale deferred range.
+        self.deferred_lo = None;
     }
 
     pub fn overflow(&self) -> bool {
@@ -285,7 +299,68 @@ impl SubLibrary {
         zone_patches: &[ZonePatchGpu],
     ) -> SubHandle {
         self.intern_count += 1;
-        self.pack_bytes(Some(queue), enc, zone_patches)
+        // Crowd path: defer the GPU write. At spawn this runs thousands of
+        // times per frame; one `write_buffer` per sub floods the queue. `flush`
+        // (called before the crowd render) uploads them all in one write.
+        self.pack_bytes(Some(queue), enc, zone_patches, false)
+    }
+
+    /// DOFUS off-thread crowd bake: intern a sub whose geometry a worker
+    /// already PRE-PACKED via [`pack_sub_bytes`]. No `Encoding`, no re-pack —
+    /// `memcpy` the packed bytes into the mirror, overwrite the resolved patch
+    /// words in place, append the zone patches, and defer the GPU write (the
+    /// crowd render flushes once). `template` carries the worker-computed
+    /// stream word-counts; offset + zone fields are filled in here.
+    pub fn intern_packed(
+        &mut self,
+        _queue: &wgpu::Queue,
+        packed: &[u8],
+        template: SubHandle,
+        resolved_words: &[(u32, u32)],
+        zone_patches: &[ZonePatchGpu],
+    ) -> SubHandle {
+        self.intern_count += 1;
+        let patches_bytes = bytemuck::cast_slice::<ZonePatchGpu, u8>(zone_patches);
+        let pack_size = (packed.len() + patches_bytes.len()) as u64;
+        if self.used + pack_size > self.capacity
+            && !self.try_grow(self.used + pack_size, _queue)
+        {
+            self.overflow = true;
+            return self.sentinel;
+        }
+        let offset_bytes = self.used;
+        let stream_off_words = (offset_bytes / 4) as u32;
+        let base = self.mirror.len();
+        self.mirror.extend_from_slice(packed);
+        // Overwrite the resolved ramp-id / image-atlas words in place.
+        for (word_off, val) in resolved_words {
+            let b = base + (*word_off as usize) * 4;
+            if b + 4 <= self.mirror.len() {
+                self.mirror[b..b + 4].copy_from_slice(&val.to_le_bytes());
+            }
+        }
+        let patches_off_bytes = offset_bytes + packed.len() as u64;
+        self.mirror.extend_from_slice(patches_bytes);
+        self.used += pack_size;
+        // Defer the GPU write — `flush` uploads the whole range before render.
+        self.deferred_lo.get_or_insert(offset_bytes);
+        let mut handle = template;
+        handle.offset = stream_off_words;
+        handle.zone_patches_offset = (patches_off_bytes / 4) as u32;
+        handle.zone_patches_count = zone_patches.len() as u32;
+        handle
+    }
+
+    /// DOFUS off-thread crowd bake: upload the deferred-intern range (all subs
+    /// packed since the last flush) in ONE `write_buffer`. Must be called after
+    /// the crowd's interns and before the crowd render reads the buffer.
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
+        if let Some(lo) = self.deferred_lo.take() {
+            let end = self.used as usize;
+            if (lo as usize) < end {
+                queue.write_buffer(&self.buffer, lo, &self.mirror[lo as usize..end]);
+            }
+        }
     }
 
     fn pack_bytes(
@@ -293,6 +368,7 @@ impl SubLibrary {
         queue: Option<&wgpu::Queue>,
         to_pack: &Encoding,
         zone_patches: &[ZonePatchGpu],
+        write_now: bool,
     ) -> SubHandle {
         // No transform padding: each sub keeps its ACTUAL transform tags
         // and records. The slab gap tight-packs transforms per slot at a
@@ -324,11 +400,26 @@ impl SubLibrary {
         let patches_off_bytes = offset_bytes + stream_bytes.len() as u64;
         self.mirror.extend_from_slice(patches_bytes);
         self.used += pack_size;
-        if let Some(q) = queue {
-            q.write_buffer(&self.buffer, offset_bytes, &stream_bytes);
-            if !patches_bytes.is_empty() {
-                q.write_buffer(&self.buffer, patches_off_bytes, patches_bytes);
+        if write_now {
+            if let Some(q) = queue {
+                // Keep buffer order: upload any deferred crowd range that landed
+                // before this immediate (tile) write first.
+                if let Some(lo) = self.deferred_lo.take() {
+                    q.write_buffer(
+                        &self.buffer,
+                        lo,
+                        &self.mirror[lo as usize..offset_bytes as usize],
+                    );
+                }
+                q.write_buffer(&self.buffer, offset_bytes, &stream_bytes);
+                if !patches_bytes.is_empty() {
+                    q.write_buffer(&self.buffer, patches_off_bytes, patches_bytes);
+                }
             }
+        } else {
+            // Deferred crowd path: appended to the mirror only. `flush` uploads
+            // the whole accumulated range in one write before the crowd render.
+            self.deferred_lo.get_or_insert(offset_bytes);
         }
 
         // offset stored in u32 words; pack_sub_bytes pads each stream to a
@@ -349,7 +440,9 @@ impl SubLibrary {
         zone_patches: &[ZonePatchGpu],
     ) -> SubHandle {
         let to_pack: &Encoding = resolved.unwrap_or(sub.as_ref());
-        let handle = self.pack_bytes(queue, to_pack, zone_patches);
+        // Tile/strip path: write immediately (flushes any pending deferred
+        // crowd range first to keep the buffer ordered).
+        let handle = self.pack_bytes(queue, to_pack, zone_patches, true);
         // ABA guard for the pooled tile/strip path: pin the Arc so its
         // heap address can't be reused by a different sub while this
         // handle is cached. (The crowd path bypasses this via
@@ -371,6 +464,8 @@ impl SubLibrary {
         if !self.mirror.is_empty() {
             queue.write_buffer(&new_buffer, 0, &self.mirror);
         }
+        // The whole mirror was just uploaded to the fresh buffer.
+        self.deferred_lo = None;
         self.buffer = new_buffer;
         self.capacity = new_cap;
         self.mirror

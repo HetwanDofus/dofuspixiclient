@@ -68,6 +68,34 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * OFF-THREAD BAKE — worker side. Walk + vello-encode one look's subs
+     * (body bands + accessories) WITHOUT interning to the GPU, returning a
+     * flat blob the main thread reconstructs and interns. `acc` matches the
+     * per-player `acc` shape from `realCrowdSetup`; `scale` is
+     * `resolution / 20` and MUST equal the main crowd's bake scale (the
+     * interned geometry is shared across threads only if baked identically).
+     * Returns the blob (Uint8Array), or the fallback marker when the look
+     * has patch-bearing (gradient/image) subs that must bake on the main
+     * thread.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} frame
+     * @param {boolean} flipped
+     * @param {any} acc
+     * @param {number} scale
+     * @returns {Uint8Array}
+     */
+    bakeCrowdLook(bundle, _export, frame, flipped, acc, scale) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_bakeCrowdLook(this.__wbg_ptr, ptr0, len0, ptr1, len1, frame, flipped, acc, scale);
+        var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v3;
+    }
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
@@ -273,6 +301,35 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * OFF-THREAD BAKE — synchronous fallback for one look (worker pool
+     * unavailable, or a look with patch-bearing/gradient subs the blob path
+     * can't carry). Bakes + interns inline on the main thread — the proven
+     * default path, just callable per-look from JS — then caches the layout
+     * under `layoutSig`/`sigKey` and clears the in-flight guard. Returns subs
+     * interned.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} frame
+     * @param {boolean} flipped
+     * @param {any} acc
+     * @param {string} layout_sig
+     * @param {string} sig_key
+     * @param {number} scale
+     * @returns {number}
+     */
+    crowdBakeLookSync(bundle, _export, frame, flipped, acc, layout_sig, sig_key, scale) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(layout_sig, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(sig_key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_crowdBakeLookSync(this.__wbg_ptr, ptr0, len0, ptr1, len1, frame, flipped, acc, ptr2, len2, ptr3, len3, scale);
+        return ret;
+    }
+    /**
      * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
      * in crowd-texture pixel space; returns the front-most hit actor's index or
      * `-1` on a miss.
@@ -282,6 +339,47 @@ export class VelloRenderer {
      */
     crowdHitTest(x, y) {
         const ret = wasm.vellorenderer_crowdHitTest(this.__wbg_ptr, x, y);
+        return ret;
+    }
+    /**
+     * DIAG: read + reset the accumulated `internCrowdLook` phase timings.
+     * @returns {any}
+     */
+    crowdInternProf() {
+        const ret = wasm.vellorenderer_crowdInternProf(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * DIAG: bake a look and report each sub's patch-kind breakdown, so we know
+     * what the off-thread blob path must carry (ramp gradients vs image
+     * bitmaps vs glyphs). Returns an array of
+     * `{key, isBody, ramp, image, glyph, colorStops}`.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} frame
+     * @param {boolean} flipped
+     * @param {number} scale
+     * @returns {any}
+     */
+    crowdLookPatchDiag(bundle, _export, frame, flipped, scale) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_crowdLookPatchDiag(this.__wbg_ptr, ptr0, len0, ptr1, len1, frame, flipped, scale);
+        return ret;
+    }
+    /**
+     * OFF-THREAD BAKE — drain the looks the emit loop couldn't render from
+     * cache since the last call. Returns an array of
+     * `{bundle, export, frame, flipped, acc:[{bundle,export,slot,animType}],
+     * layoutSig, sigKey}`; the JS driver dispatches each to the worker pool
+     * and feeds the result back via `internCrowdLook` (or `crowdBakeLookSync`
+     * on fallback).
+     * @returns {any}
+     */
+    crowdTakePendingBakes() {
+        const ret = wasm.vellorenderer_crowdTakePendingBakes(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -535,6 +633,29 @@ export class VelloRenderer {
      */
     static init() {
         const ret = wasm.vellorenderer_init();
+        return ret;
+    }
+    /**
+     * OFF-THREAD BAKE — main side. Reconstruct + GPU-intern a look baked by a
+     * worker (`bakeCrowdLook` output), then cache its ordered layout under
+     * `layoutSig`/`sigKey` so the next crowd tick renders it from cache. The
+     * only GPU work is the per-sub `intern_sub_transient` upload — no CPU
+     * walk. Returns the count of newly-interned subs, `-1` if the blob
+     * signalled a fallback (caller bakes this look synchronously), or `-2` on
+     * a malformed blob.
+     * @param {Uint8Array} blob
+     * @param {string} layout_sig
+     * @param {string} sig_key
+     * @returns {number}
+     */
+    internCrowdLook(blob, layout_sig, sig_key) {
+        const ptr0 = passArray8ToWasm0(blob, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(layout_sig, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(sig_key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_internCrowdLook(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
         return ret;
     }
     /**
@@ -1607,6 +1728,18 @@ export class VelloRenderer {
         wasm.vellorenderer_setClassAtlasForcePerVariant(this.__wbg_ptr, force);
     }
     /**
+     * OFF-THREAD BAKE — enable/disable. When ON, the crowd emit loop never
+     * bakes synchronously on a cache miss; it queues the look for the worker
+     * pool (drained by `crowdTakePendingBakes`) and renders the last-good
+     * frame meanwhile. The JS driver MUST be draining + interning/falling
+     * back, or queued looks never render — so this stays OFF until the
+     * worker pool is up.
+     * @param {boolean} on
+     */
+    setCrowdOffThreadBake(on) {
+        wasm.vellorenderer_setCrowdOffThreadBake(this.__wbg_ptr, on);
+    }
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -1984,6 +2117,29 @@ export class VelloRenderer {
     }
 }
 if (Symbol.dispose) VelloRenderer.prototype[Symbol.dispose] = VelloRenderer.prototype.free;
+
+/**
+ * Body-split colour-agnostic bake — port of wc3's deferred prebake
+ * (`actor_batch/prebake.rs` `bake_body_frame` segments + mounts). Mirrors
+ * [`emit_player_look`] exactly (same symbol lookup, slot depths, mount
+ * transforms, flip handling) but renders each body band into its OWN scene
+ * with `PlayerColors::default()` — so zone fills stay placeholders and the
+ * geometry is identical for every actor with that body — while
+ * `zone_patch` capture records where each zone colour lands. Each accessory
+ * renders into its own scene (colours baked as authored). The caller interns
+ * each sub by its palette-free `key`, so the SubLibrary holds one copy per
+ * `(breed,dir,frame,band)` / `(accessory,…)` instead of one per unique
+ * coloured look × frame. Per-actor palette is applied at compose via the
+ * slab colour overlay (`ZonePatchGpu` + `instance_color_overlays`).
+ * DIAG: round-trip self-test for the off-thread crowd-bake blob
+ * (de)serialization, run on the real wasm target (the crate can't build for
+ * host). Returns true iff every field survives serialize → deserialize.
+ * @returns {boolean}
+ */
+export function crowdBlobSelftest() {
+    const ret = wasm.crowdBlobSelftest();
+    return ret !== 0;
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -3105,12 +3261,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 145, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 186, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 209, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 262, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
             return ret;
         },

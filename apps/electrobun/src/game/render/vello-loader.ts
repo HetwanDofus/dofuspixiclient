@@ -27,6 +27,10 @@ import * as velloWasmNs from "vello-wasm";
 const initThreadPool: ((n: number) => Promise<void>) | undefined = (
   velloWasmNs as unknown as { initThreadPool?: (n: number) => Promise<void> }
 ).initThreadPool;
+// DIAG: expose the off-thread crowd-bake blob self-test (free wasm export,
+// not a renderer method). Lets us validate (de)serialization without a map.
+(globalThis as unknown as { __crowdBlobSelftest?: unknown }).__crowdBlobSelftest =
+  (velloWasmNs as unknown as { crowdBlobSelftest?: () => boolean }).crowdBlobSelftest;
 
 import { recordProbe } from "./render-probes";
 import { getRenderWatchdog } from "./render-watchdog";

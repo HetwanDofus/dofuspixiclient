@@ -38,6 +38,11 @@ import {
   getVelloRenderer,
 } from "@/game/render/vello-loader";
 import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
+import {
+  bakeCrowdLookViaWorkerPool,
+  isBakeWorkerPoolReady,
+  whenBakeWorkerPoolInitDone,
+} from "@/game/render/bake-worker-pool";
 import { playerZIndex } from "@/game/constants/z-index";
 import { createLogger } from "@/utils/logger";
 
@@ -97,6 +102,32 @@ interface CrowdVelloApi {
    *  Returns the index into `order` of the topmost actor hit, or -1.
    *  Optional: absent on older wasm builds. */
   crowdHitTest?(x: number, y: number): number;
+  /** OFF-THREAD BAKE (optional; absent on older wasm builds). When enabled,
+   *  the emit loop queues cache-miss looks instead of baking synchronously. */
+  setCrowdOffThreadBake?(on: boolean): void;
+  crowdTakePendingBakes?(): PendingBakeJs[];
+  internCrowdLook?(blob: Uint8Array, layoutSig: string, sigKey: string): number;
+  crowdBakeLookSync?(
+    bundle: string,
+    exportName: string,
+    frame: number,
+    flipped: boolean,
+    acc: unknown,
+    layoutSig: string,
+    sigKey: string,
+    scale: number,
+  ): number;
+}
+
+/** One queued off-thread bake from `crowdTakePendingBakes`. */
+interface PendingBakeJs {
+  bundle: string;
+  export: string;
+  frame: number;
+  flipped: boolean;
+  acc: Array<{ bundle: string; export: string; slot: number; animType: number }>;
+  layoutSig: string;
+  sigKey: string;
 }
 
 interface SetupInfo {
@@ -153,6 +184,15 @@ export class CrowdRenderer {
     anchorY: number;
   } | null = null;
   private atlasActive = false;
+
+  /** OFF-THREAD BAKE. `offThreadInitStarted` guards the one-time pool-readiness
+   *  probe; `offThreadReady` is true once the worker pool is up AND the wasm
+   *  emit loop has been switched to queue-instead-of-bake. `inFlightBakes`
+   *  holds `sigKey`s currently dispatched to a worker (JS-side dedup on top of
+   *  the wasm `requested` guard). */
+  private offThreadInitStarted = false;
+  private offThreadReady = false;
+  private inFlightBakes = new Set<string>();
 
   /** Eligible player ids in the exact order handed to `realCrowdSetup`
    *  (sorted by id, frozen until the next roster rebuild). All the flat
@@ -658,6 +698,8 @@ export class CrowdRenderer {
     r.crowdUpdateFrames(this.frames);
     if (looks.length > 0) r.crowdUpdateLooks(looks);
 
+    this.ensureOffThreadBake(r);
+
     const t0 = performance.now();
     this.lastStats = r.realCrowdRenderBatched(BATCH_CAP, 0);
     this.lastRenderMs = performance.now() - t0;
@@ -670,6 +712,92 @@ export class CrowdRenderer {
       this.texture?.update();
     }
     r.tickDeferredDestroys?.(2, 8192);
+
+    // OFF-THREAD BAKE: drain the looks the emit loop couldn't render from
+    // cache this frame and dispatch them to the worker pool. Runs AFTER the
+    // synchronous render call (so it never nests inside the wasm borrow).
+    if (this.offThreadReady) this.drainPendingBakes(r);
+  }
+
+  /** Switch the wasm emit loop to off-thread mode once the worker pool is up.
+   *  Idempotent; the probe runs once. Until then (and if the pool fails) the
+   *  emit loop keeps baking synchronously — the proven default path. */
+  private ensureOffThreadBake(r: CrowdVelloApi): void {
+    if (this.offThreadInitStarted) return;
+    if (!r.setCrowdOffThreadBake || !r.crowdTakePendingBakes) return;
+    this.offThreadInitStarted = true;
+    void whenBakeWorkerPoolInitDone().then(() => {
+      if (!isBakeWorkerPoolReady()) {
+        log.info("off-thread bake unavailable (no worker pool); sync bakes");
+        return;
+      }
+      r.setCrowdOffThreadBake?.(true);
+      this.offThreadReady = true;
+      log.info("off-thread crowd bake ENABLED");
+    });
+  }
+
+  /** Pull the frame's queued misses from wasm and dispatch each to a bake
+   *  worker. The wasm `requested` guard means each `sigKey` appears here at
+   *  most once until it's interned; `inFlightBakes` is a JS-side mirror. */
+  private drainPendingBakes(r: CrowdVelloApi): void {
+    const pending = r.crowdTakePendingBakes?.();
+    if (!pending || pending.length === 0) return;
+    const scale = this.resolution / 20;
+    for (const b of pending) {
+      if (this.inFlightBakes.has(b.sigKey)) continue;
+      this.inFlightBakes.add(b.sigKey);
+      void this.dispatchBake(r, b, scale);
+    }
+  }
+
+  /** Bake one look off-thread, then intern the returned blob on the main
+   *  thread. Falls back to a synchronous main-thread bake when the worker
+   *  pool is unavailable or the look has patch-bearing (gradient) subs the
+   *  blob path can't carry (`internCrowdLook` → -1). Always resolves the
+   *  look one way or another so it never stays invisible. */
+  private async dispatchBake(
+    r: CrowdVelloApi,
+    b: PendingBakeJs,
+    scale: number,
+  ): Promise<void> {
+    const syncFallback = () => {
+      try {
+        r.crowdBakeLookSync?.(
+          b.bundle,
+          b.export,
+          b.frame,
+          b.flipped,
+          b.acc,
+          b.layoutSig,
+          b.sigKey,
+          scale,
+        );
+      } catch (e) {
+        log.warn(`crowdBakeLookSync failed for ${b.sigKey}:`, e);
+      }
+    };
+    try {
+      const blob = await bakeCrowdLookViaWorkerPool({
+        bundle: b.bundle,
+        export: b.export,
+        frame: b.frame,
+        flipped: b.flipped,
+        acc: b.acc,
+        scale,
+      });
+      if (!blob) {
+        syncFallback();
+      } else {
+        const res = r.internCrowdLook?.(blob, b.layoutSig, b.sigKey) ?? -2;
+        if (res < 0) syncFallback();
+      }
+    } catch (e) {
+      log.warn(`off-thread bake failed for ${b.sigKey}, sync fallback:`, e);
+      syncFallback();
+    } finally {
+      this.inFlightBakes.delete(b.sigKey);
+    }
   }
 
   private hideSprite(): void {
