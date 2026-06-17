@@ -5433,7 +5433,7 @@ impl VelloRenderer {
                             n_path_segments: s.n_path_segments,
                             n_clips: s.n_clips,
                         };
-                        let h = std::sync::Arc::new(s.hit_geom);
+                        let h = std::sync::Arc::new(crowd_blob::HitLazy::from_raw(s.hit_raw));
                         self.slab_crowd.cache_sub(s.key.clone(), c);
                         self.slab_crowd.cache_hit(s.key.clone(), h.clone());
                         interned += 1;
@@ -5628,7 +5628,7 @@ impl VelloRenderer {
                     n_path_segments: enc.n_path_segments,
                     n_clips: enc.n_clips,
                 };
-                let h = std::sync::Arc::new(sub.hit_geom);
+                let h = std::sync::Arc::new(crowd_blob::HitLazy::from_parsed(sub.hit_geom));
                 self.slab_crowd.cache_sub(sub.key.clone(), c);
                 self.slab_crowd.cache_hit(sub.key.clone(), h.clone());
                 interned += 1;
@@ -6106,7 +6106,7 @@ impl VelloRenderer {
                                     n_path_segments: enc.n_path_segments,
                                     n_clips: enc.n_clips,
                                 };
-                                let h = std::sync::Arc::new(sub.hit_geom);
+                                let h = std::sync::Arc::new(crowd_blob::HitLazy::from_parsed(sub.hit_geom));
                                 self.slab_crowd.cache_sub(sub.key.clone(), c);
                                 self.slab_crowd.cache_hit(sub.key.clone(), h.clone());
                                 interned_this_frame += 1;

@@ -8,7 +8,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use swf_spike::render::hit_geometry::HitGeom;
 use vello::kurbo::{Affine, BezPath, ParamCurveNearest, Point, Shape};
 use vello::wgpu;
 use vello::{Renderer, ReuseToken, Scene, SubHandle};
@@ -138,8 +137,9 @@ pub(crate) struct LayoutSlot {
     /// layout, which is itself cached per `(sig|frame)`, so it animates.
     pub acc_mount_world: Option<vello::kurbo::Affine>,
     /// Colour-independent draw-op geometry for this sub, shared (`Arc`) with
-    /// every actor reusing the same interned sub. Used only by [`hit_test`].
-    pub hit: Arc<Vec<HitGeom>>,
+    /// every actor reusing the same interned sub. Parsed lazily on first
+    /// pick (see `crowd_blob::HitLazy`); used only by [`hit_test`].
+    pub hit: Arc<crate::crowd_blob::HitLazy>,
 }
 
 /// What the crowd caches per unique `(sig|frame)` look: the SubLibrary
@@ -205,7 +205,7 @@ pub(crate) struct SlabCrowdState {
     /// Parallel to `handle_by_look`: the same sub key → its colour-independent
     /// hit geometry, shared (`Arc`) across every actor reusing the sub.
     /// Populated alongside `cache_sub`; read into each `LayoutSlot::hit`.
-    hit_by_sub: HashMap<String, Arc<Vec<HitGeom>>>,
+    hit_by_sub: HashMap<String, Arc<crate::crowd_blob::HitLazy>>,
     /// Per-look LAYOUT cache: `(sig|frame)` → the ordered slot list (body
     /// bands + accessories) referencing shared sub handles. Built once per
     /// distinct look+frame via the split bake; subsequent actors with the
@@ -353,11 +353,11 @@ impl SlabCrowdState {
         self.handle_by_look.insert(key, look);
     }
 
-    pub(crate) fn cached_hit(&self, key: &str) -> Option<Arc<Vec<HitGeom>>> {
+    pub(crate) fn cached_hit(&self, key: &str) -> Option<Arc<crate::crowd_blob::HitLazy>> {
         self.hit_by_sub.get(key).cloned()
     }
 
-    pub(crate) fn cache_hit(&mut self, key: String, hit: Arc<Vec<HitGeom>>) {
+    pub(crate) fn cache_hit(&mut self, key: String, hit: Arc<crate::crowd_blob::HitLazy>) {
         self.hit_by_sub.insert(key, hit);
     }
 
@@ -438,7 +438,9 @@ impl SlabCrowdState {
             };
             let look_pt = inv_world * p;
             for slot in actor.slots.iter() {
-                for g in slot.hit.iter() {
+                // `geom()` parses the silhouette on first touch (rare — only on
+                // a click), then caches it.
+                for g in slot.hit.geom() {
                     if op_contains_point(&g.path, g.xform, g.stroke_width, look_pt) {
                         return actor.idx as i32;
                     }

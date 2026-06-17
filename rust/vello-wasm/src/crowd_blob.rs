@@ -59,7 +59,8 @@ pub(crate) struct PackedSub {
     pub n_clips: u32,
     pub patches: Vec<PackedSubPatch>,
     pub zone_patches: Vec<ZonePatchGpu>,
-    pub hit_geom: Vec<swf_spike::render::hit_geometry::HitGeom>,
+    /// Serialized picking silhouette — parsed lazily on first hit-test.
+    pub hit_raw: Vec<u8>,
 }
 
 /// One sub from a deserialized look. `Cached` means the main thread already
@@ -230,6 +231,85 @@ fn r_bezpath(r: &mut Reader) -> Option<BezPath> {
 }
 fn r_point(r: &mut Reader) -> Option<Point> {
     Some(Point::new(r.f64()?, r.f64()?))
+}
+
+// ── lazy hit geometry ──────────────────────────────────────────────────
+//
+// The per-sub picking silhouette (`BezPath`s) is only read on a click —
+// rare vs. the thousands of subs interned per spawn. Reconstructing the
+// `BezPath` object graph at intern (it's ~3× the size of its raw bytes:
+// every `PathEl` is a 3-point-sized enum) bloated the wasm heap (~doubled
+// it) and added to the intern cost. So we keep the COMPACT raw bytes and
+// parse the silhouette on first hit-test, caching the result.
+
+/// Per-sub picking geometry, parsed lazily from its serialized bytes.
+pub(crate) struct HitLazy {
+    raw: Vec<u8>,
+    geom: std::cell::OnceCell<Vec<swf_spike::render::hit_geometry::HitGeom>>,
+}
+impl HitLazy {
+    /// From the serialized hit block (the worker-baked common path).
+    pub(crate) fn from_raw(raw: Vec<u8>) -> Self {
+        Self {
+            raw,
+            geom: std::cell::OnceCell::new(),
+        }
+    }
+    /// From already-parsed geometry (the synchronous main-thread fallback).
+    pub(crate) fn from_parsed(g: Vec<swf_spike::render::hit_geometry::HitGeom>) -> Self {
+        let c = std::cell::OnceCell::new();
+        let _ = c.set(g);
+        Self {
+            raw: Vec::new(),
+            geom: c,
+        }
+    }
+    /// The silhouette — parsed + cached on first call.
+    pub(crate) fn geom(&self) -> &[swf_spike::render::hit_geometry::HitGeom] {
+        self.geom.get_or_init(|| parse_hit(&self.raw)).as_slice()
+    }
+}
+
+/// Parse a serialized hit block (`count` + per-entry bezpath/xform/stroke).
+fn parse_hit(raw: &[u8]) -> Vec<swf_spike::render::hit_geometry::HitGeom> {
+    let mut r = Reader::new(raw);
+    let n = match r.u32() {
+        Some(n) => n as usize,
+        None => return Vec::new(),
+    };
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n {
+        let (Some(path), Some(xform), Some(flag)) = (r_bezpath(&mut r), r.affine(), r.u8()) else {
+            break;
+        };
+        let stroke_width = if flag != 0 { r.f64() } else { None };
+        out.push(swf_spike::render::hit_geometry::HitGeom {
+            path,
+            xform,
+            stroke_width,
+        });
+    }
+    out
+}
+
+/// Serialize a hit block into its own length-prefixed byte run (so the main
+/// thread can store it raw and parse lazily).
+fn w_hit_block(out: &mut Vec<u8>, hit: &[swf_spike::render::hit_geometry::HitGeom]) {
+    // Build into a scratch so we can length-prefix it.
+    let mut hb = Vec::new();
+    w_u32(&mut hb, hit.len() as u32);
+    for g in hit {
+        w_bezpath(&mut hb, &g.path);
+        w_affine(&mut hb, &g.xform);
+        match g.stroke_width {
+            Some(sw) => {
+                w_u8(&mut hb, 1);
+                w_f64(&mut hb, sw);
+            }
+            None => w_u8(&mut hb, 0),
+        }
+    }
+    w_bytes(out, &hb);
 }
 
 // ── gradient patches (Patch::Ramp) + color stops ───────────────────────
@@ -475,19 +555,9 @@ pub(crate) fn serialize_look(subs: &[SubParts]) -> Vec<u8> {
         // Zone recolor patches (ZonePatchGpu is a transparent u32).
         let zp: Vec<u32> = s.zone_patches.iter().map(|z| z.0).collect();
         w_pod(&mut heavy, &zp);
-        // Hit geometry.
-        w_u32(&mut heavy, s.hit_geom.len() as u32);
-        for g in s.hit_geom {
-            w_bezpath(&mut heavy, &g.path);
-            w_affine(&mut heavy, &g.xform);
-            match g.stroke_width {
-                Some(sw) => {
-                    w_u8(&mut heavy, 1);
-                    w_f64(&mut heavy, sw);
-                }
-                None => w_u8(&mut heavy, 0),
-            }
-        }
+        // Hit geometry — length-prefixed raw block (parsed lazily on the main
+        // thread, only when a sub is actually picked).
+        w_hit_block(&mut heavy, s.hit_geom);
         w_u32(&mut out, heavy.len() as u32);
         out.extend_from_slice(&heavy);
     }
@@ -543,18 +613,8 @@ pub(crate) fn deserialize_look(
         let n_clips = r.u32()?;
         let patches = r_patches(&mut r, image_dedup)?;
         let zone_patches = r.pod::<u32>()?.into_iter().map(ZonePatchGpu).collect();
-        let hit_count = r.u32()? as usize;
-        let mut hit_geom = Vec::with_capacity(hit_count);
-        for _ in 0..hit_count {
-            let path = r_bezpath(&mut r)?;
-            let xform = r.affine()?;
-            let stroke_width = if r.u8()? != 0 { Some(r.f64()?) } else { None };
-            hit_geom.push(swf_spike::render::hit_geometry::HitGeom {
-                path,
-                xform,
-                stroke_width,
-            });
-        }
+        // Keep the hit block raw — parsed lazily on first pick (see `HitLazy`).
+        let hit_raw = r.bytes()?.to_vec();
         subs.push(DeSub::Full(PackedSub {
             key,
             is_body,
@@ -566,7 +626,7 @@ pub(crate) fn deserialize_look(
             n_clips,
             patches,
             zone_patches,
-            hit_geom,
+            hit_raw,
         }));
     }
     Some(LookBlob::Subs(subs))
@@ -663,6 +723,10 @@ pub(crate) fn selftest() -> bool {
     };
     let expected_packed = pack_sub_bytes(&enc);
     let expected_template = sub_handle_for(0, &enc);
+    // Hit geometry is shipped raw + parsed lazily — round-trip via HitLazy.
+    let a_hit = HitLazy::from_raw(a.hit_raw.clone());
+    let b_hit = HitLazy::from_raw(b.hit_raw.clone());
+    let ag = a_hit.geom();
     let ok = a.key == "B|sprite-11|walkR|3|0|2"
         && a.is_body
         && a.acc_mount_world.is_none()
@@ -671,15 +735,15 @@ pub(crate) fn selftest() -> bool {
         && a.n_paths == 1
         && a.n_path_segments == 2
         && a.zone_patches.iter().map(|z| z.0).collect::<Vec<_>>() == vec![0x0102_0304, 7]
-        && a.hit_geom.len() == 1
-        && a.hit_geom[0].path.elements() == hit[0].path.elements()
-        && a.hit_geom[0].xform.as_coeffs() == hit[0].xform.as_coeffs()
-        && a.hit_geom[0].stroke_width == Some(1.5)
+        && ag.len() == 1
+        && ag[0].path.elements() == hit[0].path.elements()
+        && ag[0].xform.as_coeffs() == hit[0].xform.as_coeffs()
+        && ag[0].stroke_width == Some(1.5)
         && b.key == "A|sprite-90|capeR|2|wr1|0"
         && !b.is_body
         && b.acc_mount_world.map(|m| m.as_coeffs()) == Some([0.9, 0.1, -0.1, 0.9, 5.0, -5.0])
         && b.zone_patches.is_empty()
-        && b.hit_geom.is_empty();
+        && b_hit.geom().is_empty();
     // Gradient ramp round-trip in packed-word space (shared `enc`, both subs).
     let base_word = expected_template.path_tags_words
         + expected_template.path_data_words
