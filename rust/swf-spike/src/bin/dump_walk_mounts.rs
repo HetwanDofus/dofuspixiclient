@@ -15,6 +15,7 @@ fn main() -> Result<()> {
     let path = PathBuf::from(std::env::args().nth(1).unwrap());
     let want = std::env::args().nth(2).unwrap_or_else(|| "walkR".to_string());
     let doc = SwfDoc::load(&path)?;
+    println!("# frame_rate = {}", doc.frame_rate);
 
     let mut names: Vec<&String> = doc.by_name.keys().collect();
     names.sort();

@@ -10,10 +10,7 @@ import {
 import { parseLook } from "@/game/assets/look-parser";
 import { VelloAssetRegistry } from "@/game/assets/vello-asset-registry";
 import { Direction } from "@/game/fight/types";
-import {
-  swfAnimFrameCount,
-  swfBundleFrameRate,
-} from "@/game/render/vello-loader";
+import { swfAnimFrameCount } from "@/game/render/vello-loader";
 
 /**
  * Reference to one accessory mounted on a character. Slot mirrors
@@ -313,7 +310,16 @@ export class CharacterSpriteLoader {
       frameCount = 1;
     }
 
-    const fps = swfBundleFrameRate(bundleName) || 25;
+    // Character anims advance at a CONSTANT host rate, NOT each SWF's own
+    // authored frame-rate. In canonical Flash/AS2 a loaded SWF plays at the
+    // ROOT movie's frame-rate; the 1.29 client root is `preloader.swf`,
+    // authored at 60 fps (see wc3 `tick_anim.rs` HOST_FPS). Character sprite
+    // SWFs carry inconsistent header frame-rates (e.g. gfx 1 = 12, gfx 111 =
+    // 40, most = 60) that are authoring-tool leftovers — honouring them made
+    // some bots animate several× too slow. Tiles/objects DO use their own
+    // rate, so that path keeps `swfBundleFrameRate`.
+    const HOST_FPS = 60;
+    const fps = HOST_FPS;
 
     const parsed = look ? parseLook(look) : null;
     const colorZones = parsed
