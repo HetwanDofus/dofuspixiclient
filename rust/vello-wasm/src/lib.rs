@@ -6068,7 +6068,15 @@ impl VelloRenderer {
                         });
                         match self.slab_crowd.fallback_layout(&p.layout_sig) {
                             Some(l) => l,
-                            None => continue,
+                            // No same-direction frame baked yet (first sight of
+                            // this DIRECTION — common when roaming): render the
+                            // actor's own last pose so it never vanishes/flickers.
+                            // Skip ONLY on a genuine first appearance (no pose at
+                            // all). Snaps to the correct frame once the bake lands.
+                            None => match self.slab_crowd.last_layout(idx as u32) {
+                                Some(l) => l,
+                                None => continue,
+                            },
                         }
                     } else {
                         // Skip re-encoding subs already interned — the layout
@@ -6127,6 +6135,9 @@ impl VelloRenderer {
                         self.slab_crowd.cache_layout(&p.layout_sig, sig_key, arc.clone());
                         arc
                     };
+                    // Remember the actor's current pose so a future uncached
+                    // (new-direction) frame falls back to it instead of vanishing.
+                    self.slab_crowd.set_last_layout(idx as u32, layout.clone());
                     for ls in layout.iter() {
                         emits.push(slab_crowd::SlabEmit {
                             look: ls.look,

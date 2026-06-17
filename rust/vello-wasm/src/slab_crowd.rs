@@ -217,6 +217,13 @@ pub(crate) struct SlabCrowdState {
     /// nearby frame's layout instead of vanishing — crowd stays full,
     /// animation catches up as frames warm.
     fallback_layout_by_sig: HashMap<String, std::sync::Arc<Vec<LayoutSlot>>>,
+    /// OFF-THREAD BAKE: per-actor (by index) last successfully-rendered layout.
+    /// When an actor reaches a `(sig|frame)` whose look isn't baked yet AND the
+    /// per-direction `fallback_layout_by_sig` has nothing (first sight of a new
+    /// DIRECTION — the common roam case), it renders this last pose instead of
+    /// VANISHING. Briefly stale (wrong frame/dir for a few frames) but never a
+    /// disappear/flicker; snaps correct once the worker bake lands.
+    last_layout_by_idx: HashMap<u32, std::sync::Arc<Vec<LayoutSlot>>>,
     /// Per-actor hit records rebuilt every crowd tick (front-to-back paint
     /// order). Cleared before the per-actor loop and pushed one entry per
     /// drawn actor; read back-to-front by [`hit_test`].
@@ -369,6 +376,14 @@ impl SlabCrowdState {
         self.fallback_layout_by_sig.get(sig).cloned()
     }
 
+    /// The actor's last successfully-rendered layout (off-thread anti-flicker).
+    pub(crate) fn last_layout(&self, idx: u32) -> Option<std::sync::Arc<Vec<LayoutSlot>>> {
+        self.last_layout_by_idx.get(&idx).cloned()
+    }
+    pub(crate) fn set_last_layout(&mut self, idx: u32, layout: std::sync::Arc<Vec<LayoutSlot>>) {
+        self.last_layout_by_idx.insert(idx, layout);
+    }
+
     pub(crate) fn cache_layout(
         &mut self,
         sig: &str,
@@ -466,6 +481,7 @@ impl SlabCrowdState {
         self.hit_actors.clear();
         self.layout_by_sig.clear();
         self.fallback_layout_by_sig.clear();
+        self.last_layout_by_idx.clear();
         self.high_water = SlabHighWater::default();
         self.frame = 0;
         // Off-thread queues reference looks interned into the now-reset
