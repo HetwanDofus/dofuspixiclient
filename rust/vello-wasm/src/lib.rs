@@ -228,6 +228,16 @@ struct RealAnimCrowd {
     scale: f64,
     pos_scale: f64,
     retain: bool,
+    /// ATLAS layout (see `realCrowdSetup`): the crowd renders each actor into
+    /// cell `(idx % cols, idx / cols)` of `target`, feet at
+    /// `(atlas_anchor_x, atlas_anchor_y)` inside a `cell_w × cell_h` cell. The
+    /// JS reads these to make one Pixi sprite per actor sampling its cell, at
+    /// the actor's world position + `playerZIndex(cellId)`.
+    atlas_cols: u32,
+    atlas_cell_w: u32,
+    atlas_cell_h: u32,
+    atlas_anchor_x: f64,
+    atlas_anchor_y: f64,
     /// LIVE path: once `crowdUpdateFrames` has been called, render uses each
     /// player's explicit `frame` rather than deriving it from a global clock.
     explicit_frames: bool,
@@ -4993,6 +5003,12 @@ impl VelloRenderer {
         let mut min_y = f64::INFINITY;
         let mut max_x = f64::NEG_INFINITY;
         let mut max_y = f64::NEG_INFINITY;
+        // Per-actor extents relative to the feet origin (0,0), in TWIP, for
+        // the atlas cell size: half-width (symmetric, for flip), height above
+        // feet (`-y0`), and below feet (`y1`).
+        let mut max_half_w = 1.0_f64;
+        let mut max_up = 1.0_f64;
+        let mut max_down = 1.0_f64;
         let acc_total: u32 = players_vec.iter().map(|p| p.acc.len() as u32).sum();
         for p in &players_vec {
             let wx = p.x * pos_scale;
@@ -5005,6 +5021,9 @@ impl VelloRenderer {
                     max_x = max_x.max(wx + xext * scale);
                     min_y = min_y.min(wy + b.y0 * scale);
                     max_y = max_y.max(wy + b.y1 * scale);
+                    max_half_w = max_half_w.max(xext);
+                    max_up = max_up.max(-b.y0);
+                    max_down = max_down.max(b.y1.max(0.0));
                 }
             }
         }
@@ -5015,15 +5034,32 @@ impl VelloRenderer {
             max_y = 1.0;
         }
         let margin = 64.0_f64;
+        // World-space content origin — kept for the picking hit-test, which
+        // works in world space (place = world translate) independent of the
+        // atlas layout used for rendering.
         let off_x = margin - min_x;
         let off_y = margin - min_y;
         let cap = target_dim_max.min(8192).max(64);
-        let tw = (((max_x - min_x + 2.0 * margin).ceil()) as u32)
-            .min(cap)
-            .max(1);
-        let th = (((max_y - min_y + 2.0 * margin).ceil()) as u32)
-            .min(cap)
-            .max(1);
+
+        // ATLAS layout: render each actor into its own non-overlapping cell so
+        // the JS can composite one Pixi sprite per actor at its own
+        // per-cell zIndex (canonical interleave with object2 tiles). Cell is
+        // generous (1.5× body extents) so wide accessories don't clip; feet
+        // sit at (anchor_x, anchor_y) inside the cell. Cells are static per
+        // actor index → the slab's per-instance transforms never change →
+        // reuse_fast every frame; world movement is applied by the Pixi sprite.
+        let acc_pad = 1.5_f64;
+        let anchor_x = (max_half_w * scale * acc_pad).ceil() + 8.0;
+        let anchor_y = (max_up * scale * acc_pad).ceil() + 8.0;
+        let cell_w = ((2.0 * anchor_x).ceil() as u32).max(2);
+        let cell_h = ((anchor_y + max_down * scale * 1.2 + 8.0).ceil() as u32).max(2);
+        let n_cells = players_vec.len().max(1) as u32;
+        let cols = ((n_cells as f64).sqrt().ceil() as u32).max(1);
+        let rows = n_cells.div_ceil(cols);
+        let tw = (cols * cell_w).min(cap).max(1);
+        let th = (rows * cell_h).min(cap).max(1);
+        let atlas_anchor_x = anchor_x;
+        let atlas_anchor_y = anchor_y;
 
         let target = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("real-anim-crowd"),
@@ -5057,6 +5093,11 @@ impl VelloRenderer {
             scale,
             pos_scale,
             retain,
+            atlas_cols: cols,
+            atlas_cell_w: cell_w,
+            atlas_cell_h: cell_h,
+            atlas_anchor_x,
+            atlas_anchor_y,
             explicit_frames: false,
             look_cache: HashMap::new(),
             look_used: HashMap::new(),
@@ -5428,6 +5469,11 @@ impl VelloRenderer {
                     ref players,
                     off_x,
                     off_y,
+                    atlas_cols,
+                    atlas_cell_w,
+                    atlas_cell_h,
+                    atlas_anchor_x,
+                    atlas_anchor_y,
                     explicit_frames,
                     ..
                 } = crowd;
@@ -5454,17 +5500,25 @@ impl VelloRenderer {
                         (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                     };
                     let sig_key = format!("{}|{}", p.layout_sig, tf);
-                    // Per-actor world placement (shared by all the actor's
-                    // sub-slots) and per-zone palette overlay for body subs.
-                    let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                    // WORLD transform — used ONLY for the picking hit-test
+                    // (point-in-path in world space, independent of how the
+                    // crowd is laid out in the texture).
+                    let world_t = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
                         p.x * pos_scale + off_x,
                         p.y * pos_scale + off_y,
                     ));
-                    let place = if p.flipped {
-                        translate * flip_x
-                    } else {
-                        translate
-                    };
+                    let place_world = if p.flipped { world_t * flip_x } else { world_t };
+                    // ATLAS transform — where the actor is RENDERED: its static
+                    // cell, feet at the cell anchor. Constant per actor index,
+                    // so the slab's per-instance transforms never change frame-
+                    // to-frame; the Pixi sprite applies world movement + zIndex.
+                    let col = (idx as u32) % atlas_cols.max(1);
+                    let row = (idx as u32) / atlas_cols.max(1);
+                    let cell = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                        f64::from(col * atlas_cell_w) + atlas_anchor_x,
+                        f64::from(row * atlas_cell_h) + atlas_anchor_y,
+                    ));
+                    let place = if p.flipped { cell * flip_x } else { cell };
                     let overlay = player_color_overlay(p.colors);
                     // LIVE (wc3 model): every actor renders its EXACT current
                     // (look|frame) EVERY frame. On first sight the look is encoded
@@ -5532,7 +5586,7 @@ impl VelloRenderer {
                     }
                     self.slab_crowd.hit_actors.push(slab_crowd::HitActor {
                         idx: idx as u32,
-                        world: place,
+                        world: place_world,
                         slots: layout.clone(),
                     });
                 }
@@ -6903,6 +6957,30 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(crowd.tw));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(crowd.th));
         result.into()
+    }
+
+    /// Atlas layout for the per-actor compositing path: `{cols, cellW, cellH,
+    /// anchorX, anchorY}`. Actor at `realCrowdSetup` index `i` occupies cell
+    /// `(i % cols, i / cols)`; its feet are at `(anchorX, anchorY)` inside the
+    /// `cellW × cellH` cell. The JS makes one Pixi sprite per actor sampling
+    /// its cell, anchored at the feet, at the actor's world position +
+    /// `playerZIndex(cellId)`.
+    #[wasm_bindgen(js_name = "crowdAtlasInfo")]
+    pub fn crowd_atlas_info(&self) -> JsValue {
+        let Some(crowd) = self.real_anim_crowd.as_ref() else {
+            return JsValue::NULL;
+        };
+        let o = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&o, &k.into(), &JsValue::from(v));
+        };
+        set("cols", f64::from(crowd.atlas_cols));
+        set("cellW", f64::from(crowd.atlas_cell_w));
+        set("cellH", f64::from(crowd.atlas_cell_h));
+        set("anchorX", crowd.atlas_anchor_x);
+        set("anchorY", crowd.atlas_anchor_y);
+        set("count", crowd.players.len() as f64);
+        o.into()
     }
 
     /// LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same

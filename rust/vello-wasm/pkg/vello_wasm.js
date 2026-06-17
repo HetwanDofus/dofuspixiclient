@@ -260,6 +260,19 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * Atlas layout for the per-actor compositing path: `{cols, cellW, cellH,
+     * anchorX, anchorY}`. Actor at `realCrowdSetup` index `i` occupies cell
+     * `(i % cols, i / cols)`; its feet are at `(anchorX, anchorY)` inside the
+     * `cellW × cellH` cell. The JS makes one Pixi sprite per actor sampling
+     * its cell, anchored at the feet, at the actor's world position +
+     * `playerZIndex(cellId)`.
+     * @returns {any}
+     */
+    crowdAtlasInfo() {
+        const ret = wasm.vellorenderer_crowdAtlasInfo(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Point-in-path hit test against the last crowd tick's actors. `x`/`y` are
      * in crowd-texture pixel space; returns the front-most hit actor's index or
      * `-1` on a miss.

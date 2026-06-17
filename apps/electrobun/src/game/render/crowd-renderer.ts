@@ -30,7 +30,7 @@
  * Gated behind `crowdEnabled` in `PlayerRenderer` — the per-player
  * strip path stays the default fallback.
  */
-import { ExternalSource, Sprite, Texture, type Container } from "pixi.js";
+import { ExternalSource, Rectangle, Sprite, Texture, type Container } from "pixi.js";
 
 import {
   getMaxTextureSize,
@@ -38,6 +38,7 @@ import {
   getVelloRenderer,
 } from "@/game/render/vello-loader";
 import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
+import { playerZIndex } from "@/game/constants/z-index";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("CrowdRenderer");
@@ -74,6 +75,16 @@ interface CrowdVelloApi {
     texture: GPUTexture;
     width: number;
     height: number;
+  } | null;
+  /** Atlas layout for the per-actor compositing path. Optional: absent on
+   *  older wasm builds (falls back to the single world-composite sprite). */
+  crowdAtlasInfo?(): {
+    cols: number;
+    cellW: number;
+    cellH: number;
+    anchorX: number;
+    anchorY: number;
+    count: number;
   } | null;
   realCrowdFree(): void;
   tickDeferredDestroys?(a: number, n: number): void;
@@ -126,6 +137,22 @@ export class CrowdRenderer {
   private sprite: Sprite | null = null;
   private source: ExternalSource | null = null;
   private texture: Texture | null = null;
+
+  /** Per-actor atlas path: one Pixi sprite per actor sampling its cell of the
+   *  shared crowd atlas texture, placed at its world position + per-cell
+   *  zIndex (canonical interleave with object2 tiles, composed by Pixi).
+   *  `atlasSprites[i]` is the sprite for `order[i]`. Empty when the band/atlas
+   *  path isn't active (older wasm → single-sprite fallback above). */
+  private atlasSprites: Sprite[] = [];
+  private atlasSource: ExternalSource | null = null;
+  private atlasInfo: {
+    cols: number;
+    cellW: number;
+    cellH: number;
+    anchorX: number;
+    anchorY: number;
+  } | null = null;
+  private atlasActive = false;
 
   /** Eligible player ids in the exact order handed to `realCrowdSetup`
    *  (sorted by id, frozen until the next roster rebuild). All the flat
@@ -203,13 +230,28 @@ export class CrowdRenderer {
    * hit player id (mapped through `order`) or null on miss.
    */
   hitTest(globalX: number, globalY: number): number | null {
-    if (!this.active || !this.sprite) return null;
+    if (!this.active || !this.setup) return null;
     const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
     if (!r?.crowdHitTest) return null;
-    const local = this.sprite.toLocal({ x: globalX, y: globalY });
+    let hx: number;
+    let hy: number;
+    if (this.atlasActive) {
+      // The wasm hit-test runs in world space (place_world =
+      // world·posScale + off), independent of the atlas layout. Map the
+      // screen point → parent (world) units → that hit space.
+      const local = this.parent.toLocal({ x: globalX, y: globalY });
+      hx = local.x * this.setup.posScale + this.setup.offX;
+      hy = local.y * this.setup.posScale + this.setup.offY;
+    } else if (this.sprite) {
+      const local = this.sprite.toLocal({ x: globalX, y: globalY });
+      hx = local.x;
+      hy = local.y;
+    } else {
+      return null;
+    }
     let idx: number;
     try {
-      idx = r.crowdHitTest(local.x, local.y);
+      idx = r.crowdHitTest(hx, hy);
     } catch {
       // Re-entrancy guard while the live render holds the borrow.
       return null;
@@ -286,6 +328,7 @@ export class CrowdRenderer {
   destroy(): void {
     const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
     r?.realCrowdFree();
+    this.teardownAtlas();
     this.sprite?.destroy();
     this.source?.destroy();
     this.sprite = null;
@@ -370,6 +413,9 @@ export class CrowdRenderer {
     eligible: CrowdPlayerSnapshot[],
     key: string,
   ): void {
+    // Drop the old atlas sprites BEFORE freeing the wasm crowd — their
+    // textures alias the GPU atlas that `realCrowdFree` destroys.
+    this.teardownAtlas();
     r.realCrowdFree();
 
     // Stable order = sorted by id (matches the roster key derivation).
@@ -430,6 +476,15 @@ export class CrowdRenderer {
     );
   }
 
+  private teardownAtlas(): void {
+    for (const s of this.atlasSprites) s.destroy({ texture: true });
+    this.atlasSource?.destroy();
+    this.atlasSprites = [];
+    this.atlasSource = null;
+    this.atlasInfo = null;
+    this.atlasActive = false;
+  }
+
   private adoptTexture(r: CrowdVelloApi): void {
     const pixiRenderer = getPixiRenderer();
     if (!pixiRenderer || !this.setup) return;
@@ -438,12 +493,69 @@ export class CrowdRenderer {
       log.warn("crowdTextureHandle returned null");
       return;
     }
+    const inv = 1 / this.resolution;
 
-    // The underlying wgpu texture was just freed + recreated by setup,
-    // so the previous adoption is stale.
+    // PER-ACTOR ATLAS path: the crowd texture is an atlas (one cell per
+    // actor). Make one Pixi sprite per actor sampling its cell, placed at the
+    // actor's world position + per-cell zIndex each frame — so they interleave
+    // canonically with object2 tiles in `objectLayer2`. All sprites share the
+    // one atlas source → Pixi batches them. Falls back to the single
+    // world-composite sprite on older wasm without `crowdAtlasInfo`.
+    const atlas = r.crowdAtlasInfo?.() ?? null;
+    if (atlas && atlas.cols > 0 && atlas.count > 0) {
+      this.teardownAtlas();
+      this.teardownSingleSprite();
+      const source = new ExternalSource({
+        resource: handle.texture,
+        renderer: pixiRenderer,
+        width: handle.width,
+        height: handle.height,
+        label: "crowd-atlas",
+      });
+      source.alphaMode = "no-premultiply-alpha";
+      source.scaleMode = "linear";
+      source.format = "rgba8unorm";
+      source.autoGarbageCollect = false;
+      this.atlasSource = source;
+      this.atlasInfo = {
+        cols: atlas.cols,
+        cellW: atlas.cellW,
+        cellH: atlas.cellH,
+        anchorX: atlas.anchorX,
+        anchorY: atlas.anchorY,
+      };
+      const n = this.order.length;
+      const ax = atlas.anchorX / atlas.cellW;
+      const ay = atlas.anchorY / atlas.cellH;
+      for (let i = 0; i < n; i++) {
+        const col = i % atlas.cols;
+        const row = Math.floor(i / atlas.cols);
+        const tex = new Texture({
+          source,
+          frame: new Rectangle(
+            col * atlas.cellW,
+            row * atlas.cellH,
+            atlas.cellW,
+            atlas.cellH,
+          ),
+        });
+        const sprite = new Sprite(tex);
+        sprite.label = `crowd-actor-${i}`;
+        sprite.anchor.set(ax, ay);
+        sprite.scale.set(inv);
+        sprite.visible = false; // shown per-frame once positioned
+        this.parent.addChild(sprite);
+        this.atlasSprites.push(sprite);
+      }
+      this.atlasActive = true;
+      this.active = true;
+      return;
+    }
+
+    // Single world-composite sprite fallback.
+    this.atlasActive = false;
     this.source?.destroy();
     this.texture?.destroy();
-
     const source = new ExternalSource({
       resource: handle.texture,
       renderer: pixiRenderer,
@@ -457,7 +569,6 @@ export class CrowdRenderer {
     source.autoGarbageCollect = false;
     this.source = source;
     this.texture = new Texture({ source });
-
     if (!this.sprite) {
       this.sprite = new Sprite(this.texture);
       this.sprite.label = "crowd-sprite";
@@ -466,26 +577,26 @@ export class CrowdRenderer {
     } else {
       this.sprite.texture = this.texture;
     }
-    // Texture-local (offX, offY) == world (0,0): a player at world wx lands
-    // at texture-local wx+offX, shown at -offX + (wx+offX) = wx.
-    // Texture is at resolution density; downscale by 1/resolution so it
-    // maps to world units (the container zoom then applies once), and
-    // offset by the (also resolution-density) content origin converted to
-    // world units. A player at world wx lands at texture-local
-    // wx*resolution + offX, shown at (-offX + wx*resolution + offX)/
-    // resolution = wx.
-    const inv = 1 / this.resolution;
     this.sprite.scale.set(inv);
     this.sprite.position.set(-this.setup.offX * inv, -this.setup.offY * inv);
     this.sprite.visible = true;
     this.active = true;
   }
 
+  private teardownSingleSprite(): void {
+    this.sprite?.destroy();
+    this.source?.destroy();
+    this.sprite = null;
+    this.source = null;
+    this.texture = null;
+  }
+
   private updateAndRender(
     r: CrowdVelloApi,
     eligible: CrowdPlayerSnapshot[],
   ): void {
-    if (!this.setup || !this.sprite) return;
+    if (!this.setup) return;
+    if (!this.atlasActive && !this.sprite) return;
     if (this.pendingSlabMode !== null) {
       r.realCrowdSetSlab?.(this.pendingSlabMode);
       log.info(`slab mode ${this.pendingSlabMode ? "ON" : "OFF"} applied`);
@@ -509,11 +620,21 @@ export class CrowdRenderer {
         this.xy[i * 2] = -1e6;
         this.xy[i * 2 + 1] = -1e6;
         this.frames[i] = 0;
+        if (this.atlasActive) this.atlasSprites[i].visible = false;
         continue;
       }
       this.xy[i * 2] = p.x;
       this.xy[i * 2 + 1] = p.y;
       this.frames[i] = Math.max(0, p.frame | 0);
+      if (this.atlasActive) {
+        // The slab renders this actor into its static atlas cell; the sprite
+        // carries world movement + per-cell depth so it interleaves with the
+        // map's object2 tiles in `objectLayer2`.
+        const sp = this.atlasSprites[i];
+        sp.position.set(p.x, p.y);
+        sp.zIndex = playerZIndex(p.cellId);
+        sp.visible = true;
+      }
 
       const prev = this.lastLook.get(id);
       if (this.lookChanged(p, prev)) {
@@ -541,14 +662,19 @@ export class CrowdRenderer {
     this.lastStats = r.realCrowdRenderBatched(BATCH_CAP, 0);
     this.lastRenderMs = performance.now() - t0;
 
-    // The wgpu target was re-rendered in place: invalidate the Pixi source.
-    this.source?.update();
-    this.texture?.update();
+    // The wgpu target was re-rendered in place: invalidate the Pixi source(s).
+    if (this.atlasActive) {
+      this.atlasSource?.update();
+    } else {
+      this.source?.update();
+      this.texture?.update();
+    }
     r.tickDeferredDestroys?.(2, 8192);
   }
 
   private hideSprite(): void {
     if (this.sprite) this.sprite.visible = false;
+    for (const s of this.atlasSprites) s.visible = false;
     this.active = false;
   }
 }

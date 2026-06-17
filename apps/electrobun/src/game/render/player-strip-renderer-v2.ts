@@ -89,6 +89,9 @@ export interface CrowdPlayerSnapshot {
   c3: number;
   x: number;
   y: number;
+  /** Current cell id — drives the per-actor crowd sprite's zIndex
+   *  (`playerZIndex(cellId)`) so it interleaves with object2 tiles. */
+  cellId: number;
   acc: CrowdAccSnapshot[];
 }
 
