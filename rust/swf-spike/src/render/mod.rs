@@ -39,7 +39,7 @@ pub use ctx::{RenderCtx, RenderMode};
 pub use slot_depths::{
     band_count, band_range, body_has_toggle_sprite, compute_band_presence,
     compute_bfix_sensitive_bands, export_uses_b_fix, extract_slot_depths,
-    find_effective_body_symbol, BandRange, SlotDepth,
+    find_effective_and_slots, find_effective_body_symbol, BandRange, SlotDepth,
 };
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
 
@@ -672,7 +672,7 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
                 // the right pixel value irrespective of any animated
                 // tint on the body.
                 ctx.scene
-                    .fill(*rule, transform, &marker, *brush_transform, &cmd.path);
+                    .fill(*rule, transform, &marker, *brush_transform, &*cmd.path);
             }
         }
         return;
@@ -754,7 +754,7 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
                 ..
             } = &cmd.kind
             {
-                zs.fill(*rule, transform, &marker, *brush_transform, &cmd.path);
+                zs.fill(*rule, transform, &marker, *brush_transform, &*cmd.path);
             }
         }
     }

@@ -284,7 +284,7 @@ fn parse_hit(raw: &[u8]) -> Vec<swf_spike::render::hit_geometry::HitGeom> {
         };
         let stroke_width = if flag != 0 { r.f64() } else { None };
         out.push(swf_spike::render::hit_geometry::HitGeom {
-            path,
+            path: std::sync::Arc::new(path),
             xform,
             stroke_width,
         });
@@ -683,7 +683,7 @@ pub(crate) fn selftest() -> bool {
     p.curve_to((4.0, 4.0), (3.0, 3.0), (0.0, 0.0));
     p.close_path();
     let hit = vec![swf_spike::render::hit_geometry::HitGeom {
-        path: p,
+        path: std::sync::Arc::new(p),
         xform: Affine::new([1.0, 0.0, 0.0, 1.0, 12.0, 34.0]),
         stroke_width: Some(1.5),
     }];

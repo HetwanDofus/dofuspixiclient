@@ -52,7 +52,7 @@ pub(super) fn emit_cmd(
             } else {
                 tint_brush(brush, cx)
             };
-            scene.fill(*rule, transform, &tinted, *brush_transform, &cmd.path);
+            scene.fill(*rule, transform, &tinted, *brush_transform, &*cmd.path);
         }
         DrawKind::Stroke {
             brush,
@@ -85,7 +85,7 @@ pub(super) fn emit_cmd(
                 .with_caps(*cap)
                 .with_join(*join)
                 .with_miter_limit(*miter_limit);
-            scene.stroke(&stroke, transform, &tinted, None, &cmd.path);
+            scene.stroke(&stroke, transform, &tinted, None, &*cmd.path);
         }
     }
 }

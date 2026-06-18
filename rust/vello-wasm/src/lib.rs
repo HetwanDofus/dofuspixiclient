@@ -832,12 +832,23 @@ fn emit_player_look_split(
         );
     }
     let has_hat = equipped.contains_key(&1);
-    let (effective_sym, effective_xform) =
-        swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
-    let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
-    let (mount_mats, mount_pres) = swf_spike::render::mount_transforms::extract_mount_transforms(
-        doc, symbol, frame, 1, flipped, MAX_SLOT,
-    );
+    let _ = body_sprite; // slots now come from the combined descent below
+    // Combined descent: effective symbol + transform + slot depths in ONE
+    // wrapper-chain walk (was `find_effective_body_symbol` + `extract_slot_depths`
+    // each re-descending and re-running `extract_slot_depths_direct`).
+    let (effective_sym, effective_xform, slots) =
+        swf_spike::render::find_effective_and_slots(doc, symbol, frame);
+    // Mount transforms are only consumed for EQUIPPED accessory slots (the band
+    // loop reads `mount_pres`/`mount_mats` solely inside `equipped.get(&slot)`).
+    // With nothing equipped, the full mount tree-walk is pure waste — skip it;
+    // the empty vecs read as "no mount" downstream.
+    let (mount_mats, mount_pres) = if equipped.is_empty() {
+        (Vec::new(), Vec::new())
+    } else {
+        swf_spike::render::mount_transforms::extract_mount_transforms(
+            doc, symbol, frame, 1, flipped, MAX_SLOT,
+        )
+    };
     let body_xform = base * effective_xform;
     let n = slots.len();
     let flip_tag = u8::from(flipped);
@@ -5280,6 +5291,7 @@ impl VelloRenderer {
     /// interned geometry is shared across threads only if baked identically).
     /// Returns the blob (Uint8Array), or the fallback marker when the look
     /// has patch-bearing (gradient/image) subs that must bake on the main
+    /// TEMP profiling: set per-bake skip mask (bit0=hit-capture, bit1=encode).
     /// thread.
     #[wasm_bindgen(js_name = "bakeCrowdLook")]
     pub fn bake_crowd_look(

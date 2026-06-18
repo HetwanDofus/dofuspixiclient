@@ -16,7 +16,7 @@ use std::cell::RefCell;
 /// `Some(width)` for a stroke (tested against the centerline) and `None` for a
 /// fill (point-in-path). The path is `Arc`-backed so the clone is cheap.
 pub struct HitGeom {
-    pub path: vello::kurbo::BezPath,
+    pub path: std::sync::Arc<vello::kurbo::BezPath>,
     pub xform: vello::kurbo::Affine,
     pub stroke_width: Option<f64>,
 }

@@ -154,31 +154,49 @@ pub fn find_effective_body_symbol<'a>(
     body_sym: &'a Symbol,
     frame: u16,
 ) -> (&'a Symbol, Affine) {
+    let (sym, xform, _slots) = find_effective_and_slots(doc, body_sym, frame);
+    (sym, xform)
+}
+
+/// Combined descent: returns the effective body symbol, its accumulated
+/// transform, AND the slot depths at that layer — computed in ONE wrapper-chain
+/// walk. The crowd bake previously called `find_effective_body_symbol` and
+/// `extract_slot_depths` separately, each re-descending the chain and
+/// re-running `extract_slot_depths_direct`; this folds them so the canonical
+/// layer's slots (already computed to detect the layer) are returned instead of
+/// discarded. Byte-identical results to the two separate calls.
+pub fn find_effective_and_slots<'a>(
+    doc: &'a SwfDoc,
+    body_sym: &'a Symbol,
+    frame: u16,
+) -> (&'a Symbol, Affine, Vec<SlotDepth>) {
     let mut current_sym: &Symbol = body_sym;
     let mut xform = Affine::IDENTITY;
     for _ in 0..MAX_WRAPPER_DESCENT {
         let Symbol::Sprite(current) = current_sym else {
-            return (current_sym, xform);
+            return (current_sym, xform, Vec::new());
         };
-        // If this level has mounts, we're at the canonical layer.
-        if !extract_slot_depths_direct(doc, current, frame).is_empty() {
-            return (current_sym, xform);
+        // If this level has mounts, we're at the canonical layer — and these
+        // are exactly the slots `extract_slot_depths` would return.
+        let slots = extract_slot_depths_direct(doc, current, frame);
+        if !slots.is_empty() {
+            return (current_sym, xform, slots);
         }
         // No mounts here — try descending through a single-placement
         // wrapper. If there isn't exactly one placement at this
-        // frame, we can't unambiguously descend; bail.
+        // frame, we can't unambiguously descend; bail (empty slots).
         let state = build_frame_state(current, frame);
         if state.len() != 1 {
-            return (current_sym, xform);
+            return (current_sym, xform, slots);
         }
         let Some((_depth, place)) = state.iter().next() else {
-            return (current_sym, xform);
+            return (current_sym, xform, slots);
         };
         let Some(cid) = place.character_id else {
-            return (current_sym, xform);
+            return (current_sym, xform, slots);
         };
         let Some(child_sym) = doc.lookup_id(cid) else {
-            return (current_sym, xform);
+            return (current_sym, xform, slots);
         };
         // Compose the wrapper's placement matrix into our running
         // transform so the renderer ends up at the same world
@@ -187,7 +205,13 @@ pub fn find_effective_body_symbol<'a>(
         xform = xform * local;
         current_sym = child_sym;
     }
-    (current_sym, xform)
+    // Descent exhausted: slots of the final layer (matches `extract_slot_depths`
+    // operating on `find_effective_body_inner`'s result).
+    let slots = match current_sym {
+        Symbol::Sprite(c) => extract_slot_depths_direct(doc, c, frame),
+        _ => Vec::new(),
+    };
+    (current_sym, xform, slots)
 }
 
 /// Compute the band depth range for `band_index`. The body display

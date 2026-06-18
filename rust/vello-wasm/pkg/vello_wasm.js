@@ -76,6 +76,7 @@ export class VelloRenderer {
      * interned geometry is shared across threads only if baked identically).
      * Returns the blob (Uint8Array), or the fallback marker when the look
      * has patch-bearing (gradient/image) subs that must bake on the main
+     * TEMP profiling: set per-bake skip mask (bit0=hit-capture, bit1=encode).
      * thread.
      * @param {string} bundle
      * @param {string} _export

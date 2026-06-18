@@ -23,7 +23,10 @@ use crate::swf_doc::{EncodedBitmap, SwfDoc, Symbol};
 /// or a stroked one. Coordinates are in twips (the SWF unit, 1/20 px).
 #[derive(Debug, Clone)]
 pub struct DrawCmd {
-    pub path: BezPath,
+    /// `Arc`-shared so the per-bake hit-capture clone and the tile recolor
+    /// clone copy a pointer, not the whole `Vec<PathEl>` (the geometry is
+    /// immutable once flattened — recolor only mutates the brush).
+    pub path: std::sync::Arc<BezPath>,
     pub kind: DrawKind,
 }
 
@@ -322,7 +325,7 @@ fn emit_paths(closed: &mut Vec<OpenPath>) -> Vec<DrawCmd> {
                 let bp = build_bez(&stitched, /* close = */ true);
                 let is_image = matches!(brush, Brush::Image(_));
                 let cmd = DrawCmd {
-                    path: bp,
+                    path: std::sync::Arc::new(bp),
                     kind: DrawKind::Fill {
                         brush,
                         brush_transform,
@@ -348,7 +351,7 @@ fn emit_paths(closed: &mut Vec<OpenPath>) -> Vec<DrawCmd> {
                 // across shapes.
                 let bp = build_bez(&stitched, /* close = */ false);
                 strokes.push(DrawCmd {
-                    path: bp,
+                    path: std::sync::Arc::new(bp),
                     kind: DrawKind::Stroke {
                         brush,
                         width,
