@@ -727,6 +727,29 @@ struct SplitSub {
     hit_geom: Vec<swf_spike::render::hit_geometry::HitGeom>,
 }
 
+/// Cached BODY structure for one body pose `(bundle, export, frame, flip)` —
+/// the result of the two structural SWF walks (`find_effective_and_slots` +
+/// `extract_mount_transforms`) plus which body bands are non-empty. These are
+/// identical across every (uniquely-geared) actor sharing that body pose, so
+/// caching them lets a warm `emit_player_look_split` skip both walks and
+/// `render_body_band` entirely — it just emits cached-handle markers for the
+/// non-empty bands and composes the per-look accessories. Measured per-pose
+/// warm cost ~0.056 ms (full SWF walk) → near-free.
+///
+/// INVARIANT: an entry here implies its non-empty bands are still interned in
+/// THIS renderer's SubLibrary. The slab is grow-only (no per-sub eviction), so
+/// this only breaks on a wholesale reset — `clear()` MUST be called wherever the
+/// slab interns are reset (map change).
+#[derive(Clone)]
+struct BodyStructCache {
+    slots: Vec<swf_spike::render::slot_depths::SlotDepth>,
+    mount_mats: Vec<f32>,
+    mount_pres: Vec<u8>,
+    /// `nonempty[i]` = band `i` produced geometry (was interned) at first bake.
+    /// Length is `slots.len() + 1` (the band loop runs `0..=n`).
+    nonempty: Vec<bool>,
+}
+
 /// Pack an actor's `PlayerColors` (0xRRGGBB per zone) into the slab's
 /// per-slot overlay format: `[zone1, zone2, zone3]`, each `[R, G, B, A]`
 /// little-endian (the slab packs via `u32::from_le_bytes`; the shader reads
@@ -791,6 +814,12 @@ fn emit_player_look_split(
     // expensive `render_body_band` / accessory bake. THIS is what keeps the
     // bake cheap for moving crowds instead of relying on a layout cache.
     is_cached: &dyn Fn(u64) -> bool,
+    // Structural cache (main-slab path only, where `is_cached` reflects the
+    // persistent SubLibrary so band markers resolve to interned handles). On a
+    // pose hit it skips both structural walks + `render_body_band`. `None` on
+    // the worker / full-bake paths (`is_cached = |_| false`), which must emit
+    // real geometry, never markers.
+    body_struct: Option<&mut HashMap<u64, BodyStructCache>>,
 ) -> Vec<SplitSub> {
     use swf_spike::render::ctx::RenderMode;
     use swf_spike::render::{hit_geometry, zone_patch};
@@ -836,25 +865,47 @@ fn emit_player_look_split(
     }
     let has_hat = equipped.contains_key(&1);
     let _ = body_sprite; // slots now come from the combined descent below
-    // Combined descent: effective symbol + transform + slot depths in ONE
-    // wrapper-chain walk (was `find_effective_body_symbol` + `extract_slot_depths`
-    // each re-descending and re-running `extract_slot_depths_direct`).
-    let (effective_sym, effective_xform, slots) =
-        swf_spike::render::find_effective_and_slots(doc, symbol, frame);
-    // Mount transforms are only consumed for EQUIPPED accessory slots (the band
-    // loop reads `mount_pres`/`mount_mats` solely inside `equipped.get(&slot)`).
-    // With nothing equipped, the full mount tree-walk is pure waste — skip it;
-    // the empty vecs read as "no mount" downstream.
-    let (mount_mats, mount_pres) = if equipped.is_empty() {
-        (Vec::new(), Vec::new())
-    } else {
-        swf_spike::render::mount_transforms::extract_mount_transforms(
-            doc, symbol, frame, 1, flipped, MAX_SLOT,
-        )
-    };
-    let body_xform = base * effective_xform;
-    let n = slots.len();
     let flip_tag = u8::from(flipped);
+    // Body STRUCTURE = (slots, mount matrices, which bands are non-empty) for
+    // this pose. Identical across every actor sharing (bundle,export,frame,flip),
+    // so cache it: a warm hit skips the two structural walks below AND every
+    // `render_body_band` (bands become cached-handle markers). `effective`
+    // (symbol+xform, borrowing `doc`) is only needed to render bands on a cold
+    // miss, so it's `None` on a hit.
+    let cache_key = crowd_blob::key_hash(&format!("S|{bundle}|{export}|{frame}|{flip_tag}"));
+    let cached_struct = body_struct.as_ref().and_then(|m| m.get(&cache_key)).cloned();
+    let slots: Vec<swf_spike::render::slot_depths::SlotDepth>;
+    let mount_mats: Vec<f32>;
+    let mount_pres: Vec<u8>;
+    let mut nonempty: Vec<bool>;
+    let effective: Option<(&swf_spike::swf_doc::Symbol, vello::kurbo::Affine)>;
+    if let Some(bs) = cached_struct {
+        slots = bs.slots;
+        mount_mats = bs.mount_mats;
+        mount_pres = bs.mount_pres;
+        nonempty = bs.nonempty;
+        effective = None;
+    } else {
+        // Combined descent: effective symbol + transform + slot depths in ONE
+        // wrapper-chain walk. Mount transforms are only consumed for EQUIPPED
+        // slots, so the tree-walk is skipped entirely when nothing is equipped.
+        let (esym, exf, sl) = swf_spike::render::find_effective_and_slots(doc, symbol, frame);
+        let (mm, mp) = if equipped.is_empty() {
+            (Vec::new(), Vec::new())
+        } else {
+            swf_spike::render::mount_transforms::extract_mount_transforms(
+                doc, symbol, frame, 1, flipped, MAX_SLOT,
+            )
+        };
+        nonempty = vec![false; sl.len() + 1];
+        slots = sl;
+        mount_mats = mm;
+        mount_pres = mp;
+        effective = Some((esym, exf));
+    }
+    let from_cache = effective.is_none();
+    let body_xform = effective.map(|(_, exf)| base * exf);
+    let n = slots.len();
     // Canonical character direction letter (wc3: export name = stem +
     // direction::letter, so the body export's last char IS the direction).
     // Flips mirror left<->right, so recover the canonical facing by swapping
@@ -874,11 +925,26 @@ fn emit_player_look_split(
     };
     for i in 0..=n {
         let band_key = crowd_blob::key_hash(&format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"));
-        if is_cached(band_key) {
+        if from_cache {
+            // Warm structure: non-empty bands → cached-handle marker (the caller
+            // reuses the interned handle + hit geom); empty bands → skip. No SWF
+            // walk, no `render_body_band`.
+            if nonempty[i] {
+                out_subs.push(SplitSub {
+                    scene: vello::Scene::new(),
+                    patches: Vec::new(),
+                    key: band_key,
+                    is_body: true,
+                    acc_mount_world: None,
+                    hit_geom: Vec::new(),
+                });
+            }
+        } else if is_cached(band_key) {
             // Already interned — emit a marker (no scene). The caller reuses
             // the cached handle + hit geometry; we skip the expensive
             // band walk + fill encode. A cached key was non-empty when first
             // baked, so its slot still counts.
+            nonempty[i] = true;
             out_subs.push(SplitSub {
                 scene: vello::Scene::new(),
                 patches: Vec::new(),
@@ -888,6 +954,8 @@ fn emit_player_look_split(
                 hit_geom: Vec::new(),
             });
         } else {
+            let (effective_sym, _) = effective.expect("cold path has effective symbol");
+            let bx = body_xform.expect("cold path has body_xform");
             let band = swf_spike::render::band_range(&slots, i);
             let mut band_scene = vello::Scene::new();
             zone_patch::begin_capture();
@@ -897,7 +965,7 @@ fn emit_player_look_split(
                 doc,
                 effective_sym,
                 &mut band_scene,
-                body_xform,
+                bx,
                 frame,
                 band,
                 RenderMode::Colour,
@@ -924,6 +992,7 @@ fn emit_player_look_split(
                         )
                     })
                     .collect();
+                nonempty[i] = true;
                 out_subs.push(SplitSub {
                     scene: band_scene,
                     patches: gpu_patches,
@@ -1042,6 +1111,16 @@ fn emit_player_look_split(
             }
         }
     }
+    // Cache this pose's structure (cold path only) so the next actor sharing
+    // this body pose skips both structural walks + `render_body_band`.
+    if !from_cache {
+        if let Some(m) = body_struct {
+            m.insert(
+                cache_key,
+                BodyStructCache { slots, mount_mats, mount_pres, nonempty },
+            );
+        }
+    }
     out_subs
 }
 
@@ -1132,6 +1211,10 @@ pub struct VelloRenderer {
     crowd_composite_pipeline: Option<bitmap_bridge::MultiCompositePipeline>,
     /// Tier-7 slab crowd state (interned-look render path; see `slab_crowd`).
     slab_crowd: slab_crowd::SlabCrowdState,
+    /// Per-body-pose structural cache for the main-thread crowd bake — see
+    /// [`BodyStructCache`]. Cleared in lockstep with `slab_crowd.reset()` so a
+    /// cached entry always implies its bands are still interned.
+    crowd_body_struct: HashMap<u64, BodyStructCache>,
     /// OFF-THREAD BAKE: content-hash → shared `Blob` for bitmap images
     /// reconstructed from worker blobs. The image atlas dedups by `Blob::id()`,
     /// but each worker blob would otherwise rebuild a fresh `Blob` (new id) per
@@ -1669,6 +1752,7 @@ impl VelloRenderer {
             real_anim_crowd: None,
             crowd_composite_pipeline: None,
             slab_crowd: slab_crowd::SlabCrowdState::default(),
+            crowd_body_struct: HashMap::new(),
             slab_mode: false,
             swf_filter_pipelines: None,
             swf_player_colors: swf_spike::recolor::PlayerColors::default(),
@@ -4957,6 +5041,7 @@ impl VelloRenderer {
         // ramp/atlas caches are append-only within a crowd lifetime (wc3 resets
         // these per MapEpoch for the same reason).
         self.slab_crowd.reset(&mut self.renderer);
+        self.crowd_body_struct.clear();
         // The image atlas was just reset; drop the worker-blob image dedup so it
         // re-pins fresh (its `Blob` ids must match the new atlas generation).
         self.crowd_image_dedup.clear();
@@ -5256,6 +5341,7 @@ impl VelloRenderer {
             &[],
             scale_aff,
             &|_| false,
+            None,
         );
         let arr = js_sys::Array::new();
         for s in &subs {
@@ -5370,6 +5456,7 @@ impl VelloRenderer {
             &acc_vec,
             scale_aff,
             &|_| false,
+            None,
         );
         let parts: Vec<crowd_blob::SubParts> = subs
             .iter()
@@ -5625,6 +5712,7 @@ impl VelloRenderer {
                 &acc_vec,
                 scale_aff,
                 &|k| already.has_sub(k),
+                Some(&mut self.crowd_body_struct),
             )
         };
         let mut layout_vec = Vec::with_capacity(subs.len());
@@ -5897,6 +5985,7 @@ impl VelloRenderer {
     pub fn real_crowd_set_slab(&mut self, enabled: bool) {
         if self.slab_mode != enabled {
             self.slab_crowd.reset(&mut self.renderer);
+        self.crowd_body_struct.clear();
             self.crowd_image_dedup.clear();
         }
         self.slab_mode = enabled;
@@ -6112,6 +6201,7 @@ impl VelloRenderer {
                                 &p.acc,
                                 scale_aff,
                                 &|k| already.has_sub(k),
+                                Some(&mut self.crowd_body_struct),
                             )
                         };
                         let mut layout_vec = Vec::with_capacity(subs.len());
