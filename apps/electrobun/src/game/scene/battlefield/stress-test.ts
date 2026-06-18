@@ -1123,10 +1123,81 @@ function ensureWatchdogWiring(renderer: PlayerRenderer): void {
  *   - the render watchdog halts (loop pauses and resumes via the
  *     halt-state poll; the watchdog handler will despawn us if needed).
  *
- * Each iteration picks a fresh walkable target, computes a path, and
+ * Each iteration picks a PRE-COMPUTED path from the bot's current cell and
  * awaits arrival. The `Promise.race` against `cancelled` is what lets
  * `despawn` interrupt a long walk so the loop doesn't leak.
  */
+/**
+ * Pre-computed path pool — the stress harness's spawn freeze was hundreds of
+ * simultaneous live `findPath` (A*) calls when bots start moving (real gameplay
+ * is server-driven, so this is purely a test artifact). Instead, build ~1000
+ * valid paths ONCE per map and have bots replay them. Indexed by START cell so a
+ * bot chains end → next-start with neither a teleport nor a runtime A*.
+ */
+const PRECOMPUTED_PATH_TARGET = 1000;
+let precomputedPaths: {
+  signature: string;
+  byStart: Map<number, number[][]>;
+} | null = null;
+
+function precomputeSignature(cells: CellData[]): string {
+  const walkable = cells.filter(isWalkable);
+  return `${cells.length}:${walkable.length}:${walkable[0]?.id ?? -1}:${
+    walkable[walkable.length - 1]?.id ?? -1
+  }`;
+}
+
+/**
+ * Build (once per map, cached by cell-set signature) ~1000 valid paths between
+ * walkable cells, indexed by start cell. Starts are round-robined over every
+ * walkable cell so each has outgoing paths, and targets are walkable too — so a
+ * path's END is always a valid next START and bots chain forever with zero
+ * runtime `findPath`. Yields periodically so the one-time build never blocks a
+ * frame (and it's reused across spawns / despawns on the same map).
+ */
+async function ensurePrecomputedPaths(
+  cells: CellData[],
+  pathfinding: DofusPathfinding,
+): Promise<Map<number, number[][]>> {
+  const signature = precomputeSignature(cells);
+  if (precomputedPaths && precomputedPaths.signature === signature) {
+    return precomputedPaths.byStart;
+  }
+  const walkable = cells.filter(isWalkable);
+  const byStart = new Map<number, number[][]>();
+  if (walkable.length >= 2) {
+    let batchStart = performance.now();
+    for (let i = 0; i < PRECOMPUTED_PATH_TARGET; i++) {
+      const start = walkable[i % walkable.length];
+      const target = walkable[Math.floor(rnd() * walkable.length)];
+      if (target.id !== start.id) {
+        const path = pathfinding.findPath(start.id, target.id);
+        if (path && path.length >= 2) {
+          let arr = byStart.get(start.id);
+          if (!arr) {
+            arr = [];
+            byStart.set(start.id, arr);
+          }
+          arr.push(path);
+        }
+      }
+      // Time-box: keep each synchronous batch under ~6ms so the one-time
+      // build (≈1000 A* calls) never drops a frame, regardless of per-path
+      // A* cost. Reused across spawns on the same map (signature cache).
+      if (performance.now() - batchStart > 6) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        batchStart = performance.now();
+      }
+    }
+  }
+  precomputedPaths = { signature, byStart };
+  const total = [...byStart.values()].reduce((s, a) => s + a.length, 0);
+  log.info(
+    `stress: precomputed ${total} paths over ${byStart.size} start cells`,
+  );
+  return byStart;
+}
+
 async function runMovementLoop(
   id: number,
   renderer: PlayerRenderer,
@@ -1179,12 +1250,22 @@ async function runMovementLoop(
       // Bot was removed under us — exit cleanly.
       return;
     }
-    const target = pickRandomCell(cells);
-    if (!target || target.id === currentCell) {
-      await botSleep(200);
-      continue;
+    // Pick a PRE-COMPUTED path from the current cell — no runtime A*. Cloned
+    // so a shared pool entry can't be mutated by the movement system. Falls
+    // back to a live `findPath` only if this cell has no precomputed paths,
+    // which shouldn't happen (every walkable cell is round-robined as a start).
+    let path: number[] | null = null;
+    const pool = precomputedPaths?.byStart.get(currentCell);
+    if (pool && pool.length > 0) {
+      path = pool[Math.floor(Math.random() * pool.length)].slice();
+    } else {
+      const target = pickRandomCell(cells);
+      if (!target || target.id === currentCell) {
+        await botSleep(200);
+        continue;
+      }
+      path = pathfinding.findPath(currentCell, target.id);
     }
-    const path = pathfinding.findPath(currentCell, target.id);
     if (!path || path.length < 2) {
       await botSleep(200);
       continue;
@@ -1221,6 +1302,10 @@ export async function spawnTestPlayers(
     );
     return [];
   }
+
+  // Build the pre-computed path pool BEFORE spawning so movement loops never
+  // run a live A* (the spawn freeze). One-time per map, yields between batches.
+  await ensurePrecomputedPaths(cells, pathfinding);
 
   const requested = n;
   const headroom = Math.max(0, HARD_CAP - activePlayers.size);
@@ -1324,6 +1409,11 @@ export async function spawnBurst(
   if (getRenderWatchdog().isHalted()) {
     log.warn("spawnBurst refused: watchdog halted. __renderResume() then retry.");
     return [];
+  }
+  // Pre-compute the path pool up front (one-time per map) so the moving variant
+  // never runs a live A* per bot.
+  if (opts.move !== false) {
+    await ensurePrecomputedPaths(cells, pathfinding);
   }
   // Seeded looks: same seed → identical roster across sessions, so a
   // persisted cache fully hits (mirrors revisiting the same map).
