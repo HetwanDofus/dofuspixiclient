@@ -1572,6 +1572,21 @@ export class VelloRenderer {
         return v1;
     }
     /**
+     * DOFUS churn attribution: per-label created stats, flattened as
+     * `[name, bytes, count, name, bytes, count, ...]` (bytes/count as
+     * decimal strings), sorted by bytes descending. `kind`: 0 =
+     * buffers, 1 = textures. Pair with `rustGpuResetByName` to read a
+     * clean before/after delta around a single spawn burst.
+     * @param {number} kind
+     * @returns {string[]}
+     */
+    rustGpuCreatedByName(kind) {
+        const ret = wasm.vellorenderer_rustGpuCreatedByName(this.__wbg_ptr, kind);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Diagnostic: counts for non-byte-sized GPU objects (bind
      * groups, texture views, samplers). Returns 9 values:
      * `[liveBg, createdBg, droppedBg,
@@ -1588,6 +1603,12 @@ export class VelloRenderer {
         var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
+    }
+    /**
+     * Zero the per-label created maps (buffers + textures).
+     */
+    rustGpuResetByName() {
+        wasm.vellorenderer_rustGpuResetByName(this.__wbg_ptr);
     }
     /**
      * Diagnostics: how many `wgpu::Texture`s we hold in
@@ -3263,12 +3284,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 186, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 188, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 262, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 264, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
             return ret;
         },

@@ -249,6 +249,33 @@ export async function initVello(wasmUrl?: string): Promise<{
   const result = await VelloRenderer.init(false);
 
   renderer = result.renderer as VelloRenderer;
+  // DOFUS churn-attribution debug hook: per-label GPU created-bytes.
+  // `kind` 0=buffers, 1=textures. Returns [{name,bytes,count}] sorted
+  // by bytes desc. `__rustGpuResetByName()` zeroes for a clean delta.
+  (window as unknown as Record<string, unknown>).__rustGpuByName = (
+    kind: number,
+  ) => {
+    const r = renderer as unknown as {
+      rustGpuCreatedByName?: (k: number) => string[];
+    };
+    const flat = r.rustGpuCreatedByName?.(kind) ?? [];
+    const rows: { name: string; bytes: number; mb: number; count: number }[] =
+      [];
+    for (let i = 0; i + 2 < flat.length; i += 3) {
+      const bytes = Number(flat[i + 1]);
+      rows.push({
+        name: flat[i],
+        bytes,
+        mb: +(bytes / 1048576).toFixed(2),
+        count: Number(flat[i + 2]),
+      });
+    }
+    return rows;
+  };
+  (window as unknown as Record<string, unknown>).__rustGpuResetByName = () => {
+    const r = renderer as unknown as { rustGpuResetByName?: () => void };
+    r.rustGpuResetByName?.();
+  };
   maxTextureSize = (result.maxTextureSize as number) || 8192;
   velloGpu = {
     adapter: result.adapter as GPUAdapter,

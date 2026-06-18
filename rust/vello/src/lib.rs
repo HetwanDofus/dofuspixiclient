@@ -1439,6 +1439,20 @@ impl Renderer {
         // is never read. Sizes oscillate per frame as actors cross bands, so
         // grow-only settles at the working-set peak after warmup, then every
         // frame reuses (zero allocation).
+        //
+        // CRITICAL: when we must (re)allocate, round capacity UP to a power of
+        // two (with a 1 MiB floor). A spawn/despawn ramp grows the packed scene
+        // a little EVERY frame, so allocating exactly `scene_proxy.size` made the
+        // `>= scene_proxy.size` reuse check miss every frame — one realloc per
+        // frame, each sized to the (large, growing) scene. Measured at a +49-bot
+        // ramp on 100 movers: 36 reallocs / 151 MB of `vello.scene` churn in a
+        // few hundred ms; extrapolated to a several-hundred-bot ramp this is the
+        // multi-GB transient that thrashes the Metal allocator and trips the GPU
+        // watchdog (whole-machine freeze). Geometric headroom turns O(n)
+        // per-frame reallocs into O(log n) total: the over-allocated buffer
+        // satisfies many subsequent growth frames before crossing the next class.
+        // Headroom is ≤2× a tens-of-MB peak — negligible live memory, and the
+        // shaders only read the layout's valid prefix so the slack tail is inert.
         let buffer = match self.reused_scene_bufs.remove(&token.0) {
             Some(prev) if prev.buffer.size() >= scene_proxy.size => prev.buffer,
             _ => {
@@ -1446,9 +1460,10 @@ impl Renderer {
                     | wgpu::BufferUsages::COPY_DST
                     | wgpu::BufferUsages::STORAGE
                     | wgpu::BufferUsages::VERTEX;
+                let capacity = scene_proxy.size.max(1 << 20).next_power_of_two();
                 device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some(scene_proxy.name),
-                    size: scene_proxy.size,
+                    size: capacity,
                     usage,
                     mapped_at_creation: false,
                 })

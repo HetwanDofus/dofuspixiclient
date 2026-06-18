@@ -684,6 +684,7 @@ pub(crate) fn render_crowd_slab(
         return Ok(());
     }
 
+    let mut stable_token: Option<ReuseToken> = None;
     if let Some(r) = state.retained.take() {
         let layout_matches = r.packed_len == resolved.packed.len()
             && r.transform_len == resolved.transform_len()
@@ -715,11 +716,25 @@ pub(crate) fn render_crowd_slab(
             });
             return result;
         }
-        renderer.free_reused(r.token);
+        // Structure changed (spawn/despawn/anim/dir): fall through to the
+        // full prepare, but REUSE the same token so `prepare_reuse`'s
+        // grow-only retention can reuse the resident scene buffer in place.
+        // Minting a fresh token here (and `free_reused`-ing the old one)
+        // made that retention dead code — every full-path frame during a
+        // ramp freed the old `vello.scene` buffer and allocated a new one,
+        // sized to the (large, growing) scene. Measured: a +49-bot ramp on
+        // 100 movers churned ~25-36 reallocs / ~150-170 MB of `vello.scene`
+        // in a few hundred ms; a several-hundred-bot ramp scales that to the
+        // multi-GB transient that thrashes the Metal allocator and trips the
+        // macOS GPU watchdog (whole-machine freeze). Keeping the token stable
+        // lets the buffer be reused/grown (power-of-two) across re-prepares.
+        stable_token = Some(r.token);
     }
 
-    state.token_seq += 1;
-    let token = ReuseToken(SLAB_TOKEN_BASE | state.token_seq);
+    let token = stable_token.unwrap_or_else(|| {
+        state.token_seq += 1;
+        ReuseToken(SLAB_TOKEN_BASE | state.token_seq)
+    });
     let t_prepare = web_time::Instant::now();
     renderer.prepare_reuse(device, queue, token, &resolved);
     state.last.upload_ms = t_prepare.elapsed().as_secs_f64() * 1000.0;

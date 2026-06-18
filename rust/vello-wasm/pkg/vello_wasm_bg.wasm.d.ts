@@ -82,7 +82,9 @@ export const vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: nu
 export const vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
 export const vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_rustGpuByteStats: (a: number) => [number, number];
+export const vellorenderer_rustGpuCreatedByName: (a: number, b: number) => [number, number];
 export const vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
+export const vellorenderer_rustGpuResetByName: (a: number) => void;
 export const vellorenderer_rustTexturesCount: (a: number) => number;
 export const vellorenderer_serializeAccessorySubsceneCache: (a: number, b: number, c: number) => [number, number];
 export const vellorenderer_serializeBodySceneCache: (a: number, b: number, c: number) => [number, number];

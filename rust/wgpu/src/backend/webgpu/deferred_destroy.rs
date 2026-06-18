@@ -36,6 +36,8 @@
 
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::string::{String, ToString};
 
 use super::webgpu_sys;
 
@@ -85,13 +87,70 @@ std::thread_local! {
     static LIVE_SAMPLER_COUNT: Cell<u64> = const { Cell::new(0) };
     static CREATED_SAMPLER_COUNT: Cell<u64> = const { Cell::new(0) };
     static DROPPED_SAMPLER_COUNT: Cell<u64> = const { Cell::new(0) };
+
+    // DOFUS attribution: per-label created-bytes + create-count, for
+    // buffers and textures separately. Lets us pin WHICH allocation
+    // (by wgpu label/name) dominates churn during a crowd spawn burst.
+    // Resettable via `reset_by_name()` so a clean before/after delta
+    // can be measured around a single spawn. Keyed by the descriptor
+    // label (or "(unlabeled)").
+    static CREATED_BUF_BY_NAME: RefCell<HashMap<String, (u64, u64)>>
+        = RefCell::new(HashMap::new());
+    static CREATED_TEX_BY_NAME: RefCell<HashMap<String, (u64, u64)>>
+        = RefCell::new(HashMap::new());
+}
+
+fn record_named(map: &RefCell<HashMap<String, (u64, u64)>>, label: Option<&str>, byte_size: u64) {
+    let key = label.unwrap_or("(unlabeled)");
+    let mut m = map.borrow_mut();
+    if let Some(entry) = m.get_mut(key) {
+        entry.0 = entry.0.saturating_add(byte_size);
+        entry.1 = entry.1.saturating_add(1);
+    } else {
+        m.insert(key.to_string(), (byte_size, 1));
+    }
+}
+
+/// Flattened per-label created stats: `[name, bytes, count, name, ...]`
+/// with bytes/count as decimal strings. `kind`: 0 = buffers, 1 =
+/// textures. Returned as a flat `Vec<String>` so the wasm boundary
+/// stays simple.
+pub fn created_by_name(kind: u32) -> Vec<String> {
+    let map = if kind == 0 { &CREATED_BUF_BY_NAME } else { &CREATED_TEX_BY_NAME };
+    map.with(|m| {
+        let m = m.borrow();
+        let mut out: Vec<String> = Vec::with_capacity(m.len() * 3);
+        // Sort by bytes descending so the biggest churn is first.
+        let mut entries: Vec<(&String, &(u64, u64))> = m.iter().collect();
+        entries.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+        for (name, (bytes, count)) in entries {
+            out.push(name.clone());
+            out.push(bytes.to_string());
+            out.push(count.to_string());
+        }
+        out
+    })
+}
+
+/// Zero both per-label maps. Call right before a measured spawn to get
+/// a clean delta.
+pub fn reset_by_name() {
+    CREATED_BUF_BY_NAME.with(|m| m.borrow_mut().clear());
+    CREATED_TEX_BY_NAME.with(|m| m.borrow_mut().clear());
 }
 
 /// Increment live + created texture byte counters. Call on every
 /// `WebTexture::new` (or equivalent direct struct construction).
 pub fn record_texture_created(byte_size: u64) {
+    record_texture_created_named(byte_size, None);
+}
+
+/// As [`record_texture_created`] but also attributes the bytes to the
+/// descriptor `label` for the per-name churn breakdown.
+pub fn record_texture_created_named(byte_size: u64, label: Option<&str>) {
     LIVE_TEXTURE_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_TEXTURE_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
+    CREATED_TEX_BY_NAME.with(|m| record_named(m, label, byte_size));
 }
 
 /// Decrement live + increment destroyed texture byte counters. Call
@@ -103,8 +162,15 @@ pub fn record_texture_destroyed(byte_size: u64) {
 }
 
 pub fn record_buffer_created(byte_size: u64) {
+    record_buffer_created_named(byte_size, None);
+}
+
+/// As [`record_buffer_created`] but also attributes the bytes to the
+/// descriptor `label` for the per-name churn breakdown.
+pub fn record_buffer_created_named(byte_size: u64, label: Option<&str>) {
     LIVE_BUFFER_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_BUFFER_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
+    CREATED_BUF_BY_NAME.with(|m| record_named(m, label, byte_size));
 }
 
 pub fn record_buffer_destroyed(byte_size: u64) {

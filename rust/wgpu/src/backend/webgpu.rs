@@ -1263,7 +1263,7 @@ impl WebBuffer {
     /// Creates a new web buffer for the given Javascript object and description.
     fn new(inner: webgpu_sys::GpuBuffer, desc: &crate::BufferDescriptor<'_>) -> Self {
         let byte_size = desc.size;
-        deferred_destroy::record_buffer_created(byte_size);
+        deferred_destroy::record_buffer_created_named(byte_size, desc.label);
         Self {
             inner,
             mapping: Rc::new(RefCell::new(WebBufferMapState {
@@ -2461,7 +2461,7 @@ impl dispatch::DeviceInterface for WebDevice {
 
         let texture = self.inner.create_texture(&mapped_desc).unwrap();
         let byte_size = estimate_texture_byte_size(desc);
-        deferred_destroy::record_texture_created(byte_size);
+        deferred_destroy::record_texture_created_named(byte_size, desc.label);
         WebTexture {
             inner: texture,
             ident: crate::cmp::Identifier::create(),

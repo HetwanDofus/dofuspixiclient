@@ -844,6 +844,14 @@ export class VelloRenderer {
      */
     rustGpuByteStats(): Float64Array;
     /**
+     * DOFUS churn attribution: per-label created stats, flattened as
+     * `[name, bytes, count, name, bytes, count, ...]` (bytes/count as
+     * decimal strings), sorted by bytes descending. `kind`: 0 =
+     * buffers, 1 = textures. Pair with `rustGpuResetByName` to read a
+     * clean before/after delta around a single spawn burst.
+     */
+    rustGpuCreatedByName(kind: number): string[];
+    /**
      * Diagnostic: counts for non-byte-sized GPU objects (bind
      * groups, texture views, samplers). Returns 9 values:
      * `[liveBg, createdBg, droppedBg,
@@ -855,6 +863,10 @@ export class VelloRenderer {
      * past their useful lifetime — pointing to a leak.
      */
     rustGpuObjectCounts(): Float64Array;
+    /**
+     * Zero the per-label created maps (buffers + textures).
+     */
+    rustGpuResetByName(): void;
     /**
      * Diagnostics: how many `wgpu::Texture`s we hold in
      * `self.textures` (every render target the Vello side has
@@ -1262,7 +1274,9 @@ export interface InitOutput {
     readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
     readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_rustGpuByteStats: (a: number) => [number, number];
+    readonly vellorenderer_rustGpuCreatedByName: (a: number, b: number) => [number, number];
     readonly vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
+    readonly vellorenderer_rustGpuResetByName: (a: number) => void;
     readonly vellorenderer_rustTexturesCount: (a: number) => number;
     readonly vellorenderer_serializeAccessorySubsceneCache: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_serializeBodySceneCache: (a: number, b: number, c: number) => [number, number];

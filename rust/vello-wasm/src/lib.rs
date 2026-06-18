@@ -10743,6 +10743,24 @@ impl VelloRenderer {
         ]
     }
 
+    /// DOFUS churn attribution: per-label created stats, flattened as
+    /// `[name, bytes, count, name, bytes, count, ...]` (bytes/count as
+    /// decimal strings), sorted by bytes descending. `kind`: 0 =
+    /// buffers, 1 = textures. Pair with `rustGpuResetByName` to read a
+    /// clean before/after delta around a single spawn burst.
+    #[wasm_bindgen(js_name = "rustGpuCreatedByName")]
+    pub fn rust_gpu_created_by_name(&self, kind: u32) -> Vec<String> {
+        use wgpu::backend::webgpu::deferred_destroy;
+        deferred_destroy::created_by_name(kind)
+    }
+
+    /// Zero the per-label created maps (buffers + textures).
+    #[wasm_bindgen(js_name = "rustGpuResetByName")]
+    pub fn rust_gpu_reset_by_name(&self) {
+        use wgpu::backend::webgpu::deferred_destroy;
+        deferred_destroy::reset_by_name();
+    }
+
     /// For an accessory (bundle/export at slot+dir+side), return the
     /// SMALLEST `animType` value (in 0..=anim_type) whose
     /// 3-cycle frame sequence is identical to the one queried.
