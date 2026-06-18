@@ -35,7 +35,7 @@ const FALLBACK: u32 = u32::MAX;
 
 /// Borrowed view of one baked sub, ready to serialize.
 pub(crate) struct SubParts<'a> {
-    pub key: &'a str,
+    pub key: u64,
     pub is_body: bool,
     pub acc_mount_world: Option<Affine>,
     pub enc: &'a Encoding,
@@ -49,7 +49,7 @@ pub(crate) struct SubParts<'a> {
 /// main thread does NO `Encoding` rebuild/clone/re-pack — it resolves
 /// `patches` against its own caches and `memcpy`s `packed` into the buffer.
 pub(crate) struct PackedSub {
-    pub key: String,
+    pub key: u64,
     pub is_body: bool,
     pub acc_mount_world: Option<Affine>,
     pub packed: Vec<u8>,
@@ -69,7 +69,7 @@ pub(crate) struct PackedSub {
 /// the worker-packed bytes ready to intern with no Encoding round-trip.
 pub(crate) enum DeSub {
     Cached {
-        key: String,
+        key: u64,
         is_body: bool,
         acc_mount_world: Option<Affine>,
     },
@@ -102,6 +102,15 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
         h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
     h
+}
+
+/// Intern a sub key string to a u64 (FNV-1a). Crowd sub keys are carried as
+/// integers so the hot deserialize path neither allocates a `String` per sub
+/// nor SipHashes it — that per-sub `String::from_utf8` + `HashMap<String>`
+/// lookup was the residual spawn-dip `deser` cost (~102k subs at movement
+/// launch). 64-bit FNV collision over the look keyspace is negligible.
+pub(crate) fn key_hash(s: &str) -> u64 {
+    fnv1a64(s.as_bytes())
 }
 fn w_bytes(out: &mut Vec<u8>, b: &[u8]) {
     w_u32(out, b.len() as u32);
@@ -526,7 +535,7 @@ pub(crate) fn serialize_look(subs: &[SubParts]) -> Vec<u8> {
     let mut heavy = Vec::with_capacity(48 * 1024);
     for s in subs {
         let e = s.enc;
-        w_bytes(&mut out, s.key.as_bytes());
+        w_u64(&mut out, s.key);
         w_u8(&mut out, u8::from(s.is_body));
         match s.acc_mount_world {
             Some(a) => {
@@ -578,7 +587,7 @@ pub(crate) enum LookBlob {
 /// are [`DeSub::Full`] ready to intern.
 pub(crate) fn deserialize_look(
     blob: &[u8],
-    is_cached: &dyn Fn(&str) -> bool,
+    is_cached: &dyn Fn(u64) -> bool,
     image_dedup: &mut std::collections::HashMap<u64, Blob<u8>>,
 ) -> Option<LookBlob> {
     let mut r = Reader::new(blob);
@@ -591,11 +600,11 @@ pub(crate) fn deserialize_look(
     }
     let mut subs = Vec::with_capacity(count as usize);
     for _ in 0..count {
-        let key = String::from_utf8(r.bytes()?.to_vec()).ok()?;
+        let key = r.u64()?;
         let is_body = r.u8()? != 0;
         let acc_mount_world = if r.u8()? != 0 { Some(r.affine()?) } else { None };
         let heavy_len = r.u32()? as usize;
-        if is_cached(&key) {
+        if is_cached(key) {
             // Already interned — don't pay the bitmap deserialize.
             r.skip(heavy_len)?;
             subs.push(DeSub::Cached {
@@ -691,7 +700,7 @@ pub(crate) fn selftest() -> bool {
 
     let subs = vec![
         SubParts {
-            key: "B|sprite-11|walkR|3|0|2",
+            key: key_hash("B|sprite-11|walkR|3|0|2"),
             is_body: true,
             acc_mount_world: None,
             enc: &enc,
@@ -699,7 +708,7 @@ pub(crate) fn selftest() -> bool {
             hit_geom: &hit,
         },
         SubParts {
-            key: "A|sprite-90|capeR|2|wr1|0",
+            key: key_hash("A|sprite-90|capeR|2|wr1|0"),
             is_body: false,
             acc_mount_world: Some(Affine::new([0.9, 0.1, -0.1, 0.9, 5.0, -5.0])),
             enc: &enc,
@@ -727,7 +736,7 @@ pub(crate) fn selftest() -> bool {
     let a_hit = HitLazy::from_raw(a.hit_raw.clone());
     let b_hit = HitLazy::from_raw(b.hit_raw.clone());
     let ag = a_hit.geom();
-    let ok = a.key == "B|sprite-11|walkR|3|0|2"
+    let ok = a.key == key_hash("B|sprite-11|walkR|3|0|2")
         && a.is_body
         && a.acc_mount_world.is_none()
         && a.packed == expected_packed
@@ -739,7 +748,7 @@ pub(crate) fn selftest() -> bool {
         && ag[0].path.elements() == hit[0].path.elements()
         && ag[0].xform.as_coeffs() == hit[0].xform.as_coeffs()
         && ag[0].stroke_width == Some(1.5)
-        && b.key == "A|sprite-90|capeR|2|wr1|0"
+        && b.key == key_hash("A|sprite-90|capeR|2|wr1|0")
         && !b.is_body
         && b.acc_mount_world.map(|m| m.as_coeffs()) == Some([0.9, 0.1, -0.1, 0.9, 5.0, -5.0])
         && b.zone_patches.is_empty()
@@ -765,9 +774,9 @@ pub(crate) fn selftest() -> bool {
     let cached_ok = match deserialize_look(&blob, &|_| true, &mut dedup) {
         Some(LookBlob::Subs(s)) if s.len() == 2 => {
             matches!(&s[0], DeSub::Cached { key, is_body, acc_mount_world }
-                if key == "B|sprite-11|walkR|3|0|2" && *is_body && acc_mount_world.is_none())
+                if *key == key_hash("B|sprite-11|walkR|3|0|2") && *is_body && acc_mount_world.is_none())
                 && matches!(&s[1], DeSub::Cached { key, is_body, acc_mount_world }
-                    if key == "A|sprite-90|capeR|2|wr1|0"
+                    if *key == key_hash("A|sprite-90|capeR|2|wr1|0")
                         && !*is_body
                         && acc_mount_world.map(|m| m.as_coeffs())
                             == Some([0.9, 0.1, -0.1, 0.9, 5.0, -5.0]))

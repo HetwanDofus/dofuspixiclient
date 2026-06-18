@@ -201,11 +201,12 @@ pub(crate) struct SlabCrowdState {
     /// one interned sub (the dedup that bounds the SubLibrary: 24 breeds ×
     /// 8 dir × frames × bands, not 300 unique full looks × frames). Tiny
     /// entries; cleared on crowd (re)setup.
-    handle_by_look: HashMap<String, CachedLook>,
+    handle_by_look: HashMap<u64, CachedLook>,
     /// Parallel to `handle_by_look`: the same sub key → its colour-independent
     /// hit geometry, shared (`Arc`) across every actor reusing the sub.
     /// Populated alongside `cache_sub`; read into each `LayoutSlot::hit`.
-    hit_by_sub: HashMap<String, Arc<crate::crowd_blob::HitLazy>>,
+    /// Keyed by the u64 sub-key hash (see `crowd_blob::key_hash`).
+    hit_by_sub: HashMap<u64, Arc<crate::crowd_blob::HitLazy>>,
     /// Per-look LAYOUT cache: `(sig|frame)` → the ordered slot list (body
     /// bands + accessories) referencing shared sub handles. Built once per
     /// distinct look+frame via the split bake; subsequent actors with the
@@ -344,27 +345,27 @@ impl SlabCrowdState {
         }
     }
 
-    pub(crate) fn cached_sub(&self, key: &str) -> Option<CachedLook> {
-        self.handle_by_look.get(key).copied()
+    pub(crate) fn cached_sub(&self, key: u64) -> Option<CachedLook> {
+        self.handle_by_look.get(&key).copied()
     }
 
     /// True when a sub's geometry AND hit record are both already interned,
     /// so the bake can skip re-encoding it (the caller reuses the handle).
     /// `cache_sub`+`cache_hit` are always inserted together, so this is the
     /// "don't re-encode this sub" signal the emit path checks.
-    pub(crate) fn has_sub(&self, key: &str) -> bool {
-        self.handle_by_look.contains_key(key) && self.hit_by_sub.contains_key(key)
+    pub(crate) fn has_sub(&self, key: u64) -> bool {
+        self.handle_by_look.contains_key(&key) && self.hit_by_sub.contains_key(&key)
     }
 
-    pub(crate) fn cache_sub(&mut self, key: String, look: CachedLook) {
+    pub(crate) fn cache_sub(&mut self, key: u64, look: CachedLook) {
         self.handle_by_look.insert(key, look);
     }
 
-    pub(crate) fn cached_hit(&self, key: &str) -> Option<Arc<crate::crowd_blob::HitLazy>> {
-        self.hit_by_sub.get(key).cloned()
+    pub(crate) fn cached_hit(&self, key: u64) -> Option<Arc<crate::crowd_blob::HitLazy>> {
+        self.hit_by_sub.get(&key).cloned()
     }
 
-    pub(crate) fn cache_hit(&mut self, key: String, hit: Arc<crate::crowd_blob::HitLazy>) {
+    pub(crate) fn cache_hit(&mut self, key: u64, hit: Arc<crate::crowd_blob::HitLazy>) {
         self.hit_by_sub.insert(key, hit);
     }
 

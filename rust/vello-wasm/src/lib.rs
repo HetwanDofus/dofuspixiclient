@@ -708,7 +708,10 @@ fn emit_player_look(
 struct SplitSub {
     scene: vello::Scene,
     patches: Vec<vello::ZonePatchGpu>,
-    key: String,
+    /// u64 FNV hash of the sub key (see `crowd_blob::key_hash`) — interned as an
+    /// integer so the main-thread deserialize neither allocates a String per sub
+    /// nor SipHashes it.
+    key: u64,
     is_body: bool,
     /// Per-instance mount transform for accessory subs (`None` for body
     /// bands). The accessory geometry is baked colour- AND pose-agnostic
@@ -787,7 +790,7 @@ fn emit_player_look_split(
     // returns true for a sub key, emit a marker (no scene) and skip the
     // expensive `render_body_band` / accessory bake. THIS is what keeps the
     // bake cheap for moving crowds instead of relying on a layout cache.
-    is_cached: &dyn Fn(&str) -> bool,
+    is_cached: &dyn Fn(u64) -> bool,
 ) -> Vec<SplitSub> {
     use swf_spike::render::ctx::RenderMode;
     use swf_spike::render::{hit_geometry, zone_patch};
@@ -870,8 +873,8 @@ fn emit_player_look_split(
         }
     };
     for i in 0..=n {
-        let band_key = format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}");
-        if is_cached(&band_key) {
+        let band_key = crowd_blob::key_hash(&format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"));
+        if is_cached(band_key) {
             // Already interned — emit a marker (no scene). The caller reuses
             // the cached handle + hit geometry; we skip the expensive
             // band walk + fill encode. A cached key was non-empty when first
@@ -995,11 +998,11 @@ fn emit_player_look_split(
                         // NOT in the geometry — one interned sub serves every
                         // actor + frame.
                         let mount_world = base * m * base.inverse();
-                        let acc_key = format!(
+                        let acc_key = crowd_blob::key_hash(&format!(
                             "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
                             sd.slot
-                        );
-                        if is_cached(&acc_key) {
+                        ));
+                        if is_cached(acc_key) {
                             // Already interned — marker, skip the accessory bake.
                             out_subs.push(SplitSub {
                                 scene: vello::Scene::new(),
@@ -5268,7 +5271,7 @@ impl VelloRenderer {
                 }
             }
             let o = js_sys::Object::new();
-            let _ = js_sys::Reflect::set(&o, &"key".into(), &JsValue::from_str(&s.key));
+            let _ = js_sys::Reflect::set(&o, &"key".into(), &JsValue::from_f64(s.key as f64));
             let _ = js_sys::Reflect::set(&o, &"isBody".into(), &JsValue::from_bool(s.is_body));
             let _ = js_sys::Reflect::set(&o, &"ramp".into(), &JsValue::from_f64(f64::from(ramp)));
             let _ = js_sys::Reflect::set(&o, &"image".into(), &JsValue::from_f64(f64::from(image)));
@@ -5371,7 +5374,7 @@ impl VelloRenderer {
         let parts: Vec<crowd_blob::SubParts> = subs
             .iter()
             .map(|s| crowd_blob::SubParts {
-                key: &s.key,
+                key: s.key,
                 is_body: s.is_body,
                 acc_mount_world: s.acc_mount_world,
                 enc: s.scene.encoding(),
@@ -5416,8 +5419,8 @@ impl VelloRenderer {
                 } => {
                     // `has_sub` was true at parse time → both caches present.
                     match (
-                        self.slab_crowd.cached_sub(&key),
-                        self.slab_crowd.cached_hit(&key),
+                        self.slab_crowd.cached_sub(key),
+                        self.slab_crowd.cached_hit(key),
                     ) {
                         (Some(c), Some(h)) => (c, is_body, acc_mount_world, h),
                         // Lost between parse and now (no eviction today, but be
@@ -5427,8 +5430,8 @@ impl VelloRenderer {
                 }
                 crowd_blob::DeSub::Full(s) => {
                     let (c, h) = if let (Some(c), Some(h)) = (
-                        self.slab_crowd.cached_sub(&s.key),
-                        self.slab_crowd.cached_hit(&s.key),
+                        self.slab_crowd.cached_sub(s.key),
+                        self.slab_crowd.cached_hit(s.key),
                     ) {
                         (c, h)
                     } else {
@@ -5628,8 +5631,8 @@ impl VelloRenderer {
         let mut interned = 0i32;
         for sub in subs {
             let (look, hit) = if let (Some(c), Some(h)) = (
-                self.slab_crowd.cached_sub(&sub.key),
-                self.slab_crowd.cached_hit(&sub.key),
+                self.slab_crowd.cached_sub(sub.key),
+                self.slab_crowd.cached_hit(sub.key),
             ) {
                 (c, h)
             } else {
@@ -6114,8 +6117,8 @@ impl VelloRenderer {
                         let mut layout_vec = Vec::with_capacity(subs.len());
                         for sub in subs {
                             let (look, hit) = if let (Some(c), Some(h)) = (
-                                self.slab_crowd.cached_sub(&sub.key),
-                                self.slab_crowd.cached_hit(&sub.key),
+                                self.slab_crowd.cached_sub(sub.key),
+                                self.slab_crowd.cached_hit(sub.key),
                             ) {
                                 (c, h)
                             } else {

@@ -40,6 +40,12 @@ use super::build_frame_state;
 #[derive(Default)]
 pub struct RenderCache {
     shape_cmds: RefCell<HashMap<u16, Arc<Vec<DrawCmd>>>>,
+    /// Per-shape pre-encoded vello fragments — one `Scene` per `DrawCmd` (same
+    /// order/length as [`shape_cmds`]), each emitted at IDENTITY with no colour
+    /// transform. The crowd bake appends these with the per-frame transform
+    /// (`Scene::append` = memcpy streams + rebase offsets) instead of
+    /// re-serializing every path on every bake.
+    shape_frags: RefCell<HashMap<u16, Arc<Vec<vello::Scene>>>>,
     morph_frames: RefCell<HashMap<(u16, u8), Arc<swf::Shape>>>,
     /// Keyed by `(sprite as *const _ as usize, frame)`. The pointer
     /// is stable for the doc's lifetime; using it instead of the
@@ -66,6 +72,34 @@ impl RenderCache {
         let cmds = Arc::new(flatten_shape(shape, doc));
         self.shape_cmds.borrow_mut().insert(id, Arc::clone(&cmds));
         cmds
+    }
+
+    /// Cached per-`DrawCmd` vello fragments for a shape (see [`shape_frags`]
+    /// field). Built from [`shape_cmds`] so indices line up 1:1. Each fragment
+    /// is the cmd emitted at IDENTITY with no colour transform; the caller
+    /// `Scene::append`s it with the real per-frame transform.
+    pub fn shape_frags(&self, shape: &swf::Shape, doc: &SwfDoc) -> Arc<Vec<vello::Scene>> {
+        let id = shape.id;
+        if let Some(cached) = self.shape_frags.borrow().get(&id) {
+            return Arc::clone(cached);
+        }
+        let cmds = self.shape_cmds(shape, doc);
+        let frags: Vec<vello::Scene> = cmds
+            .iter()
+            .map(|cmd| {
+                let mut s = vello::Scene::new();
+                super::emit::emit_cmd(
+                    &mut s,
+                    cmd,
+                    vello::kurbo::Affine::IDENTITY,
+                    crate::swf_doc::OwnedColorTransform::IDENTITY,
+                );
+                s
+            })
+            .collect();
+        let arc = Arc::new(frags);
+        self.shape_frags.borrow_mut().insert(id, Arc::clone(&arc));
+        arc
     }
 
     /// Cached morph interpolation. Bucketed by `ratio >> 8`.

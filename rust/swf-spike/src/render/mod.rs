@@ -688,7 +688,17 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
         && ctx.recolor_zone.is_some()
         && zone_patch::is_capturing();
     let capture_hit = hit_geometry::is_capturing();
-    for cmd in cmds.iter() {
+    // Colour-agnostic, non-recolored, untinted path (the crowd body bake):
+    // append pre-encoded per-cmd fragments (`Scene::append` = memcpy the
+    // streams + rebase draw_data/patch offsets) instead of re-serializing every
+    // path on every bake. Recolored (tiles) and SWF-tinted (cx≠identity) cmds
+    // still need a fresh `emit_cmd`. Fragment[idx] lines up 1:1 with cmds[idx].
+    let frags = if recolor_target.is_none() && color_xform.is_identity() {
+        Some(ctx.cache.shape_frags(shape, ctx.doc))
+    } else {
+        None
+    };
+    for (idx, cmd) in cmds.iter().enumerate() {
         if capture_hit {
             // Path geometry is colour-independent, so capture BEFORE any
             // recolor — the slab replays this exact `transform * path` for the
@@ -731,6 +741,9 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
             let mut cmd = cmd.clone();
             emit::recolor_cmd_in_place(&mut cmd, target);
             emit::emit_cmd(ctx.scene, &cmd, transform, color_xform);
+        } else if let Some(frags) = frags.as_ref() {
+            // Splice the pre-encoded fragment at the per-frame transform.
+            ctx.scene.append(&frags[idx], Some(transform));
         } else {
             emit::emit_cmd(ctx.scene, cmd, transform, color_xform);
         }
