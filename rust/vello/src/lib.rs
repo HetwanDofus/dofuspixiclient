@@ -504,6 +504,15 @@ struct ReusedScene {
     /// constant for actor slab content (whose host streams are GPU-filled
     /// gaps), so actors keep the transform-only fast path.
     fingerprint: (u32, u32, usize, u64),
+    /// High-water mark (bytes) of REAL scene data ever written into `buffer`.
+    /// The buffer is bound via `as_entire_binding` (the whole physical capacity,
+    /// which is grow-only / power-of-two and so usually larger than the current
+    /// packed scene), and vello shaders read the whole binding — so any bytes in
+    /// `[packed_len, capacity)` that hold STALE data from a prior (larger) frame
+    /// render as garbage geometry. We zero `[packed_len, written_hw)` whenever
+    /// the scene shrinks, and zero the fresh slack `[packed_len, capacity)` once
+    /// at allocation, so the tail past the live scene is always zero (inert).
+    written_hw: u64,
 }
 
 /// Resolve a sub's vello-level patches (`Patch::Ramp`, `Patch::Image`)
@@ -1453,23 +1462,43 @@ impl Renderer {
         // satisfies many subsequent growth frames before crossing the next class.
         // Headroom is ≤2× a tens-of-MB peak — negligible live memory, and the
         // shaders only read the layout's valid prefix so the slack tail is inert.
-        let buffer = match self.reused_scene_bufs.remove(&token.0) {
-            Some(prev) if prev.buffer.size() >= scene_proxy.size => prev.buffer,
-            _ => {
-                let usage = wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::COPY_DST
-                    | wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::VERTEX;
-                let capacity = scene_proxy.size.max(1 << 20).next_power_of_two();
-                device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some(scene_proxy.name),
-                    size: capacity,
-                    usage,
-                    mapped_at_creation: false,
-                })
-            }
-        };
+        // `prev_hw` = byte high-water of REAL data in a reused buffer (so we can
+        // clear the region that shrank); `None` = freshly allocated (its whole
+        // slack past `packed` is uninitialized and must be zeroed once).
+        let (buffer, prev_hw): (wgpu::Buffer, Option<u64>) =
+            match self.reused_scene_bufs.remove(&token.0) {
+                Some(prev) if prev.buffer.size() >= scene_proxy.size => {
+                    (prev.buffer, Some(prev.written_hw))
+                }
+                _ => {
+                    let usage = wgpu::BufferUsages::COPY_SRC
+                        | wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::VERTEX;
+                    let capacity = scene_proxy.size.max(1 << 20).next_power_of_two();
+                    let buf = device.create_buffer(&wgpu::BufferDescriptor {
+                        label: Some(scene_proxy.name),
+                        size: capacity,
+                        usage,
+                        mapped_at_creation: false,
+                    });
+                    (buf, None)
+                }
+            };
+        let plen = resolved.packed.len() as u64;
         queue.write_buffer(&buffer, 0, &resolved.packed);
+        // The buffer is bound `as_entire`, so shaders read the whole capacity.
+        // Zero everything past the live scene that could be stale: a fresh
+        // buffer's entire slack, or (on reuse) only the prior real-data extent
+        // that the smaller new scene no longer covers. `packed` is u32-based so
+        // `plen`/the bounds are 4-aligned (COPY_BUFFER_ALIGNMENT). Both cases
+        // are off the per-frame steady-state path (only on grow/alloc/shrink).
+        let clear_to = prev_hw.map_or_else(|| buffer.size(), |hw| hw.min(buffer.size()));
+        if clear_to > plen {
+            let zeros = vec![0u8; (clear_to - plen) as usize];
+            queue.write_buffer(&buffer, plen, &zeros);
+        }
+        let written_hw = prev_hw.unwrap_or(0).max(plen);
         self.reused_scene_bufs.insert(
             token.0,
             ReusedScene {
@@ -1481,6 +1510,7 @@ impl Renderer {
                     resolved.packed.len(),
                     resolved.geometry_hash,
                 ),
+                written_hw,
             },
         );
     }
