@@ -80,7 +80,10 @@ export const vellorenderer_renderSwfStripRange: (a: number, b: number, c: number
 export const vellorenderer_renderSwfStripRangeAccessorized: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
 export const vellorenderer_renderSwfStripRangeAccessorizedBitmap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
 export const vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+export const vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
+export const vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;
 export const vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+export const vellorenderer_renderSwfTileStaticSeeded: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
 export const vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_rustGpuByteStats: (a: number) => [number, number];
@@ -112,8 +115,13 @@ export const vellorenderer_swfRootNaturalSize: (a: number, b: number, c: number,
 export const vellorenderer_swfSpellIconNaturalSize: (a: number, b: number, c: number, d: number, e: number) => any;
 export const vellorenderer_swfStripBounds: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
 export const vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const vellorenderer_swfTileBehavior: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
 export const vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
 export const vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+export const vellorenderer_tickTileInstances: (a: number, b: number) => any;
+export const vellorenderer_tileInstanceCreate: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+export const vellorenderer_tileInstanceDynFrames: (a: number, b: number) => any;
+export const vellorenderer_tileInstanceFree: (a: number, b: number) => void;
 export const vellorenderer_tileSubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_wasmHeapBytes: (a: number) => number;
 export const wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];

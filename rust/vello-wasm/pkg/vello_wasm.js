@@ -1518,6 +1518,41 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Bake ONE part of a scripted tile at the instance's CURRENT
+     * composed state. Used for static runs (baked once, shared per
+     * `(export, sig, resolution)` on the JS side) and the whole-scene
+     * fallback (re-baked when `tickTileInstances` reports the
+     * instance changed). Same result shape as `renderSwfFrame`; the
+     * anchor is the part's own offset from the SWF origin so stacked
+     * part sprites all mount at the cell position.
+     * @param {number} inst_id
+     * @param {number} part_idx
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfTileInstancePart(inst_id, part_idx, resolution) {
+        const ret = wasm.vellorenderer_renderSwfTileInstancePart(this.__wbg_ptr, inst_id, part_idx, resolution);
+        return ret;
+    }
+    /**
+     * Bake a dynamic child part's ENTIRE frame range as one strip
+     * atlas (cells at the child's own cross-frame union bounds — far
+     * smaller than the tile canvas). After this single dispatch,
+     * per-tick animation of the scripted tile is a pure texture swap
+     * keyed by the simulated playhead. Returns the same shape as
+     * `renderSwfTileDynamicStripRange`, or `null` if the part isn't a
+     * dynamic child / exceeds GPU limits (caller then re-bakes the
+     * single part per change instead).
+     * @param {number} inst_id
+     * @param {number} part_idx
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfTileInstancePartStrip(inst_id, part_idx, resolution) {
+        const ret = wasm.vellorenderer_renderSwfTileInstancePartStrip(this.__wbg_ptr, inst_id, part_idx, resolution);
+        return ret;
+    }
+    /**
      * Render the STATIC parts of a multi-frame tile export (every depth
      * whose placement data is constant across the timeline AND whose
      * placed character has no multi-frame sub-tree). Output texture is
@@ -1545,6 +1580,26 @@ export class VelloRenderer {
         const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_renderSwfTileStaticBase(this.__wbg_ptr, ptr0, len0, ptr1, len1, total_frame_count, resolution);
+        return ret;
+    }
+    /**
+     * Bake the canonical STATIC variant of a tile for one cell: the
+     * wrapper frame chosen by its executed frame-1 script plus every
+     * frozen-child pin (replaces the `cellId % frameCount` heuristic
+     * — the authored script, run with the per-cell seed, decides).
+     * Same result shape as `renderSwfFrame`.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} cell_id
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfTileStaticSeeded(bundle, _export, cell_id, resolution) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfTileStaticSeeded(this.__wbg_ptr, ptr0, len0, ptr1, len1, cell_id, resolution);
         return ret;
     }
     /**
@@ -2146,6 +2201,39 @@ export class VelloRenderer {
         }
     }
     /**
+     * Classify a tile export for cell `cell_id` by EXECUTING its
+     * frame-1 AS2 (per-cell seeded PRNG). Returns:
+     *
+     * - `{kind:"static", frame, sig}` — one-shot frozen (e.g. the
+     *   authored `gotoAndStop(random(_totalframes-1)+2)` variant
+     *   pick). `frame` is the wrapper frame to render; `sig` is a
+     *   stable hash of `(frame, frozen-child pins)` so cells whose
+     *   draws landed on the same variant share one texture bake
+     *   (`renderSwfTileStaticSeeded`).
+     * - `{kind:"loop", cycle, phaseSeed}` — every child free-runs, so
+     *   a single linear counter reproduces canonical playback: keep
+     *   the strip-atlas fast path, seeding the per-sprite phase from
+     *   `phaseSeed` (canonically each placed instance owns its
+     *   playhead; identical gfx must not tick in lockstep).
+     * - `{kind:"scripted"}` — some child can stop / be revived by an
+     *   `onClipEvent(enterFrame)` trigger: route through
+     *   `tileInstanceCreate` + `tickTileInstances`.
+     * - `null` — bundle/export unknown or not a sprite (caller keeps
+     *   its legacy path).
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} cell_id
+     * @returns {any}
+     */
+    swfTileBehavior(bundle, _export, cell_id) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_swfTileBehavior(this.__wbg_ptr, ptr0, len0, ptr1, len1, cell_id);
+        return ret;
+    }
+    /**
      * Step-11 deferred-destroy tick. JS calls this once per Pixi
      * shared-ticker tick. It advances the patched-fork's frame
      * counter and calls `GPUTexture.destroy()` /
@@ -2188,6 +2276,63 @@ export class VelloRenderer {
     tickSwfSpellFrame(instance_id) {
         const ret = wasm.vellorenderer_tickSwfSpellFrame(this.__wbg_ptr, instance_id);
         return ret;
+    }
+    /**
+     * Advance every live tile instance by `dt_ms` wall-clock
+     * milliseconds. Each instance accumulates time at ITS bundle's
+     * authored frame rate and runs the canonical per-tick sequence on
+     * each playhead (`onClipEvent(enterFrame)` → advance → arriving
+     * frame's DoActions — `tile_script::ChildScript::tick`). Returns
+     * the instIds whose composed frame vector changed (steady-state
+     * parked tiles return nothing and cost ~0). Catch-up is capped at
+     * 240 ticks per call (wc3 `animate.rs::advance_clock` parity).
+     * @param {number} dt_ms
+     * @returns {Uint32Array}
+     */
+    tickTileInstances(dt_ms) {
+        const ret = wasm.vellorenderer_tickTileInstances(this.__wbg_ptr, dt_ms);
+        return ret;
+    }
+    /**
+     * Create a per-placement scripted-tile instance: executes the
+     * wrapper's frame-1 AS2 with the per-cell seed, builds one
+     * `ChildScript` playhead per dynamic child, and plans the
+     * depth-decomposition (wc3 `render/tile_parts.rs`: maximal static
+     * runs + one part per dynamic child; whole-scene fallback for
+     * masked wrappers). Returns
+     * `{instId, sig, parts:[{kind:"run"|"child"|"whole", childId,
+     * frameCount, curFrame}]}` or `null`.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} cell_id
+     * @returns {any}
+     */
+    tileInstanceCreate(bundle, _export, cell_id) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_tileInstanceCreate(this.__wbg_ptr, ptr0, len0, ptr1, len1, cell_id);
+        return ret;
+    }
+    /**
+     * Current composed frame per dynamic part of one instance, as
+     * flat `[partIdx, frame, partIdx, frame, …]` pairs. The JS
+     * consumer swaps each part sprite's strip texture to `frame` —
+     * zero Vello dispatch in steady state.
+     * @param {number} inst_id
+     * @returns {Uint32Array}
+     */
+    tileInstanceDynFrames(inst_id) {
+        const ret = wasm.vellorenderer_tileInstanceDynFrames(this.__wbg_ptr, inst_id);
+        return ret;
+    }
+    /**
+     * Free one scripted-tile instance (placement removed / map left).
+     * @param {number} inst_id
+     */
+    tileInstanceFree(inst_id) {
+        wasm.vellorenderer_tileInstanceFree(this.__wbg_ptr, inst_id);
     }
     /**
      * Count entries in `tile_subscenes`, optionally per-bundle. Same
@@ -2644,6 +2789,10 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbg_new_from_slice_269e35316ed2d061: function(arg0, arg1) {
             const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
+            return ret;
+        },
+        __wbg_new_from_slice_f92bf65e9a895613: function(arg0, arg1) {
+            const ret = new Uint32Array(getArrayU32FromWasm0(arg0, arg1));
             return ret;
         },
         __wbg_new_typed_c072c4ce9a2a0cdf: function(arg0, arg1) {

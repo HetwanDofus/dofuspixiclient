@@ -2802,6 +2802,168 @@ export function renderSwfTileDynamicStripRange(
   return (result as VelloSwfTileStripResult | null) ?? null;
 }
 
+/**
+ * Per-cell tile classification from EXECUTING the export's frame-1 AS2
+ * with the cell's deterministic seed (canonical Flash semantics —
+ * `swf-spike::tile_behavior::resolve_full`, ported from wc3). Routes
+ * each placement to one of three render paths:
+ *  - `static`: one-shot frozen (authored `gotoAndStop(random(...))`);
+ *    bake via `renderSwfTileStaticSeeded`, share by `sig`.
+ *  - `loop`: every child free-runs; keep the strip-atlas fast path,
+ *    seed the per-sprite phase from `phaseSeed`.
+ *  - `scripted`: some child parks/randomly revives — needs a live
+ *    per-instance playhead (`tileInstanceCreate`/`tickTileInstances`).
+ */
+export interface SwfTileBehavior {
+  kind: "static" | "loop" | "scripted";
+  /** Static: wrapper frame chosen by the executed script. */
+  frame?: number;
+  /** Static: stable hash of (frame + frozen-child pins) — cache key. */
+  sig?: number;
+  /** Loop: combined cycle (lcm of free-running child timelines). */
+  cycle?: number;
+  /** Loop: per-cell phase seed (`tile_behavior::seed_for_cell`). */
+  phaseSeed?: number;
+}
+
+export function swfTileBehavior(
+  bundle: string,
+  exportName: string,
+  cellId: number
+): SwfTileBehavior | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const result = renderer.swfTileBehavior(bundle, exportName, cellId);
+  return (result as SwfTileBehavior | null) ?? null;
+}
+
+/**
+ * Bake the canonical STATIC variant of a tile for one cell — the
+ * executed `gotoAndStop` frame plus frozen-child pins (replaces the
+ * `cellId % frameCount` heuristic).
+ */
+export function renderSwfTileStaticSeeded(
+  bundle: string,
+  exportName: string,
+  cellId: number,
+  resolution: number
+): VelloSwfStaticBaseResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const result = renderer.renderSwfTileStaticSeeded(
+    bundle,
+    exportName,
+    cellId,
+    resolution
+  );
+  return (result as VelloSwfStaticBaseResult | null) ?? null;
+}
+
+/** One paint-ordered slice of a scripted tile instance. */
+export interface TileInstancePartInfo {
+  kind: "run" | "child" | "whole";
+  /** `child` parts: the dynamic child's character id. */
+  childId?: number;
+  /** `child` parts: the child's own timeline length. */
+  frameCount?: number;
+  /** `child` parts: playhead position right after create. */
+  curFrame?: number;
+}
+
+export interface TileInstanceCreateResult {
+  instId: number;
+  /** Hash of the instance's frozen-child pins — shared-bake cache key
+   *  for `run` parts across cells whose random draws matched. */
+  sig: number;
+  parts: TileInstancePartInfo[];
+}
+
+/**
+ * Create a live scripted-tile instance (per-cell seeded AVM1 child
+ * playheads + depth decomposition). Returns null when the export has
+ * no scripted children (caller should be on the static/loop path).
+ */
+export function tileInstanceCreate(
+  bundle: string,
+  exportName: string,
+  cellId: number
+): TileInstanceCreateResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const result = renderer.tileInstanceCreate(bundle, exportName, cellId);
+  return (result as TileInstanceCreateResult | null) ?? null;
+}
+
+/**
+ * Advance ALL live tile instances by `dtMs` at their bundles' authored
+ * frame rates (canonical per-tick sequence: onClipEvent(enterFrame) →
+ * advance → arriving-frame DoActions). Returns instIds whose composed
+ * frame changed; parked tiles cost ~nothing.
+ */
+export function tickTileInstances(dtMs: number): Uint32Array {
+  if (!renderer || isHalted()) {
+    return new Uint32Array(0);
+  }
+  return renderer.tickTileInstances(dtMs) as Uint32Array;
+}
+
+/** Flat `[partIdx, frame, …]` pairs for an instance's dynamic parts. */
+export function tileInstanceDynFrames(instId: number): Uint32Array {
+  if (!renderer || isHalted()) {
+    return new Uint32Array(0);
+  }
+  return renderer.tileInstanceDynFrames(instId) as Uint32Array;
+}
+
+/** Free one scripted-tile instance (placement removed / map left). */
+export function tileInstanceFree(instId: number): void {
+  if (!renderer || isHalted()) {
+    return;
+  }
+  renderer.tileInstanceFree(instId);
+}
+
+/**
+ * Bake one part of a scripted tile at the instance's CURRENT composed
+ * state (static runs: once; whole-scene fallback: per change).
+ */
+export function renderSwfTileInstancePart(
+  instId: number,
+  partIdx: number,
+  resolution: number
+): VelloSwfStaticBaseResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const result = renderer.renderSwfTileInstancePart(instId, partIdx, resolution);
+  return (result as VelloSwfStaticBaseResult | null) ?? null;
+}
+
+/**
+ * Bake a dynamic child part's whole frame range as a strip atlas at
+ * the child's own union bounds — per-tick animation of the scripted
+ * tile becomes a pure texture swap. Null when the strip would exceed
+ * GPU limits (caller re-bakes the part per change instead).
+ */
+export function renderSwfTileInstancePartStrip(
+  instId: number,
+  partIdx: number,
+  resolution: number
+): VelloSwfTileStripResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const result = renderer.renderSwfTileInstancePartStrip(
+    instId,
+    partIdx,
+    resolution
+  );
+  return (result as VelloSwfTileStripResult | null) ?? null;
+}
+
 export interface VelloSwfBundleBatchResult {
   /** Bridge: composite delivered to Pixi as ImageBitmap. */
   bitmap: ImageBitmap;

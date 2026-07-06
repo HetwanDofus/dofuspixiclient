@@ -14,6 +14,7 @@ import type { TileResolver } from "@/game/render/tile-resolver";
 import type { LayeredTilePlacement } from "@/game/render/tile-sprite-renderer";
 import type { TilePrefixOverride } from "@/game/scene/tiles/layer-builder";
 import { getCellPosition } from "@/game/datacenter/cell";
+import { swfTileBehavior } from "@/game/render/vello-loader";
 import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
 
 interface CellPlacementInput {
@@ -69,38 +70,85 @@ export function pushPlacementByKey(
   const resolved = tileResolver.resolve(tileKey);
   if (!resolved) return;
   const hasFrameOverride = cell.staticFrameOverride !== undefined;
-  const isAnimated =
+
+  // Canonical per-cell classification: EXECUTE the export's frame-1
+  // AS2 with the cell's deterministic seed (Flash runs the script on
+  // attach — `tile_behavior::resolve_full`). Skipped for slope tiles
+  // (the engine externally forces `tile.gotoAndStop(cell.groundSlope)`,
+  // assets/sources/client-code/ank/battlefield/MapHandler.as:226),
+  // explicit tactic frame overrides, and trivially-static 1-frame
+  // exports.
+  const behaviorInfo =
+    !hasFrameOverride && resolved.kind !== "slope" && resolved.frameCount > 1
+      ? swfTileBehavior(resolved.bundle, resolved.exportName, cell.cellId)
+      : null;
+
+  let isAnimated =
     !hasFrameOverride &&
     resolved.kind === "animated" &&
     resolved.frameCount > 1;
-  const behavior = resolved.kind === "" ? "static" : resolved.kind;
-  const staticFrame = isAnimated
-    ? 0
-    : hasFrameOverride
-      ? Math.max(
-          0,
-          Math.min(resolved.frameCount - 1, cell.staticFrameOverride!)
-        )
-      : frameIndexForTile(
-          {
-            frameCount: resolved.frameCount,
-            behavior,
-          } as Parameters<typeof frameIndexForTile>[0],
-          cell.cellId,
-          cell.groundSlope
-        );
+  let frameCount = resolved.frameCount;
+  let scripted = false;
+  let phaseSeed: number | undefined;
+  let staticSig: number | undefined;
+  let staticFrame: number;
+
+  if (behaviorInfo?.kind === "static") {
+    // One-shot frozen: the authored `gotoAndStop(random(...))` result
+    // for THIS cell (replaces the old `cellId % frameCount` heuristic).
+    isAnimated = false;
+    staticFrame = behaviorInfo.frame ?? 0;
+    staticSig = behaviorInfo.sig;
+  } else if (behaviorInfo?.kind === "loop") {
+    // Free-running loop: strip-atlas fast path over the combined
+    // cycle, phase-offset per cell.
+    isAnimated = true;
+    frameCount = Math.max(1, behaviorInfo.cycle ?? resolved.frameCount);
+    phaseSeed = behaviorInfo.phaseSeed;
+    staticFrame = 0;
+  } else if (behaviorInfo?.kind === "scripted") {
+    // Stop-parked / randomly-triggered children: per-instance AVM1
+    // playheads in wasm (tileInstanceCreate path).
+    isAnimated = false;
+    scripted = true;
+    staticFrame = 0;
+  } else {
+    // Legacy fallback (wasm classification unavailable / slope /
+    // explicit override).
+    const behavior = resolved.kind === "" ? "static" : resolved.kind;
+    staticFrame = isAnimated
+      ? 0
+      : hasFrameOverride
+        ? Math.max(
+            0,
+            Math.min(resolved.frameCount - 1, cell.staticFrameOverride!)
+          )
+        : frameIndexForTile(
+            {
+              frameCount: resolved.frameCount,
+              behavior,
+            } as Parameters<typeof frameIndexForTile>[0],
+            cell.cellId,
+            cell.groundSlope
+          );
+  }
+
   out.push({
     tileKey,
     bundle: resolved.bundle,
     exportName: resolved.exportName,
+    cellId: cell.cellId,
     cellX: cell.cellX,
     cellY: cell.cellY,
     rotation: cell.rotation & 3,
     flip: cell.flip,
-    frameCount: resolved.frameCount,
+    frameCount,
     isAnimated,
     fps: resolved.fps,
     staticFrame,
+    phaseSeed,
+    scripted,
+    staticSig,
     layer,
     isBackground: cell.isBackground === true,
   });

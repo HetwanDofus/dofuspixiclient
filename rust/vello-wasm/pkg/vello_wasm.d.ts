@@ -815,6 +815,27 @@ export class VelloRenderer {
      */
     renderSwfTileDynamicStripRange(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number): any;
     /**
+     * Bake ONE part of a scripted tile at the instance's CURRENT
+     * composed state. Used for static runs (baked once, shared per
+     * `(export, sig, resolution)` on the JS side) and the whole-scene
+     * fallback (re-baked when `tickTileInstances` reports the
+     * instance changed). Same result shape as `renderSwfFrame`; the
+     * anchor is the part's own offset from the SWF origin so stacked
+     * part sprites all mount at the cell position.
+     */
+    renderSwfTileInstancePart(inst_id: number, part_idx: number, resolution: number): any;
+    /**
+     * Bake a dynamic child part's ENTIRE frame range as one strip
+     * atlas (cells at the child's own cross-frame union bounds — far
+     * smaller than the tile canvas). After this single dispatch,
+     * per-tick animation of the scripted tile is a pure texture swap
+     * keyed by the simulated playhead. Returns the same shape as
+     * `renderSwfTileDynamicStripRange`, or `null` if the part isn't a
+     * dynamic child / exceeds GPU limits (caller then re-bakes the
+     * single part per change instead).
+     */
+    renderSwfTileInstancePartStrip(inst_id: number, part_idx: number, resolution: number): any;
+    /**
      * Render the STATIC parts of a multi-frame tile export (every depth
      * whose placement data is constant across the timeline AND whose
      * placed character has no multi-frame sub-tree). Output texture is
@@ -832,6 +853,14 @@ export class VelloRenderer {
      * split as the canonical workaround for the overflow.
      */
     renderSwfTileStaticBase(bundle: string, _export: string, total_frame_count: number, resolution: number): any;
+    /**
+     * Bake the canonical STATIC variant of a tile for one cell: the
+     * wrapper frame chosen by its executed frame-1 script plus every
+     * frozen-child pin (replaces the `cellId % frameCount` heuristic
+     * — the authored script, run with the per-cell seed, decides).
+     * Same result shape as `renderSwfFrame`.
+     */
+    renderSwfTileStaticSeeded(bundle: string, _export: string, cell_id: number, resolution: number): any;
     /**
      * Render a single zone mask frame. Returns { texture, textureId, width, height }.
      * Optional acc_info: flat array of pairs [asset_id, slot_id, ...] for accessory occluders.
@@ -1169,6 +1198,28 @@ export class VelloRenderer {
      */
     swfTileAnimKind(bundle: string, _export: string): string;
     /**
+     * Classify a tile export for cell `cell_id` by EXECUTING its
+     * frame-1 AS2 (per-cell seeded PRNG). Returns:
+     *
+     * - `{kind:"static", frame, sig}` — one-shot frozen (e.g. the
+     *   authored `gotoAndStop(random(_totalframes-1)+2)` variant
+     *   pick). `frame` is the wrapper frame to render; `sig` is a
+     *   stable hash of `(frame, frozen-child pins)` so cells whose
+     *   draws landed on the same variant share one texture bake
+     *   (`renderSwfTileStaticSeeded`).
+     * - `{kind:"loop", cycle, phaseSeed}` — every child free-runs, so
+     *   a single linear counter reproduces canonical playback: keep
+     *   the strip-atlas fast path, seeding the per-sprite phase from
+     *   `phaseSeed` (canonically each placed instance owns its
+     *   playhead; identical gfx must not tick in lockstep).
+     * - `{kind:"scripted"}` — some child can stop / be revived by an
+     *   `onClipEvent(enterFrame)` trigger: route through
+     *   `tileInstanceCreate` + `tickTileInstances`.
+     * - `null` — bundle/export unknown or not a sprite (caller keeps
+     *   its legacy path).
+     */
+    swfTileBehavior(bundle: string, _export: string, cell_id: number): any;
+    /**
      * Step-11 deferred-destroy tick. JS calls this once per Pixi
      * shared-ticker tick. It advances the patched-fork's frame
      * counter and calls `GPUTexture.destroy()` /
@@ -1199,6 +1250,39 @@ export class VelloRenderer {
      * `JsValue::NULL` if the instance id is unknown.
      */
     tickSwfSpellFrame(instance_id: number): any;
+    /**
+     * Advance every live tile instance by `dt_ms` wall-clock
+     * milliseconds. Each instance accumulates time at ITS bundle's
+     * authored frame rate and runs the canonical per-tick sequence on
+     * each playhead (`onClipEvent(enterFrame)` → advance → arriving
+     * frame's DoActions — `tile_script::ChildScript::tick`). Returns
+     * the instIds whose composed frame vector changed (steady-state
+     * parked tiles return nothing and cost ~0). Catch-up is capped at
+     * 240 ticks per call (wc3 `animate.rs::advance_clock` parity).
+     */
+    tickTileInstances(dt_ms: number): Uint32Array;
+    /**
+     * Create a per-placement scripted-tile instance: executes the
+     * wrapper's frame-1 AS2 with the per-cell seed, builds one
+     * `ChildScript` playhead per dynamic child, and plans the
+     * depth-decomposition (wc3 `render/tile_parts.rs`: maximal static
+     * runs + one part per dynamic child; whole-scene fallback for
+     * masked wrappers). Returns
+     * `{instId, sig, parts:[{kind:"run"|"child"|"whole", childId,
+     * frameCount, curFrame}]}` or `null`.
+     */
+    tileInstanceCreate(bundle: string, _export: string, cell_id: number): any;
+    /**
+     * Current composed frame per dynamic part of one instance, as
+     * flat `[partIdx, frame, partIdx, frame, …]` pairs. The JS
+     * consumer swaps each part sprite's strip texture to `frame` —
+     * zero Vello dispatch in steady state.
+     */
+    tileInstanceDynFrames(inst_id: number): Uint32Array;
+    /**
+     * Free one scripted-tile instance (placement removed / map left).
+     */
+    tileInstanceFree(inst_id: number): void;
     /**
      * Count entries in `tile_subscenes`, optionally per-bundle. Same
      * usage as the body variant.
@@ -1314,7 +1398,10 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfStripRangeAccessorized: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
     readonly vellorenderer_renderSwfStripRangeAccessorizedBitmap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
     readonly vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;
     readonly vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfTileStaticSeeded: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
     readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_rustGpuByteStats: (a: number) => [number, number];
@@ -1346,8 +1433,13 @@ export interface InitOutput {
     readonly vellorenderer_swfSpellIconNaturalSize: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly vellorenderer_swfStripBounds: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
     readonly vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly vellorenderer_swfTileBehavior: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
     readonly vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+    readonly vellorenderer_tickTileInstances: (a: number, b: number) => any;
+    readonly vellorenderer_tileInstanceCreate: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+    readonly vellorenderer_tileInstanceDynFrames: (a: number, b: number) => any;
+    readonly vellorenderer_tileInstanceFree: (a: number, b: number) => void;
     readonly vellorenderer_tileSubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_wasmHeapBytes: (a: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];

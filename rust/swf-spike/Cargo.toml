@@ -31,6 +31,12 @@ path = "src/bin/classify_map_tiles.rs"
 # For each tile id on a map, report animated/random/slope kind.
 
 [[bin]]
+name = "verify-tile-scripts"
+path = "src/bin/verify_tile_scripts.rs"
+# Verify per-instance scripted-tile semantics (parked Stop children,
+# free loops, per-cell random trigger schedules) + PNG pair dump.
+
+[[bin]]
 name = "render-player-tinted"
 path = "src/bin/render_player_tinted.rs"
 # Render a player export with three palettes side-by-side to

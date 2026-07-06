@@ -88,6 +88,58 @@ pub struct TileResolution {
     pub child_overrides: HashMap<u16, u16>,
 }
 
+impl TileResolution {
+    /// Fast-path eligibility: TRUE means a single linear frame counter
+    /// reproduces canonical Flash playback exactly, so the consumer can
+    /// keep the cheap pre-baked strip-atlas path (`DynamicAt(counter)`
+    /// gives every free-running child `counter % child_frames`, which
+    /// IS its playhead when nothing can stop or divert it).
+    ///
+    /// Requires:
+    /// - behavior is `Animated` (there is something to tick),
+    /// - no one-shot frozen children (`child_overrides` — the strip
+    ///   path can't pin per-cell random variants), and
+    /// - every simulated child free-runs: playing, no
+    ///   `onClipEvent(enterFrame)` trigger, no per-frame DoActions
+    ///   (canonical `stop()` parks — chimney elevator o1/343 child
+    ///   1361 — make the playhead diverge from elapsed time).
+    ///
+    /// Anything else needs the per-instance scripted path
+    /// (`ChildScript::tick` per render tick).
+    pub fn is_simple_loop(&self) -> bool {
+        matches!(self.behavior, TileBehavior::Animated { .. })
+            && self.child_overrides.is_empty()
+            && self
+                .child_scripts
+                .iter()
+                .all(|s| s.playing && !s.has_enter_frame() && !s.has_frame_actions())
+    }
+}
+
+/// Stable signature of a resolved STATIC variant: the wrapper frame
+/// plus every frozen-child pin, order-independent (FNV-1a over the
+/// sorted pairs). Two cells whose seeded `gotoAndStop(random(...))`
+/// draws landed on the same variant share the same signature — the
+/// texture-cache key on the consumer side — so N grass cells collapse
+/// to (number of authored variants) bakes.
+pub fn overrides_signature(frame: u16, overrides: &HashMap<u16, u16>) -> u32 {
+    let mut ordered: Vec<(u16, u16)> = overrides.iter().map(|(&k, &v)| (k, v)).collect();
+    ordered.sort_unstable();
+    let mut h: u32 = 0x811c_9dc5;
+    let mut mix = |v: u16| {
+        for b in v.to_le_bytes() {
+            h ^= u32::from(b);
+            h = h.wrapping_mul(0x0100_0193);
+        }
+    };
+    mix(frame);
+    for (k, v) in ordered {
+        mix(k);
+        mix(v);
+    }
+    h
+}
+
 pub fn resolve(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileBehavior {
     resolve_full(sprite, doc, cell_id).behavior
 }

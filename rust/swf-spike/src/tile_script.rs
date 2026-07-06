@@ -155,6 +155,23 @@ impl ChildScript {
         }
     }
 
+    /// True when the placement carries an `onClipEvent(enterFrame)`
+    /// handler — the canonical random-trigger mechanism (chimney
+    /// elevator: `if Math.random() < 0.001 { play() }` per tick).
+    /// Such a clip can change state at ANY tick, so it can never ride
+    /// a precomputed linear frame counter.
+    pub fn has_enter_frame(&self) -> bool {
+        self.on_enter_frame.is_some()
+    }
+
+    /// True when the child's own timeline carries per-frame DoActions
+    /// (`stop()` parks, `gotoAndPlay` jumps). A clip with frame
+    /// actions can park mid-cycle (elevator stops at frame 102), so
+    /// its playhead must be simulated, not derived from elapsed time.
+    pub fn has_frame_actions(&self) -> bool {
+        !self.frame_actions.is_empty()
+    }
+
     pub fn tick(&mut self) {
         self.tick_count = self.tick_count.wrapping_add(1);
         let seed = self

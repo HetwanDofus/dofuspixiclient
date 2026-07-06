@@ -28,6 +28,7 @@ pub mod probe;
 pub mod slot_depths;
 pub mod snapshot;
 pub mod sprite;
+pub mod tile_parts;
 pub mod union;
 pub mod zone_patch;
 
@@ -43,6 +44,9 @@ pub use slot_depths::{
     BandRange, SlotDepth,
 };
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
+pub use tile_parts::{
+    plan_tile_parts, render_tile_part, render_tile_whole, tile_part_bounds, TilePartSpec,
+};
 
 use anyhow::Result;
 

@@ -278,7 +278,20 @@ pub fn render_sprite_phased(
     let target_frame = match phase {
         RenderPhase::Full => ctx.frame,
         RenderPhase::StaticOnly => 0,
-        RenderPhase::DynamicAt(f) => f,
+        // CANONICAL: a child clip's playhead loops modulo its OWN
+        // timeline length as the driving counter advances (same rule
+        // as `RenderCtx::child`'s `frame % num_frames` propagation).
+        // Clamping instead froze any nested clip shorter than the
+        // requested counter on its last frame — e.g. driving the
+        // fast-path strip with a combined lcm cycle would freeze the
+        // shorter looping children for the tail of every cycle.
+        RenderPhase::DynamicAt(f) => {
+            if multi_frame {
+                f % sprite.num_frames
+            } else {
+                f
+            }
+        }
     };
 
     // For multi-frame sprites, classify (with cache) and filter. For

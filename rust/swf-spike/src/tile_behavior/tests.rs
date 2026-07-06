@@ -211,3 +211,27 @@ fn settled_static_ticks_playing_child_to_its_stop() {
     let overrides = super::settled_static_overrides(&d, &sym);
     assert_eq!(overrides.get(&42), Some(&5));
 }
+
+#[test]
+fn overrides_signature_is_order_independent_and_frame_sensitive() {
+    let mut a: HashMap<u16, u16> = HashMap::new();
+    a.insert(10, 3);
+    a.insert(20, 7);
+    let mut b: HashMap<u16, u16> = HashMap::new();
+    b.insert(20, 7);
+    b.insert(10, 3);
+    assert_eq!(
+        super::overrides_signature(2, &a),
+        super::overrides_signature(2, &b)
+    );
+    // Different wrapper frame or different pin → different signature.
+    assert_ne!(
+        super::overrides_signature(2, &a),
+        super::overrides_signature(3, &a)
+    );
+    b.insert(10, 4);
+    assert_ne!(
+        super::overrides_signature(2, &a),
+        super::overrides_signature(2, &b)
+    );
+}

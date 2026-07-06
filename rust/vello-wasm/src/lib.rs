@@ -1262,6 +1262,15 @@ pub struct VelloRenderer {
     /// `disposeSwfSpellInstance` when the cast completes.
     swf_spell_instances: HashMap<u32, SwfSpellInstance>,
     next_spell_instance_id: u32,
+    /// Live scripted-tile instances, one per (cell, scripted gfx)
+    /// placement on the current map. Each holds the per-instance AVM1
+    /// child playheads (`tile_script::ChildScript`, seeded per cell)
+    /// that `tickTileInstances` advances at the bundle's authored fps —
+    /// the canonical Flash model where every placed clip owns its
+    /// playhead and `onClipEvent(enterFrame)` triggers fire per
+    /// instance. Freed via `tileInstanceFree` on placement removal.
+    tile_instances: HashMap<u32, TileInstance>,
+    next_tile_instance_id: u32,
     /// Cached union-of-bounds per `(bundle, export, total_frame_count)`.
     /// `renderSwfStripRange` originally walked `symbol_bounds` once per
     /// frame on every chunk dispatch — for a 200-frame anim split into 4
@@ -1528,6 +1537,49 @@ struct CachedAnimBounds {
     /// authored animation). Always `> 0` (we early-out if frame 0 is
     /// degenerate before populating the cache).
     anim_end: u32,
+}
+
+/// One paint-ordered slice of a scripted tile instance, mirroring
+/// `swf_spike::render::TilePartSpec` plus the whole-scene fallback for
+/// wrappers `plan_tile_parts` refuses (clip masks).
+#[derive(Clone, Copy, Debug)]
+enum TileInstPart {
+    /// Frame-invariant depth run — baked once per (export, sig,
+    /// resolution) and shared across instances.
+    Run { depth_lo: u16, depth_hi: u16 },
+    /// One dynamic child placement — the JS consumer bakes its whole
+    /// frame range as a strip once, then per-tick animation is a pure
+    /// texture swap driven by the instance's simulated playhead.
+    Child { depth: u16, child_id: u16 },
+    /// Whole-scene fallback (masked wrapper): re-baked on change.
+    Whole,
+}
+
+/// One live scripted-tile placement. CANONICAL SEMANTICS: Dofus 1.29
+/// attaches tile gfx with `attachMovie` and lets Flash RUN each child
+/// timeline — frame-1 `stop()` parks a child, the placement's
+/// `onClipEvent(enterFrame)` handler fires every tick and can `play()`
+/// it again (o1/343 chimney elevator: `Math.random() < p` triggers a
+/// descent that re-parks at the frame-102 `stop()`). Each placed
+/// instance owns its playheads and PRNG draws, so identical gfx on two
+/// cells diverge — reproduced here with per-cell deterministic seeds
+/// (`tile_behavior::seed_for_cell`).
+struct TileInstance {
+    bundle: String,
+    export: String,
+    /// Per-child simulated AVM1 playheads (the dynamic children).
+    scripts: Vec<swf_spike::tile_script::ChildScript>,
+    /// One-shot pins for children whose frame-1 script froze them
+    /// (executed `gotoAndStop(random(...))` variants).
+    static_overrides: std::collections::HashMap<u16, u16>,
+    parts: Vec<TileInstPart>,
+    /// Authored bundle cadence (1 / doc.frame_rate) — parity with the
+    /// per-bundle fps table (g1/g2=12, o3/o8/o9/o11=40, others=60).
+    seconds_per_frame: f64,
+    accum_secs: f64,
+    /// Max child timeline length — sizes the whole-scene fallback's
+    /// bounds union so its anchor stays stable across re-bakes.
+    max_child_frames: u32,
 }
 
 /// One live AVM1 spell cast — owns the `AvmRenderer` (which holds the
@@ -1873,6 +1925,8 @@ impl VelloRenderer {
             swf_player_colors: swf_spike::recolor::PlayerColors::default(),
             swf_spell_instances: HashMap::new(),
             next_spell_instance_id: 1,
+            tile_instances: HashMap::new(),
+            next_tile_instance_id: 1,
             swf_strip_bounds_cache: HashMap::new(),
             swf_render_caches: HashMap::new(),
             body_scene_cache: HashMap::new(),
@@ -10831,6 +10885,666 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         result.into()
+    }
+
+    // ------------------------------------------------------------------
+    // Canonical animated-scenery semantics (docs/WC3-PARITY-GAPS.md §C).
+    //
+    // Ground truth: Dofus 1.29 attaches tile gfx and lets Flash RUN
+    // every child timeline (`MapHandler.as` attach + AVM1 frame
+    // scripts); the ONLY external playhead forcing is the slope
+    // `tile.gotoAndStop(cell.groundSlope)` (MapHandler.as:226). The
+    // classification below EXECUTES each wrapper's frame-1 AS2 with a
+    // per-cell seed (`tile_behavior::resolve_full`, ported from wc3's
+    // user-validated Flash simulation) instead of pattern-scanning
+    // opcodes, and scripted instances get per-tick AVM1 playheads
+    // (`tile_script::ChildScript`).
+    // ------------------------------------------------------------------
+
+    /// Classify a tile export for cell `cell_id` by EXECUTING its
+    /// frame-1 AS2 (per-cell seeded PRNG). Returns:
+    ///
+    /// - `{kind:"static", frame, sig}` — one-shot frozen (e.g. the
+    ///   authored `gotoAndStop(random(_totalframes-1)+2)` variant
+    ///   pick). `frame` is the wrapper frame to render; `sig` is a
+    ///   stable hash of `(frame, frozen-child pins)` so cells whose
+    ///   draws landed on the same variant share one texture bake
+    ///   (`renderSwfTileStaticSeeded`).
+    /// - `{kind:"loop", cycle, phaseSeed}` — every child free-runs, so
+    ///   a single linear counter reproduces canonical playback: keep
+    ///   the strip-atlas fast path, seeding the per-sprite phase from
+    ///   `phaseSeed` (canonically each placed instance owns its
+    ///   playhead; identical gfx must not tick in lockstep).
+    /// - `{kind:"scripted"}` — some child can stop / be revived by an
+    ///   `onClipEvent(enterFrame)` trigger: route through
+    ///   `tileInstanceCreate` + `tickTileInstances`.
+    /// - `null` — bundle/export unknown or not a sprite (caller keeps
+    ///   its legacy path).
+    #[wasm_bindgen(js_name = "swfTileBehavior")]
+    pub fn swf_tile_behavior(&self, bundle: &str, export: &str, cell_id: u32) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        use swf_spike::tile_behavior::{overrides_signature, resolve_full, seed_for_cell, TileBehavior};
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(Symbol::Sprite(sprite)) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let cell = (cell_id & 0xffff) as u16;
+        let resolution = resolve_full(sprite, doc, cell);
+        let result = js_sys::Object::new();
+        match resolution.behavior {
+            TileBehavior::Static { frame } => {
+                let sig = overrides_signature(frame, &resolution.child_overrides);
+                let _ = js_sys::Reflect::set(&result, &"kind".into(), &"static".into());
+                let _ = js_sys::Reflect::set(&result, &"frame".into(), &JsValue::from(frame));
+                let _ = js_sys::Reflect::set(&result, &"sig".into(), &JsValue::from(sig));
+            }
+            TileBehavior::Animated { cycle, .. } if resolution.is_simple_loop() => {
+                let _ = js_sys::Reflect::set(&result, &"kind".into(), &"loop".into());
+                let _ = js_sys::Reflect::set(&result, &"cycle".into(), &JsValue::from(cycle));
+                let _ = js_sys::Reflect::set(
+                    &result,
+                    &"phaseSeed".into(),
+                    &JsValue::from(seed_for_cell(cell)),
+                );
+            }
+            TileBehavior::Animated { .. } => {
+                let _ = js_sys::Reflect::set(&result, &"kind".into(), &"scripted".into());
+            }
+        }
+        result.into()
+    }
+
+    /// Bake the canonical STATIC variant of a tile for one cell: the
+    /// wrapper frame chosen by its executed frame-1 script plus every
+    /// frozen-child pin (replaces the `cellId % frameCount` heuristic
+    /// — the authored script, run with the per-cell seed, decides).
+    /// Same result shape as `renderSwfFrame`.
+    #[wasm_bindgen(js_name = "renderSwfTileStaticSeeded")]
+    pub fn render_swf_tile_static_seeded(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        cell_id: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        use swf_spike::tile_behavior::resolve_full;
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(sym) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let (frame, overrides) = match sym {
+            Symbol::Sprite(sprite) => {
+                let r = resolve_full(sprite, doc, (cell_id & 0xffff) as u16);
+                // Static ⇒ no live scripts; pin any that exist anyway
+                // (robustness if a caller routes a scripted tile here).
+                let mut ov = r.child_overrides;
+                for s in &r.child_scripts {
+                    ov.insert(s.child_id, s.current_frame);
+                }
+                (r.behavior.first_frame(), ov)
+            }
+            _ => (0, std::collections::HashMap::new()),
+        };
+
+        let bounds = swf_spike::render::symbol_bounds_pinned(doc, sym, frame, Some(&overrides));
+        if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
+            return JsValue::NULL;
+        }
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let px_min_x = (bounds.x0 * scale).floor() - pad;
+        let px_min_y = (bounds.y0 * scale).floor() - pad;
+        let w = (((bounds.x1 * scale).ceil() + pad - px_min_x) as u32).max(1);
+        let h = (((bounds.y1 * scale).ceil() + pad - px_min_y) as u32).max(1);
+        if w > 16384 || h > 16384 {
+            console_log!("renderSwfTileStaticSeeded: {w}x{h} exceeds GPU limits");
+            return JsValue::NULL;
+        }
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let xform = vello::kurbo::Affine::scale(scale)
+            .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
+        let mut scene = vello::Scene::new();
+        swf_spike::render::render_tile_whole(
+            Some(swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            }),
+            doc,
+            sym,
+            &mut scene,
+            xform,
+            frame,
+            &overrides,
+            cache,
+        );
+        let Some(texture) = self.render_scene_to_texture(&scene, w, h, "vello_tile_seeded")
+        else {
+            return JsValue::NULL;
+        };
+        let Some(bitmap) = self.texture_to_bitmap(&texture, w, h, "renderSwfTileStaticSeeded")
+        else {
+            return JsValue::NULL;
+        };
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        result.into()
+    }
+
+    /// Create a per-placement scripted-tile instance: executes the
+    /// wrapper's frame-1 AS2 with the per-cell seed, builds one
+    /// `ChildScript` playhead per dynamic child, and plans the
+    /// depth-decomposition (wc3 `render/tile_parts.rs`: maximal static
+    /// runs + one part per dynamic child; whole-scene fallback for
+    /// masked wrappers). Returns
+    /// `{instId, sig, parts:[{kind:"run"|"child"|"whole", childId,
+    /// frameCount, curFrame}]}` or `null`.
+    #[wasm_bindgen(js_name = "tileInstanceCreate")]
+    pub fn tile_instance_create(&mut self, bundle: &str, export: &str, cell_id: u32) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        use swf_spike::tile_behavior::{overrides_signature, resolve_full};
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(Symbol::Sprite(sprite)) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let resolution = resolve_full(sprite, doc, (cell_id & 0xffff) as u16);
+        if resolution.child_scripts.is_empty() {
+            // Nothing to simulate — the caller should be on the static
+            // or loop path.
+            return JsValue::NULL;
+        }
+        let dynamic: std::collections::HashSet<u16> = resolution
+            .child_scripts
+            .iter()
+            .map(|s| s.child_id)
+            .collect();
+        let parts: Vec<TileInstPart> = match swf_spike::render::plan_tile_parts(sprite, &dynamic) {
+            Some(specs) => specs
+                .into_iter()
+                .map(|spec| match spec {
+                    swf_spike::render::TilePartSpec::StaticRun { depth_lo, depth_hi } => {
+                        TileInstPart::Run { depth_lo, depth_hi }
+                    }
+                    swf_spike::render::TilePartSpec::Dynamic { depth, child_id } => {
+                        TileInstPart::Child { depth, child_id }
+                    }
+                })
+                .collect(),
+            None => vec![TileInstPart::Whole],
+        };
+        let fps = if doc.frame_rate > 0.0 {
+            f64::from(doc.frame_rate)
+        } else {
+            24.0
+        };
+        let max_child_frames = resolution
+            .child_scripts
+            .iter()
+            .map(|s| u32::from(s.num_frames))
+            .max()
+            .unwrap_or(1);
+        let sig = overrides_signature(0, &resolution.child_overrides);
+
+        let parts_js = js_sys::Array::new();
+        for part in &parts {
+            let p = js_sys::Object::new();
+            match *part {
+                TileInstPart::Run { .. } => {
+                    let _ = js_sys::Reflect::set(&p, &"kind".into(), &"run".into());
+                }
+                TileInstPart::Child { child_id, .. } => {
+                    let _ = js_sys::Reflect::set(&p, &"kind".into(), &"child".into());
+                    let _ = js_sys::Reflect::set(&p, &"childId".into(), &JsValue::from(child_id));
+                    let script = resolution
+                        .child_scripts
+                        .iter()
+                        .find(|s| s.child_id == child_id);
+                    let _ = js_sys::Reflect::set(
+                        &p,
+                        &"frameCount".into(),
+                        &JsValue::from(script.map_or(1, |s| s.num_frames.max(1))),
+                    );
+                    let _ = js_sys::Reflect::set(
+                        &p,
+                        &"curFrame".into(),
+                        &JsValue::from(script.map_or(0, |s| s.current_frame)),
+                    );
+                }
+                TileInstPart::Whole => {
+                    let _ = js_sys::Reflect::set(&p, &"kind".into(), &"whole".into());
+                }
+            }
+            parts_js.push(&p);
+        }
+
+        let id = self.next_tile_instance_id;
+        self.next_tile_instance_id += 1;
+        self.tile_instances.insert(
+            id,
+            TileInstance {
+                bundle: bundle.to_string(),
+                export: export.to_string(),
+                scripts: resolution.child_scripts,
+                static_overrides: resolution.child_overrides,
+                parts,
+                seconds_per_frame: 1.0 / fps,
+                accum_secs: 0.0,
+                max_child_frames,
+            },
+        );
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"instId".into(), &JsValue::from(id));
+        let _ = js_sys::Reflect::set(&result, &"sig".into(), &JsValue::from(sig));
+        let _ = js_sys::Reflect::set(&result, &"parts".into(), &parts_js);
+        result.into()
+    }
+
+    /// Advance every live tile instance by `dt_ms` wall-clock
+    /// milliseconds. Each instance accumulates time at ITS bundle's
+    /// authored frame rate and runs the canonical per-tick sequence on
+    /// each playhead (`onClipEvent(enterFrame)` → advance → arriving
+    /// frame's DoActions — `tile_script::ChildScript::tick`). Returns
+    /// the instIds whose composed frame vector changed (steady-state
+    /// parked tiles return nothing and cost ~0). Catch-up is capped at
+    /// 240 ticks per call (wc3 `animate.rs::advance_clock` parity).
+    #[wasm_bindgen(js_name = "tickTileInstances")]
+    pub fn tick_tile_instances(&mut self, dt_ms: f64) -> js_sys::Uint32Array {
+        let mut changed: Vec<u32> = Vec::new();
+        for (id, inst) in self.tile_instances.iter_mut() {
+            if inst.seconds_per_frame <= 0.0 {
+                continue;
+            }
+            inst.accum_secs += dt_ms / 1000.0;
+            let mut any = false;
+            let mut ticks: u32 = 0;
+            while inst.accum_secs >= inst.seconds_per_frame {
+                for s in inst.scripts.iter_mut() {
+                    let before = s.current_frame;
+                    s.tick();
+                    if s.current_frame != before {
+                        any = true;
+                    }
+                }
+                inst.accum_secs -= inst.seconds_per_frame;
+                ticks += 1;
+                if ticks > 240 {
+                    inst.accum_secs = 0.0;
+                    break;
+                }
+            }
+            if any {
+                changed.push(*id);
+            }
+        }
+        changed.sort_unstable();
+        js_sys::Uint32Array::from(&changed[..])
+    }
+
+    /// Current composed frame per dynamic part of one instance, as
+    /// flat `[partIdx, frame, partIdx, frame, …]` pairs. The JS
+    /// consumer swaps each part sprite's strip texture to `frame` —
+    /// zero Vello dispatch in steady state.
+    #[wasm_bindgen(js_name = "tileInstanceDynFrames")]
+    pub fn tile_instance_dyn_frames(&self, inst_id: u32) -> js_sys::Uint32Array {
+        let Some(inst) = self.tile_instances.get(&inst_id) else {
+            return js_sys::Uint32Array::new_with_length(0);
+        };
+        let mut out: Vec<u32> = Vec::new();
+        for (i, part) in inst.parts.iter().enumerate() {
+            if let TileInstPart::Child { child_id, .. } = *part {
+                if let Some(s) = inst.scripts.iter().find(|s| s.child_id == child_id) {
+                    out.push(i as u32);
+                    out.push(u32::from(s.current_frame));
+                }
+            }
+        }
+        js_sys::Uint32Array::from(&out[..])
+    }
+
+    /// Free one scripted-tile instance (placement removed / map left).
+    #[wasm_bindgen(js_name = "tileInstanceFree")]
+    pub fn tile_instance_free(&mut self, inst_id: u32) {
+        self.tile_instances.remove(&inst_id);
+    }
+
+    /// Bake ONE part of a scripted tile at the instance's CURRENT
+    /// composed state. Used for static runs (baked once, shared per
+    /// `(export, sig, resolution)` on the JS side) and the whole-scene
+    /// fallback (re-baked when `tickTileInstances` reports the
+    /// instance changed). Same result shape as `renderSwfFrame`; the
+    /// anchor is the part's own offset from the SWF origin so stacked
+    /// part sprites all mount at the cell position.
+    #[wasm_bindgen(js_name = "renderSwfTileInstancePart")]
+    pub fn render_swf_tile_instance_part(
+        &mut self,
+        inst_id: u32,
+        part_idx: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        let Some(inst) = self.tile_instances.get(&inst_id) else {
+            return JsValue::NULL;
+        };
+        let Some(&part) = inst.parts.get(part_idx as usize) else {
+            return JsValue::NULL;
+        };
+        let bundle = inst.bundle.clone();
+        let export = inst.export.clone();
+        let max_child_frames = inst.max_child_frames;
+        let mut overrides = inst.static_overrides.clone();
+        for s in &inst.scripts {
+            overrides.insert(s.child_id, s.current_frame);
+        }
+        let dynamic: std::collections::HashSet<u16> =
+            inst.scripts.iter().map(|s| s.child_id).collect();
+
+        // Whole-scene fallback sizes against the memoized full-anim
+        // union so its anchor never shifts across re-bakes (this call
+        // mutably borrows self, so run it before taking doc refs).
+        let whole_bounds = if matches!(part, TileInstPart::Whole) {
+            let Some(c) = self.cache_strip_bounds(&bundle, &export, max_child_frames.max(1))
+            else {
+                return JsValue::NULL;
+            };
+            Some(vello::kurbo::Rect::new(c.min_x, c.min_y, c.max_x, c.max_y))
+        } else {
+            None
+        };
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+
+        let Some(doc) = self.swf_bundles.get(&bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(sym) = doc.lookup_export(&export) else {
+            return JsValue::NULL;
+        };
+        let Symbol::Sprite(sprite) = sym else {
+            return JsValue::NULL;
+        };
+        let spec = match part {
+            TileInstPart::Run { depth_lo, depth_hi } => {
+                Some(swf_spike::render::TilePartSpec::StaticRun { depth_lo, depth_hi })
+            }
+            TileInstPart::Child { depth, child_id } => {
+                Some(swf_spike::render::TilePartSpec::Dynamic { depth, child_id })
+            }
+            TileInstPart::Whole => None,
+        };
+        let bounds = match (&spec, whole_bounds) {
+            (_, Some(b)) => b,
+            (Some(s), None) => {
+                swf_spike::render::tile_part_bounds(doc, sprite, *s, &dynamic, &overrides)
+            }
+            (None, None) => return JsValue::NULL,
+        };
+        if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
+            return JsValue::NULL;
+        }
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let px_min_x = (bounds.x0 * scale).floor() - pad;
+        let px_min_y = (bounds.y0 * scale).floor() - pad;
+        let w = (((bounds.x1 * scale).ceil() + pad - px_min_x) as u32).max(1);
+        let h = (((bounds.y1 * scale).ceil() + pad - px_min_y) as u32).max(1);
+        if w > 16384 || h > 16384 {
+            console_log!("renderSwfTileInstancePart: {w}x{h} exceeds GPU limits");
+            return JsValue::NULL;
+        }
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.clone())
+            .or_default();
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let xform = vello::kurbo::Affine::scale(scale)
+            .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
+        let mut scene = vello::Scene::new();
+        let wgpu_ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+        match spec {
+            Some(s) => swf_spike::render::render_tile_part(
+                Some(wgpu_ctx),
+                doc,
+                sprite,
+                &mut scene,
+                xform,
+                &overrides,
+                s,
+                &dynamic,
+                cache,
+            ),
+            None => swf_spike::render::render_tile_whole(
+                Some(wgpu_ctx),
+                doc,
+                sym,
+                &mut scene,
+                xform,
+                0,
+                &overrides,
+                cache,
+            ),
+        }
+        let Some(texture) = self.render_scene_to_texture(&scene, w, h, "vello_tile_part")
+        else {
+            return JsValue::NULL;
+        };
+        let Some(bitmap) = self.texture_to_bitmap(&texture, w, h, "renderSwfTileInstancePart")
+        else {
+            return JsValue::NULL;
+        };
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        result.into()
+    }
+
+    /// Bake a dynamic child part's ENTIRE frame range as one strip
+    /// atlas (cells at the child's own cross-frame union bounds — far
+    /// smaller than the tile canvas). After this single dispatch,
+    /// per-tick animation of the scripted tile is a pure texture swap
+    /// keyed by the simulated playhead. Returns the same shape as
+    /// `renderSwfTileDynamicStripRange`, or `null` if the part isn't a
+    /// dynamic child / exceeds GPU limits (caller then re-bakes the
+    /// single part per change instead).
+    #[wasm_bindgen(js_name = "renderSwfTileInstancePartStrip")]
+    pub fn render_swf_tile_instance_part_strip(
+        &mut self,
+        inst_id: u32,
+        part_idx: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        let Some(inst) = self.tile_instances.get(&inst_id) else {
+            return JsValue::NULL;
+        };
+        let Some(&part) = inst.parts.get(part_idx as usize) else {
+            return JsValue::NULL;
+        };
+        let TileInstPart::Child { depth, child_id } = part else {
+            return JsValue::NULL;
+        };
+        let bundle = inst.bundle.clone();
+        let export = inst.export.clone();
+        let frame_count = inst
+            .scripts
+            .iter()
+            .find(|s| s.child_id == child_id)
+            .map_or(1u16, |s| s.num_frames.max(1));
+        let static_overrides = inst.static_overrides.clone();
+        let dynamic: std::collections::HashSet<u16> =
+            inst.scripts.iter().map(|s| s.child_id).collect();
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+
+        let Some(doc) = self.swf_bundles.get(&bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(Symbol::Sprite(sprite)) = doc.lookup_export(&export) else {
+            return JsValue::NULL;
+        };
+        let spec = swf_spike::render::TilePartSpec::Dynamic { depth, child_id };
+        let bounds =
+            swf_spike::render::tile_part_bounds(doc, sprite, spec, &dynamic, &static_overrides);
+        if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
+            return JsValue::NULL;
+        }
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let px_min_x = (bounds.x0 * scale).floor() - pad;
+        let px_min_y = (bounds.y0 * scale).floor() - pad;
+        let frame_w = (((bounds.x1 * scale).ceil() + pad - px_min_x) as u32).max(1);
+        let frame_h = (((bounds.y1 * scale).ceil() + pad - px_min_y) as u32).max(1);
+        let max_cols = (16384u32 / frame_w).max(1) as usize;
+        let n = usize::from(frame_count);
+        let grid_cols = n.min(max_cols);
+        let grid_rows = n.div_ceil(grid_cols);
+        let strip_w = frame_w * grid_cols as u32;
+        let strip_h = frame_h * grid_rows as u32;
+        if strip_w == 0 || strip_h == 0 || strip_w > 16384 || strip_h > 16384 {
+            console_log!(
+                "renderSwfTileInstancePartStrip: strip {strip_w}x{strip_h} exceeds GPU limits"
+            );
+            return JsValue::NULL;
+        }
+
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.clone())
+            .or_default();
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut scene = vello::Scene::new();
+        {
+            let mut overrides = static_overrides.clone();
+            for f in 0..frame_count {
+                overrides.insert(child_id, f);
+                let col = usize::from(f) % grid_cols;
+                let row = usize::from(f) / grid_cols;
+                let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                    vello::kurbo::Vec2::new(
+                        -px_min_x + (col as f64) * f64::from(frame_w),
+                        -px_min_y + (row as f64) * f64::from(frame_h),
+                    ),
+                );
+                swf_spike::render::render_tile_part(
+                    Some(swf_spike::render::WgpuCtx {
+                        device: &self.device,
+                        queue: &self.queue,
+                        renderer: &mut self.renderer,
+                        filter_pipelines,
+                        output_scale: scale,
+                    }),
+                    doc,
+                    sprite,
+                    &mut scene,
+                    xform,
+                    &overrides,
+                    spec,
+                    &dynamic,
+                    cache,
+                );
+            }
+        }
+        let Some(texture) =
+            self.render_scene_to_texture(&scene, strip_w, strip_h, "vello_tile_part_strip")
+        else {
+            return JsValue::NULL;
+        };
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfTileInstancePartStrip")
+        else {
+            return JsValue::NULL;
+        };
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"gridCols".into(), &JsValue::from(grid_cols as u32));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"frameCount".into(),
+            &JsValue::from(u32::from(frame_count)),
+        );
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        result.into()
+    }
+
+    /// Shared texture-target allocation + Vello dispatch for the tile
+    /// instance paths. Returns the texture (usable for the bitmap
+    /// bridge) or `None` on render error.
+    fn render_scene_to_texture(
+        &mut self,
+        scene: &vello::Scene,
+        w: u32,
+        h: u32,
+        label: &'static str,
+    ) -> Option<wgpu::Texture> {
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(label),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: w,
+            height: h,
+            antialiasing_method: AaConfig::Area,
+        };
+        if let Err(e) =
+            self.renderer
+                .render_to_texture(&self.device, &self.queue, scene, &view, &params)
+        {
+            console_log!("{label}: render error: {e}");
+            return None;
+        }
+        Some(texture)
     }
 
     /// Render multiple exports of ONE bundle at the SAME frame in a single
