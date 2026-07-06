@@ -37,6 +37,13 @@ path = "src/bin/render_player_tinted.rs"
 # verify HSL applyColor zone recolor.
 
 [[bin]]
+name = "render-settled-static"
+path = "src/bin/render_settled_static.rs"
+# Render a `static*` export unsettled (frame-0 children) vs settled
+# (canonical AS2 stop() child pins) side-by-side; prints the override
+# map + applyEnd action point. Verifies NPC/monster idle poses.
+
+[[bin]]
 name = "render-avm1-sheet"
 path = "src/bin/render_avm1_sheet.rs"
 # Render every frame of an AVM1-driven spell SWF to a sheet —

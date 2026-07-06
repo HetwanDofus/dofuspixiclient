@@ -184,6 +184,23 @@ pub struct RenderCtx<'a> {
     /// pushes each placement's `depth`. Only READ by the union capture sink
     /// (`render::union`); empty + inert for normal rendering.
     pub depth_path: Vec<u16>,
+
+    /// Per-character frame pins. When `child()` would propagate
+    /// `parent_frame % child.num_frames` to a multi-frame descendant,
+    /// it instead uses the pinned frame from this map if the child's
+    /// id is a key. Inherited by every recursive descendant via
+    /// `child()`, so a stopped grandchild is honored too.
+    ///
+    /// CANONICAL SEMANTICS: Flash runs child timelines until their
+    /// AS2 `stop()` and then keeps showing the stopped frame; the
+    /// client's only playhead forcing (`GlobalSpriteHandler.
+    /// recursiveGotoAndStop`, assets/sources/client-code/ank/
+    /// battlefield/GlobalSpriteHandler.as:505-516) pins children at a
+    /// stopped frame. Used to render `static*` NPC/monster idles at
+    /// their SETTLED pose (see `tile_behavior::settled_static_overrides`)
+    /// and available to the tile renderer for canonical `Stop`
+    /// descendants of animated wrappers.
+    pub child_frame_overrides: Option<&'a HashMap<u16, u16>>,
 }
 
 impl<'a> RenderCtx<'a> {
@@ -214,7 +231,19 @@ impl<'a> RenderCtx<'a> {
             output_mode: RenderMode::default(),
             hat_equipped: false,
             depth_path: Vec::new(),
+            child_frame_overrides: None,
         }
+    }
+
+    /// Pin specific child characters to fixed frames (see the
+    /// `child_frame_overrides` field doc). `None` clears back to the
+    /// default modulo propagation.
+    pub fn with_child_frame_overrides(
+        mut self,
+        overrides: Option<&'a HashMap<u16, u16>>,
+    ) -> Self {
+        self.child_frame_overrides = overrides;
+        self
     }
 
     /// Set the canonical mcToHide signal (slot 1 / hat equipped).
@@ -371,15 +400,28 @@ impl<'a> RenderCtx<'a> {
         // active character sets) and pin the frame to `hat_equipped
         // ? 1 : 0`. For canonical Dofus this only ever fires for
         // hair/head sprites — slot 1 is the only authored mcToHide.
-        let frame = match self.doc.lookup_id(child_id) {
-            Some(crate::swf_doc::Symbol::Sprite(c)) if c.num_frames > 1 => {
-                if is_accessory_toggle_sprite(c) {
-                    if self.hat_equipped && c.num_frames > 1 { 1 } else { 0 }
-                } else {
-                    self.frame % c.num_frames
+        // Override path (checked FIRST, mirrors wc3 ctx.rs): a
+        // caller-supplied map pins specific characters to a fixed
+        // frame — canonical AS2 `stop()` on descendants of a wrapper
+        // (settled `static*` idles, stopped tile children). The maps
+        // are built from root-level timeline children only, so they
+        // never collide with the deeper accessory-toggle sprites.
+        let frame = if let Some(&pinned) = self
+            .child_frame_overrides
+            .and_then(|map| map.get(&child_id))
+        {
+            pinned
+        } else {
+            match self.doc.lookup_id(child_id) {
+                Some(crate::swf_doc::Symbol::Sprite(c)) if c.num_frames > 1 => {
+                    if is_accessory_toggle_sprite(c) {
+                        if self.hat_equipped && c.num_frames > 1 { 1 } else { 0 }
+                    } else {
+                        self.frame % c.num_frames
+                    }
                 }
+                _ => 0,
             }
-            _ => 0,
         };
 
         let ratio = place.ratio.unwrap_or(0);
@@ -417,6 +459,7 @@ impl<'a> RenderCtx<'a> {
             output_mode: self.output_mode,
             hat_equipped: self.hat_equipped,
             depth_path,
+            child_frame_overrides: self.child_frame_overrides,
         }
     }
 }

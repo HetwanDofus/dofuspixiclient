@@ -1916,6 +1916,30 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * 0-based frame index at which this export calls
+     * `GAC.applyEnd(this)` — the canonical spell-cast "action point"
+     * where `GlobalSpriteHandler.applyEnd` releases the sequencer
+     * (`_loc3_.sequencer.onActionEnd()`, assets/sources/client-code/
+     * ank/battlefield/GlobalSpriteHandler.as:430-440). The JS layer
+     * compares this against its 0-based `frameIndex` cursor to fire
+     * the spell effect MID-swing instead of at frame 1 or the last
+     * frame. Returns `-1` when the export is missing or no descendant
+     * ships an `applyEnd` frame script (the caller then keeps its
+     * near-frame-0 fallback). Deterministic per (bundle, export) —
+     * the JS side caches it.
+     * @param {string} bundle
+     * @param {string} _export
+     * @returns {number}
+     */
+    swfActionPointFrame(bundle, _export) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_swfActionPointFrame(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret;
+    }
+    /**
      * this export — `walkR` is a 1-frame wrapper around the real animation,
      * so JS needs the inner count to drive the ticker.
      * @param {string} bundle

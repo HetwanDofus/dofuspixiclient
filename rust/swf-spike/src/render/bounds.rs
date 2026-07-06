@@ -69,6 +69,21 @@ pub fn build_frame_state(sprite: &OwnedSprite, frame: u16) -> BTreeMap<u16, Owne
 /// nested DefineSprites, applying placement matrices. Used by the WASM bridge
 /// to size the output texture.
 pub fn symbol_bounds(doc: &SwfDoc, sym: &Symbol, frame: u16) -> Rect {
+    symbol_bounds_pinned(doc, sym, frame, None)
+}
+
+/// [`symbol_bounds`] with settled `static*` child pins: a child whose
+/// id is in `overrides` is measured at its PINNED (canonical AS2
+/// `stop()`) frame instead of `parent_frame % child_frames` — matching
+/// `RenderCtx::child_frame_overrides` so output textures are sized for
+/// the pose that actually renders (the settled pose can extend past
+/// the un-settled frame-0 extents).
+pub fn symbol_bounds_pinned(
+    doc: &SwfDoc,
+    sym: &Symbol,
+    frame: u16,
+    overrides: Option<&std::collections::HashMap<u16, u16>>,
+) -> Rect {
     match sym {
         Symbol::Shape(shape) => Rect::new(
             f64::from(shape.shape_bounds.x_min.get()),
@@ -76,7 +91,7 @@ pub fn symbol_bounds(doc: &SwfDoc, sym: &Symbol, frame: u16) -> Rect {
             f64::from(shape.shape_bounds.x_max.get()),
             f64::from(shape.shape_bounds.y_max.get()),
         ),
-        Symbol::Sprite(sprite) => sprite_bounds(doc, sprite, frame, Affine::IDENTITY),
+        Symbol::Sprite(sprite) => sprite_bounds(doc, sprite, frame, Affine::IDENTITY, overrides),
         Symbol::Bitmap(enc) => bitmap_dims(enc)
             .map(|(w, h)| Rect::new(0.0, 0.0, f64::from(w) * 20.0, f64::from(h) * 20.0))
             .unwrap_or(Rect::ZERO),
@@ -108,7 +123,13 @@ fn bitmap_dims(enc: &EncodedBitmap) -> Option<(u32, u32)> {
     }
 }
 
-fn sprite_bounds(doc: &SwfDoc, sprite: &OwnedSprite, frame: u16, parent: Affine) -> Rect {
+fn sprite_bounds(
+    doc: &SwfDoc,
+    sprite: &OwnedSprite,
+    frame: u16,
+    parent: Affine,
+    overrides: Option<&std::collections::HashMap<u16, u16>>,
+) -> Rect {
     let state = build_frame_state(sprite, frame);
     let mut acc: Option<Rect> = None;
     for (_depth, p) in &state {
@@ -129,8 +150,18 @@ fn sprite_bounds(doc: &SwfDoc, sprite: &OwnedSprite, frame: u16, parent: Affine)
                 f64::from(s.shape_bounds.y_max.get()),
             ),
             Symbol::Sprite(child_sprite) => {
-                let child_frame = if child_sprite.num_frames > 1 { frame } else { 0 };
-                sprite_bounds(doc, child_sprite, child_frame, Affine::IDENTITY)
+                // Settled pin wins (mirrors `RenderCtx::child`'s
+                // precedence); else the standard propagation.
+                let child_frame = if let Some(&pinned) =
+                    overrides.and_then(|map| map.get(&id))
+                {
+                    pinned
+                } else if child_sprite.num_frames > 1 {
+                    frame
+                } else {
+                    0
+                };
+                sprite_bounds(doc, child_sprite, child_frame, Affine::IDENTITY, overrides)
             }
             Symbol::MorphShape(ms) => {
                 let r = crate::morph::morph_bounds_union(ms);

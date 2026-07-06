@@ -345,15 +345,15 @@ pub(super) fn call_global(
     }
 }
 
+thread_local! {
+    static RNG_STATE: std::cell::Cell<u32> = const { std::cell::Cell::new(0x1234_5678) };
+}
+
 /// Cheap PRNG. We don't need cryptographic randomness — Dofus spells just want
 /// flicker and per-instance jitter — and pulling in `rand` would inflate the
 /// WASM bundle. xorshift32 is good enough.
 pub(super) fn rand_u32() -> u32 {
-    use std::cell::Cell;
-    thread_local! {
-        static STATE: Cell<u32> = const { Cell::new(0x1234_5678) };
-    }
-    STATE.with(|s| {
+    RNG_STATE.with(|s| {
         let mut x = s.get();
         if x == 0 {
             x = 0x1234_5678;
@@ -364,4 +364,14 @@ pub(super) fn rand_u32() -> u32 {
         s.set(x);
         x
     })
+}
+
+/// Seed the thread-local PRNG. Callers that need deterministic per-instance
+/// random output (e.g. map tiles whose variant must stay stable across
+/// re-renders and snapshots, or settled-static child simulation) reseed
+/// before each call to [`super::exec::exec`]. Reseeding with `0` is silently
+/// bumped to a non-zero default — xorshift32 is degenerate at state `0`.
+pub fn seed_rng(seed: u32) {
+    let s = if seed == 0 { 0x1234_5678 } else { seed };
+    RNG_STATE.with(|cell| cell.set(s));
 }

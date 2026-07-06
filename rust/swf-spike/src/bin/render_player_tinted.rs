@@ -75,7 +75,12 @@ async fn run() -> Result<()> {
                 filter_pipelines: &pipelines,
                 output_scale: twip_scale,
             };
-            render_symbol_with_ctx_tinted(&mut ctx, &doc, sym, &mut scene, xform, 0, pc);
+            // Settled `static*` child pins — keeps this diagnostic
+            // aligned with the live paths (canonical stopped pose).
+            let settled = swf_spike::tile_behavior::settled_static_overrides(&doc, sym);
+            let ov = (!settled.is_empty() && export.starts_with("static"))
+                .then_some(&settled);
+            render_symbol_with_ctx_tinted(&mut ctx, &doc, sym, &mut scene, xform, 0, pc, ov);
         }
         let pixels = headless.render_to_pixels(&scene, cw, ch, Color::WHITE)?;
         for y in 0..ch {

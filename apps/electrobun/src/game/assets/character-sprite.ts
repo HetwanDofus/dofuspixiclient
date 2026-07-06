@@ -11,7 +11,10 @@ import { wireColorsToZones } from "@/game/assets/color-zone";
 import { parseLook } from "@/game/assets/look-parser";
 import { VelloAssetRegistry } from "@/game/assets/vello-asset-registry";
 import { Direction } from "@/game/fight/types";
-import { swfAnimFrameCount } from "@/game/render/vello-loader";
+import {
+  swfActionPointFrame,
+  swfAnimFrameCount,
+} from "@/game/render/vello-loader";
 
 /**
  * Reference to one accessory mounted on a character. Slot mirrors
@@ -124,7 +127,10 @@ export function isDirectionFlipped(direction: number): boolean {
   return DIRECTION_FLIP[direction] ?? false;
 }
 
-/** Per-(gfxId, animName) → 0-based applyEnd frame index. */
+/**
+ * Per-(gfxId, animName) → 0-based applyEnd frame index, or `-1` when
+ * the anim ships no `GAC.applyEnd(this)` frame script (memoized miss).
+ */
 type ApplyEndCache = Map<string, number>;
 
 /**
@@ -146,12 +152,15 @@ export class CharacterSpriteLoader {
   private vello: VelloRenderer | null = null;
   private pixiRenderer: Renderer | null = null;
   private readonly assets = new VelloAssetRegistry();
-  // applyEnd map per gfxId — recovering the AS2 `GAC.applyEnd(this)`
-  // call frame would require a Rust-side bytecode detector. Until that
-  // lands, we leave the map empty: PlayerRenderer's `getApplyEndFrame`
-  // returns `null`, which makes its one-shot completion gracefully
-  // fall back to a near-frame-0 launch + last-frame hit.
-  private readonly applyEndByGfx = new Map<number, ApplyEndCache | null>();
+  // applyEnd map per gfxId — lazily filled from the Rust-side
+  // `swfActionPointFrame` bytecode scan (the frame where the body's
+  // frame script calls `GAC.applyEnd(this)`; canonical
+  // `GlobalSpriteHandler.applyEnd` → `sequencer.onActionEnd()`,
+  // assets/sources/client-code/ank/battlefield/
+  // GlobalSpriteHandler.as:430-440). Values are 0-based frame
+  // indices; `-1` = the anim ships no applyEnd (memoized so the WASM
+  // scan runs once per (gfxId, animName)).
+  private readonly applyEndByGfx = new Map<number, ApplyEndCache>();
 
   setVelloRenderer(vello: VelloRenderer, pixiRenderer: Renderer): void {
     this.vello = vello;
@@ -169,23 +178,46 @@ export class CharacterSpriteLoader {
   }
 
   /**
-   * No-op shim — recovering the AS2 applyEnd-frame would need a
-   * Rust-side `swf_doc.rs` bytecode walker. Until then, returns null
-   * so existing call sites compose unchanged.
+   * Ensure the gfx's SWF bundle is loaded so `getApplyEndFrame` can
+   * resolve action points synchronously. The per-anim scan itself is
+   * lazy (first `getApplyEndFrame(gfxId, animName)` call) — eagerly
+   * scanning every export here would walk 18+ anim timelines per NPC
+   * for data most anims never need.
    */
   async loadApplyEnd(gfxId: number): Promise<ApplyEndCache | null> {
-    if (!this.applyEndByGfx.has(gfxId)) {
-      this.applyEndByGfx.set(gfxId, null);
+    await this.assets.loadSprite(gfxId);
+    let cache = this.applyEndByGfx.get(gfxId);
+    if (!cache) {
+      cache = new Map();
+      this.applyEndByGfx.set(gfxId, cache);
     }
-    return null;
+    return cache;
   }
 
+  /**
+   * 0-based frame at which `animName` calls `GAC.applyEnd(this)` —
+   * the canonical action point where the spell effect fires
+   * (GlobalSpriteHandler.as:430-440 releases the sequencer there,
+   * NOT at the anim's last frame). `null` when the bundle isn't
+   * loaded yet or the anim ships no applyEnd (hit/die/static) — the
+   * caller keeps its near-frame-0 fallback.
+   */
   getApplyEndFrame(gfxId: number, animName: string): number | null {
-    const cache = this.applyEndByGfx.get(gfxId);
-    if (!cache) {
+    const bundleName = this.assets.getSpriteBundleName(gfxId);
+    if (!bundleName) {
       return null;
     }
-    return cache.get(animName) ?? null;
+    let cache = this.applyEndByGfx.get(gfxId);
+    if (!cache) {
+      cache = new Map();
+      this.applyEndByGfx.set(gfxId, cache);
+    }
+    let frame = cache.get(animName);
+    if (frame === undefined) {
+      frame = swfActionPointFrame(bundleName, animName);
+      cache.set(animName, frame);
+    }
+    return frame >= 0 ? frame : null;
   }
 
   /**

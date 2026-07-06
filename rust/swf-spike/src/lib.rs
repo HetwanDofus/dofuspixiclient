@@ -13,6 +13,8 @@ pub mod render;
 pub mod render_avm1;
 pub mod shape;
 pub mod swf_doc;
+pub mod tile_behavior;
+pub mod tile_script;
 pub mod wgpu_filters;
 
 // Headless wgpu init uses pollster::block_on, which can't run on wasm32.

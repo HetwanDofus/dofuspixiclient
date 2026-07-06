@@ -1042,6 +1042,20 @@ export class VelloRenderer {
      */
     swfAccessoryCanonicalAnimType(acc_bundle: string, acc_export: string, slot: number, dir: string, side: string, anim_type: number): number;
     /**
+     * 0-based frame index at which this export calls
+     * `GAC.applyEnd(this)` — the canonical spell-cast "action point"
+     * where `GlobalSpriteHandler.applyEnd` releases the sequencer
+     * (`_loc3_.sequencer.onActionEnd()`, assets/sources/client-code/
+     * ank/battlefield/GlobalSpriteHandler.as:430-440). The JS layer
+     * compares this against its 0-based `frameIndex` cursor to fire
+     * the spell effect MID-swing instead of at frame 1 or the last
+     * frame. Returns `-1` when the export is missing or no descendant
+     * ships an `applyEnd` frame script (the caller then keeps its
+     * near-frame-0 fallback). Deterministic per (bundle, export) —
+     * the JS side caches it.
+     */
+    swfActionPointFrame(bundle: string, _export: string): number;
+    /**
      * this export — `walkR` is a 1-frame wrapper around the real animation,
      * so JS needs the inner count to drive the ticker.
      */
@@ -1320,6 +1334,7 @@ export interface InitOutput {
     readonly vellorenderer_slabGpuTiming: (a: number) => any;
     readonly vellorenderer_subsceneCacheBytesForBundle: (a: number, b: number, c: number) => any;
     readonly vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
+    readonly vellorenderer_swfActionPointFrame: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly vellorenderer_swfBundleExports: (a: number, b: number, c: number) => [number, number];

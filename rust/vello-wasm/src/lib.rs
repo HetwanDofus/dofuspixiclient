@@ -690,8 +690,20 @@ fn emit_player_look(
         equipped.insert(a.slot, (acache, adoc, asym, a.anim_type));
     }
     let has_hat = equipped.contains_key(&1);
-    let (effective_sym, effective_xform) =
-        swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
+    // Settled `static*` child pins (canonical stopped idle pose) —
+    // memoized per (bundle, export) inside the bundle cache, so this
+    // is a HashMap lookup on every call after the first. The PINNED
+    // descent matters: `static*` roots place exactly one settle-in rig,
+    // so the wrapper descent steps INTO the pinned child and the walk
+    // must start at its settled frame (`eff_frame`), not `frame`.
+    let settled = body_cache.settled_overrides(doc, export);
+    let (effective_sym, effective_xform, _eff_slots, eff_frame) =
+        swf_spike::render::find_effective_and_slots_pinned(
+            doc,
+            symbol,
+            frame,
+            settled.as_deref(),
+        );
     let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
     let (mount_mats, mount_pres) = swf_spike::render::mount_transforms::extract_mount_transforms(
         doc, symbol, frame, 1, flipped, MAX_SLOT,
@@ -707,13 +719,14 @@ fn emit_player_look(
             effective_sym,
             out,
             body_xform,
-            frame,
+            eff_frame,
             band,
             RenderMode::Colour,
             colors,
             body_cache,
             flipped,
             has_hat,
+            settled.as_deref(),
         );
         if i < n {
             let sd = &slots[i];
@@ -743,6 +756,9 @@ fn emit_player_look(
                             acc_frame,
                             swf_spike::recolor::PlayerColors::default(),
                             acache,
+                            // Flat accessory symbols (hat/cape/shield 5×3
+                            // layouts) carry no `static*` wrapper — no pins.
+                            None,
                         );
                         acc_drawn += 1;
                     }
@@ -927,11 +943,19 @@ fn emit_player_look_split(
     // miss, so it's `None` on a hit.
     let cache_key = crowd_blob::key_hash(&format!("S|{bundle}|{export}|{frame}|{flip_tag}"));
     let cached_struct = body_struct.as_ref().and_then(|m| m.get(&cache_key)).cloned();
+    // Settled `static*` child pins (canonical stopped idle pose) —
+    // memoized per (bundle, export) inside the bundle cache. Changes
+    // CHILD FRAME SELECTION only — zone_patch capture below still
+    // records the colour-agnostic zone sinks exactly as before.
+    let settled = body_cache.settled_overrides(doc, export);
     let slots: Vec<swf_spike::render::slot_depths::SlotDepth>;
     let mount_mats: Vec<f32>;
     let mount_pres: Vec<u8>;
     let mut nonempty: Vec<bool>;
-    let effective: Option<(&swf_spike::swf_doc::Symbol, vello::kurbo::Affine)>;
+    // `(effective symbol, transform, walk frame)`: the PINNED descent
+    // may step INTO a settled `static*` rig, in which case the walk
+    // must start at its settled frame instead of `frame`.
+    let effective: Option<(&swf_spike::swf_doc::Symbol, vello::kurbo::Affine, u16)>;
     if let Some(bs) = cached_struct {
         slots = bs.slots;
         mount_mats = bs.mount_mats;
@@ -942,7 +966,12 @@ fn emit_player_look_split(
         // Combined descent: effective symbol + transform + slot depths in ONE
         // wrapper-chain walk. Mount transforms are only consumed for EQUIPPED
         // slots, so the tree-walk is skipped entirely when nothing is equipped.
-        let (esym, exf, sl) = swf_spike::render::find_effective_and_slots(doc, symbol, frame);
+        let (esym, exf, sl, eff_frame) = swf_spike::render::find_effective_and_slots_pinned(
+            doc,
+            symbol,
+            frame,
+            settled.as_deref(),
+        );
         let (mm, mp) = if equipped.is_empty() {
             (Vec::new(), Vec::new())
         } else {
@@ -954,10 +983,10 @@ fn emit_player_look_split(
         slots = sl;
         mount_mats = mm;
         mount_pres = mp;
-        effective = Some((esym, exf));
+        effective = Some((esym, exf, eff_frame));
     }
     let from_cache = effective.is_none();
-    let body_xform = effective.map(|(_, exf)| base * exf);
+    let body_xform = effective.map(|(_, exf, _)| base * exf);
     let n = slots.len();
     // Canonical character direction letter (wc3: export name = stem +
     // direction::letter, so the body export's last char IS the direction).
@@ -1007,7 +1036,8 @@ fn emit_player_look_split(
                 hit_geom: Vec::new(),
             });
         } else {
-            let (effective_sym, _) = effective.expect("cold path has effective symbol");
+            let (effective_sym, _, eff_frame) =
+                effective.expect("cold path has effective symbol");
             let bx = body_xform.expect("cold path has body_xform");
             let band = swf_spike::render::band_range(&slots, i);
             let mut band_scene = vello::Scene::new();
@@ -1019,13 +1049,14 @@ fn emit_player_look_split(
                 effective_sym,
                 &mut band_scene,
                 bx,
-                frame,
+                eff_frame,
                 band,
                 RenderMode::Colour,
                 swf_spike::recolor::PlayerColors::default(),
                 body_cache,
                 flipped,
                 has_hat,
+                settled.as_deref(),
             );
             let patches = zone_patch::take_capture();
             let body_hit = hit_geometry::take_capture();
@@ -1136,6 +1167,10 @@ fn emit_player_look_split(
                             });
                         } else {
                             let mut acc_scene = vello::Scene::new();
+                            // Pets resolve full-character `static*`
+                            // exports — pin their settled idle pose
+                            // like a body (memoized in `acache`).
+                            let acc_settled = acache.settled_overrides(adoc, &use_export);
                             // No hit-geometry capture for accessories: the body
                             // silhouette is the click target.
                             swf_spike::render::render_symbol_with_shared_cache(
@@ -1147,6 +1182,7 @@ fn emit_player_look_split(
                                 acc_frame,
                                 swf_spike::recolor::PlayerColors::default(),
                                 acache,
+                                acc_settled.as_deref(),
                             );
                             if !acc_scene.encoding().draw_tags.is_empty() {
                                 out_subs.push(SplitSub {
@@ -2036,6 +2072,16 @@ impl VelloRenderer {
             bake_telemetry::subscene_hit();
         } else {
             bake_telemetry::subscene_miss();
+            // Settled `static*` child pins (canonical stopped idle —
+            // GlobalSpriteHandler.as:505-516 recursiveGotoAndStop
+            // semantics), memoized per (bundle, export) in the
+            // bundle's RenderCache so the AVM1 settle simulation
+            // never runs per frame.
+            let settled = self
+                .swf_render_caches
+                .entry(bundle.to_string())
+                .or_default()
+                .settled_overrides(doc, export);
             let mut sub_scene = vello::Scene::new();
             {
                 let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
@@ -2057,6 +2103,7 @@ impl VelloRenderer {
                     vello::kurbo::Affine::IDENTITY,
                     frame as u16,
                     self.swf_player_colors,
+                    settled.as_deref(),
                 );
             }
             self.tile_subscenes.insert(sub_key.clone(), sub_scene);
@@ -2878,6 +2925,9 @@ impl VelloRenderer {
             xform,
             frame as u16,
             self.swf_player_colors,
+            // Root-timeline renders (artwork/portrait stages) have no
+            // named `static*` export — no settled pins apply.
+            None,
         );
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -2987,6 +3037,14 @@ impl VelloRenderer {
         }
         let doc = self.swf_bundles.get(bundle)?;
         let symbol = doc.lookup_export(export)?;
+        // Settled `static*` child pins — size the texture for the pose
+        // that actually renders (the settled pose can extend past the
+        // un-settled frame-0 extents).
+        let settled = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default()
+            .settled_overrides(doc, export);
         let mut min_x = f64::INFINITY;
         let mut min_y = f64::INFINITY;
         let mut max_x = f64::NEG_INFINITY;
@@ -3021,7 +3079,8 @@ impl VelloRenderer {
             max_y = max_y.max(bounds.y1);
         };
         while i < total_frame_count {
-            let bounds = swf_spike::render::symbol_bounds(doc, symbol, i as u16);
+            let bounds =
+                swf_spike::render::symbol_bounds_pinned(doc, symbol, i as u16, settled.as_deref());
             if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
                 if i == 0 {
                     console_log!(
@@ -3168,6 +3227,14 @@ impl VelloRenderer {
             self.swf_filter_pipelines =
                 Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
+        // Settled `static*` child pins — computed ONCE per chunk (and
+        // memoized per (bundle, export) inside the bundle cache), never
+        // per frame. See `RenderCache::settled_overrides`.
+        let settled = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default()
+            .settled_overrides(doc, export);
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
@@ -3198,6 +3265,7 @@ impl VelloRenderer {
                 xform,
                 frame_idx as u16,
                 self.swf_player_colors,
+                settled.as_deref(),
             );
         }
         let valid_frames = chunk_count;
@@ -3413,9 +3481,24 @@ impl VelloRenderer {
         // depth space; if we walked the body export itself we'd see
         // 1 top-level placement (the wrapper) and 0 mounts → empty
         // band split → all bands merge into 1 → JS can't interleave
-        // accessories. Descend through the wrapper chain.
-        let (effective_sym, effective_xform) =
-            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+        // accessories. Descend through the wrapper chain — PINNED:
+        // `static*` exports place ONE settled rig, so the descent may
+        // step into it and the walk must start at its settled frame
+        // (see `RenderCache::settled_overrides`). `atlas_eff_frame`
+        // replaces per-cell `frame_idx` only when pins fired (statics
+        // bake exactly one frame, so the two never conflict).
+        let settled = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default()
+            .settled_overrides(doc, export);
+        let (effective_sym, effective_xform, _eff_slots, atlas_eff_frame) =
+            swf_spike::render::find_effective_and_slots_pinned(
+                doc,
+                symbol,
+                0,
+                settled.as_deref(),
+            );
         let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
         let band_total_logical = swf_spike::render::band_count(&slots);
         if band_total_logical == 0 {
@@ -3432,8 +3515,11 @@ impl VelloRenderer {
             swf_spike::swf_doc::Symbol::Sprite(s) => s,
             _ => body,
         };
+        // Presence at the frame the walk actually renders — for pinned
+        // statics that's the settled frame (placements can differ from
+        // the frame-0 setup pose).
         let band_presence =
-            swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+            swf_spike::render::compute_band_presence(doc, effective_body, atlas_eff_frame, &slots);
         // Logical band indices that actually have content. JS uses
         // these for mesh.zIndex assignment; sparse bandIndex values
         // (e.g. just [0] when bands 1-4 are empty) is fine because
@@ -3694,7 +3780,13 @@ impl VelloRenderer {
             let mut colour = vello::Scene::new();
             let mut zone = vello::Scene::new();
             for slot in 0..chunk_count {
-                let frame_idx = start + slot;
+                // Settled statics bake exactly one cell (frame 0) — the
+                // pinned descent's frame replaces it there.
+                let frame_idx = if settled.is_some() {
+                    u32::from(atlas_eff_frame)
+                } else {
+                    start + slot
+                };
                 let col = (slot as usize) % grid_cols;
                 let row = (slot as usize) / grid_cols;
                 let cell_x = (col * frame_w as usize) as f64;
@@ -3718,6 +3810,7 @@ impl VelloRenderer {
                         cache,
                         eff_apply_b_fix,
                         hat_equipped,
+                        settled.as_deref(),
                     );
                 }
             }
@@ -4187,6 +4280,8 @@ impl VelloRenderer {
                         cache,
                         false,
                         false,
+                        // Bench-only walk cycle — no settled static pins.
+                        None,
                     );
                 }
             }
@@ -4394,6 +4489,7 @@ impl VelloRenderer {
                         let (eff, _) =
                             swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
                         if let Some(cache) = caches.get(&s.bundle) {
+                            let settled = cache.settled_overrides(doc, &s.export);
                             for &band in &s.bands {
                                 swf_spike::render::render_body_band(
                                     &mut wctx,
@@ -4408,6 +4504,7 @@ impl VelloRenderer {
                                     cache,
                                     false,
                                     false,
+                                    settled.as_deref(),
                                 );
                             }
                         }
@@ -4440,6 +4537,7 @@ impl VelloRenderer {
                                         acache,
                                         false,
                                         false,
+                                        acache.settled_overrides(adoc, ae).as_deref(),
                                     );
                                 }
                             }
@@ -4582,6 +4680,7 @@ impl VelloRenderer {
                 filter_pipelines: self.swf_filter_pipelines.as_ref().unwrap(),
                 output_scale: scale,
             };
+            let settled = cache.settled_overrides(doc, export);
             for f in 0..frame_count {
                 let mut row = Vec::new();
                 for &band in &band_ranges {
@@ -4599,6 +4698,7 @@ impl VelloRenderer {
                         cache,
                         false,
                         false,
+                        settled.as_deref(),
                     );
                     row.push(sub);
                 }
@@ -4907,6 +5007,7 @@ impl VelloRenderer {
                 // accessory@slot1-mount, … — z = append order = body-part depth
                 // (cape behind, hat in front), exactly like the live renderer.
                 let n = slots.len();
+                let settled = body_cache.settled_overrides(doc, &s.export);
                 for i in 0..=n {
                     let band = swf_spike::render::band_range(&slots, i);
                     swf_spike::render::render_body_band(
@@ -4922,6 +5023,7 @@ impl VelloRenderer {
                         body_cache,
                         s.flipped,
                         has_hat,
+                        settled.as_deref(),
                     );
                     if i < n {
                         let sd = &slots[i];
@@ -4952,6 +5054,9 @@ impl VelloRenderer {
                                         acc_frame,
                                         swf_spike::recolor::PlayerColors::default(),
                                         acache,
+                                        // Flat accessory layouts — no
+                                        // `static*` wrapper, no pins.
+                                        None,
                                     );
                                     acc_drawn += 1;
                                 }
@@ -8131,8 +8236,20 @@ impl VelloRenderer {
                     let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
                         continue;
                     };
-                    let (effective_sym, _effective_xform) =
-                        swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+                    // Pinned descent: `static*` exports place ONE settled
+                    // rig — presence must be read at the settled frame.
+                    let settled = self
+                        .swf_render_caches
+                        .entry(bundle.to_string())
+                        .or_default()
+                        .settled_overrides(doc, export);
+                    let (effective_sym, _effective_xform, _eff_slots, eff_frame) =
+                        swf_spike::render::find_effective_and_slots_pinned(
+                            doc,
+                            symbol,
+                            0,
+                            settled.as_deref(),
+                        );
                     let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
                     if swf_spike::render::band_count(&slots) == 0 {
                         continue;
@@ -8141,8 +8258,12 @@ impl VelloRenderer {
                         swf_spike::swf_doc::Symbol::Sprite(s) => s,
                         _ => body,
                     };
-                    let band_presence =
-                        swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+                    let band_presence = swf_spike::render::compute_band_presence(
+                        doc,
+                        effective_body,
+                        eff_frame,
+                        &slots,
+                    );
                     let present_logical: Vec<usize> = band_presence
                         .iter()
                         .enumerate()
@@ -9335,14 +9456,30 @@ impl VelloRenderer {
                         .get(bundle)
                         .expect("bundle vetted by caller");
                     let symbol = doc.lookup_export(export).expect("export vetted by caller");
-                    let (effective_sym, effective_xform) =
-                        swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
                     let filter_pipelines =
                         self.swf_filter_pipelines.as_ref().expect("init by caller");
                     let cache: &swf_spike::render::cache::RenderCache = self
                         .swf_render_caches
                         .entry(bundle.to_string())
                         .or_default();
+                    // Settled `static*` child pins (canonical stopped
+                    // idle — GlobalSpriteHandler.as:505-516 semantics);
+                    // memoized in the bundle cache, `None` for cycling
+                    // anims. The PINNED descent may step INTO the
+                    // settled rig — the walk then starts at its settled
+                    // frame. Deterministic per (bundle, export), so the
+                    // sub-scene cache key needs no extension.
+                    let settled = cache.settled_overrides(doc, export);
+                    let (effective_sym, effective_xform, _eff_slots, eff_frame) =
+                        swf_spike::render::find_effective_and_slots_pinned(
+                            doc,
+                            symbol,
+                            0,
+                            settled.as_deref(),
+                        );
+                    // Statics bake exactly one cell (frame_idx == 0);
+                    // cycling anims keep their per-cell frame.
+                    let render_frame = if settled.is_some() { eff_frame } else { frame_idx };
                     let mut wctx = swf_spike::render::WgpuCtx {
                         device: &self.device,
                         queue: &self.queue,
@@ -9360,12 +9497,13 @@ impl VelloRenderer {
                         &mut colour_sub,
                         &mut zone_sub,
                         effective_xform,
-                        frame_idx,
+                        render_frame,
                         band,
                         player_colors,
                         cache,
                         eff_b_fix,
                         hat_equipped,
+                        settled.as_deref(),
                     );
                 }
                 if eff_b_fix && swf_spike::render::probe::bfix_flips_peek() == 0 {
@@ -9591,6 +9729,11 @@ impl VelloRenderer {
                     // accessories. See swf-spike/src/render/filter.rs.
                     output_scale: 1.0,
                 };
+                // Pet accessory bundles resolve full-character
+                // `static*` exports — pin their settled idle children
+                // (memoized per (bundle, export) in the bundle cache;
+                // `None` for flat hat/cape/shield layouts).
+                let settled = cache.settled_overrides(acc_doc, acc_export);
                 swf_spike::render::render_symbol_with_ctx_cached(
                     &mut wctx,
                     acc_doc,
@@ -9599,6 +9742,7 @@ impl VelloRenderer {
                     vello::kurbo::Affine::IDENTITY,
                     frame_indices[cycle_idx],
                     cache,
+                    settled.as_deref(),
                 );
             }
             self.acc_subscenes.insert(key.clone(), sub_scene);
@@ -9945,6 +10089,9 @@ impl VelloRenderer {
             .entry(bundle.to_string())
             .or_default();
         let player_colors = self.swf_player_colors;
+        // Settled `static*` child pins — computed once per chunk,
+        // memoized per (bundle, export) in the bundle cache.
+        let settled = cache.settled_overrides(doc, export);
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
             queue: &self.queue,
@@ -10001,6 +10148,7 @@ impl VelloRenderer {
                 cache,
                 &accessories,
                 apply_b_fix,
+                settled.as_deref(),
             );
         }
 
@@ -10212,6 +10360,9 @@ impl VelloRenderer {
             .entry(bundle.to_string())
             .or_default();
         let player_colors = self.swf_player_colors;
+        // Settled `static*` child pins — computed once per chunk,
+        // memoized per (bundle, export) in the bundle cache.
+        let settled = cache.settled_overrides(doc, export);
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
             queue: &self.queue,
@@ -10260,6 +10411,7 @@ impl VelloRenderer {
                 cache,
                 &accessories,
                 apply_b_fix,
+                settled.as_deref(),
             );
         }
 
@@ -10772,6 +10924,9 @@ impl VelloRenderer {
                 xform,
                 frame as u16,
                 self.swf_player_colors,
+                // Tile-batch path: exports are numeric tile ids, never
+                // `static*` character wrappers — no settled pins.
+                None,
             );
         }
 
@@ -11339,6 +11494,33 @@ impl VelloRenderer {
         let mut best = top.num_frames;
         recurse(doc, top, 4, &mut best);
         u32::from(best)
+    }
+
+    /// 0-based frame index at which this export calls
+    /// `GAC.applyEnd(this)` — the canonical spell-cast "action point"
+    /// where `GlobalSpriteHandler.applyEnd` releases the sequencer
+    /// (`_loc3_.sequencer.onActionEnd()`, assets/sources/client-code/
+    /// ank/battlefield/GlobalSpriteHandler.as:430-440). The JS layer
+    /// compares this against its 0-based `frameIndex` cursor to fire
+    /// the spell effect MID-swing instead of at frame 1 or the last
+    /// frame. Returns `-1` when the export is missing or no descendant
+    /// ships an `applyEnd` frame script (the caller then keeps its
+    /// near-frame-0 fallback). Deterministic per (bundle, export) —
+    /// the JS side caches it.
+    #[wasm_bindgen(js_name = "swfActionPointFrame")]
+    pub fn swf_action_point_frame(&self, bundle: &str, export: &str) -> i32 {
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return -1;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return -1;
+        };
+        match swf_spike::swf_doc::action_point_frame(doc, symbol) {
+            // `action_point_frame` is 1-based (canonical `_currentframe`
+            // space); the JS frame cursor is 0-based.
+            Some(f) => i32::from(f.saturating_sub(1)),
+            None => -1,
+        }
     }
 
     /// Enumerate every named export in a loaded SWF bundle. Used by

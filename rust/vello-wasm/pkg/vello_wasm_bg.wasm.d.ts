@@ -102,6 +102,7 @@ export const vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: numb
 export const vellorenderer_slabGpuTiming: (a: number) => any;
 export const vellorenderer_subsceneCacheBytesForBundle: (a: number, b: number, c: number) => any;
 export const vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
+export const vellorenderer_swfActionPointFrame: (a: number, b: number, c: number, d: number, e: number) => number;
 export const vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
 export const vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
 export const vellorenderer_swfBundleExports: (a: number, b: number, c: number) => [number, number];

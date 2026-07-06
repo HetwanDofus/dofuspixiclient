@@ -170,48 +170,77 @@ pub fn find_effective_and_slots<'a>(
     body_sym: &'a Symbol,
     frame: u16,
 ) -> (&'a Symbol, Affine, Vec<SlotDepth>) {
+    let (sym, xform, slots, _frame) = find_effective_and_slots_pinned(doc, body_sym, frame, None);
+    (sym, xform, slots)
+}
+
+/// [`find_effective_and_slots`] with settled `static*` child pins.
+///
+/// The wrapper-chain descent can step INTO a pinned child (NPC/monster
+/// `static*` exports place exactly ONE multi-frame settle-in rig, e.g.
+/// gfx 1211's staticR → child 57): the pinned child then becomes the
+/// walk ROOT and `RenderCtx::child_frame_overrides` would never see it.
+/// This variant tracks the CANONICAL frame through the descent — when
+/// stepping into a pinned child the running frame switches to the
+/// pinned (settled AS2 `stop()`) frame, exactly the playhead Flash
+/// would be showing (GlobalSpriteHandler.as:505-516 pins children the
+/// same way). Callers MUST render the effective symbol at the returned
+/// frame. With `overrides == None` (or no pinned descent) behaviour is
+/// byte-identical to the unpinned descent, returning `frame`.
+pub fn find_effective_and_slots_pinned<'a>(
+    doc: &'a SwfDoc,
+    body_sym: &'a Symbol,
+    frame: u16,
+    overrides: Option<&std::collections::HashMap<u16, u16>>,
+) -> (&'a Symbol, Affine, Vec<SlotDepth>, u16) {
     let mut current_sym: &Symbol = body_sym;
     let mut xform = Affine::IDENTITY;
+    let mut cur_frame = frame;
     for _ in 0..MAX_WRAPPER_DESCENT {
         let Symbol::Sprite(current) = current_sym else {
-            return (current_sym, xform, Vec::new());
+            return (current_sym, xform, Vec::new(), cur_frame);
         };
         // If this level has mounts, we're at the canonical layer — and these
         // are exactly the slots `extract_slot_depths` would return.
-        let slots = extract_slot_depths_direct(doc, current, frame);
+        let slots = extract_slot_depths_direct(doc, current, cur_frame);
         if !slots.is_empty() {
-            return (current_sym, xform, slots);
+            return (current_sym, xform, slots, cur_frame);
         }
         // No mounts here — try descending through a single-placement
         // wrapper. If there isn't exactly one placement at this
         // frame, we can't unambiguously descend; bail (empty slots).
-        let state = build_frame_state(current, frame);
+        let state = build_frame_state(current, cur_frame);
         if state.len() != 1 {
-            return (current_sym, xform, slots);
+            return (current_sym, xform, slots, cur_frame);
         }
         let Some((_depth, place)) = state.iter().next() else {
-            return (current_sym, xform, slots);
+            return (current_sym, xform, slots, cur_frame);
         };
         let Some(cid) = place.character_id else {
-            return (current_sym, xform, slots);
+            return (current_sym, xform, slots, cur_frame);
         };
         let Some(child_sym) = doc.lookup_id(cid) else {
-            return (current_sym, xform, slots);
+            return (current_sym, xform, slots, cur_frame);
         };
         // Compose the wrapper's placement matrix into our running
         // transform so the renderer ends up at the same world
         // position the canonical walk would.
         let local = place.matrix.unwrap_or(Affine::IDENTITY);
         xform = xform * local;
+        // Settled pin: descending into a child the canonical AS2
+        // parked at frame F — everything below now reads F.
+        if let Some(&pinned) = overrides.and_then(|map| map.get(&cid)) {
+            cur_frame = pinned;
+        }
         current_sym = child_sym;
     }
     // Descent exhausted: slots of the final layer (matches `extract_slot_depths`
     // operating on `find_effective_body_inner`'s result).
     let slots = match current_sym {
-        Symbol::Sprite(c) => extract_slot_depths_direct(doc, c, frame),
+        Symbol::Sprite(c) => extract_slot_depths_direct(doc, c, cur_frame),
         _ => Vec::new(),
     };
-    (current_sym, xform, slots)
+    (current_sym, xform, slots, cur_frame)
 }
 
 /// Compute the band depth range for `band_index`. The body display
@@ -585,5 +614,58 @@ mod tests {
         assert_eq!(b0, BandRange::ALL);
         assert!(b0.contains(0));
         assert!(b0.contains(u16::MAX));
+    }
+
+    #[test]
+    fn pinned_descent_starts_walk_at_settled_frame() {
+        // Canonical `static*` shape: 1-frame export wrapper placing ONE
+        // multi-frame settle-in rig. The wrapper descent steps INTO the
+        // rig, so with a settled pin for it the returned walk frame must
+        // be the pinned (AS2 `stop()`) frame, not the input frame.
+        use crate::swf_doc::{OwnedOp, OwnedPlace, OwnedSprite, SwfDoc, Symbol};
+        use std::collections::HashMap;
+
+        let mut doc = SwfDoc {
+            stage_size: (0.0, 0.0),
+            frame_rate: 24.0,
+            by_id: HashMap::new(),
+            by_name: HashMap::new(),
+            sprite_color_zones: HashMap::new(),
+            accessory_mounts: HashMap::new(),
+            root: OwnedSprite {
+                num_frames: 0,
+                ops: Vec::new(),
+                frame_labels: HashMap::new(),
+            },
+        };
+        doc.by_id.insert(
+            57,
+            Symbol::Sprite(OwnedSprite {
+                num_frames: 22,
+                ops: vec![OwnedOp::ShowFrame; 22],
+                frame_labels: HashMap::new(),
+            }),
+        );
+        let root = Symbol::Sprite(OwnedSprite {
+            num_frames: 1,
+            ops: vec![
+                OwnedOp::Place(OwnedPlace {
+                    character_id: Some(57),
+                    ..Default::default()
+                }),
+                OwnedOp::ShowFrame,
+            ],
+            frame_labels: HashMap::new(),
+        });
+        let pins: HashMap<u16, u16> = [(57u16, 21u16)].into_iter().collect();
+
+        let (_sym, _xf, _slots, eff_frame) =
+            find_effective_and_slots_pinned(&doc, &root, 0, Some(&pins));
+        assert_eq!(eff_frame, 21, "walk must start at the settled frame");
+
+        // Without pins the descent is byte-identical to the legacy walk.
+        let (_sym, _xf, _slots, eff_frame_none) =
+            find_effective_and_slots_pinned(&doc, &root, 0, None);
+        assert_eq!(eff_frame_none, 0);
     }
 }

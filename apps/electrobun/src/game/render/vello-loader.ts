@@ -2120,6 +2120,21 @@ export function swfAnimFrameCount(bundle: string, exportName: string): number {
 }
 
 /**
+ * 0-based frame index at which the export's body calls
+ * `GAC.applyEnd(this)` — the canonical spell-cast action point where
+ * `GlobalSpriteHandler.applyEnd` fires `sequencer.onActionEnd()`
+ * (assets/sources/client-code/ank/battlefield/
+ * GlobalSpriteHandler.as:430-440). `-1` = the export ships no
+ * applyEnd frame script (hit/die/static anims) or isn't loaded.
+ */
+export function swfActionPointFrame(bundle: string, exportName: string): number {
+  if (!renderer) {
+    return -1;
+  }
+  return renderer.swfActionPointFrame(bundle, exportName);
+}
+
+/**
  * True if any placement in the export's symbol tree carries a filter
  * (DropShadow / Glow / Blur / ColorMatrix). Filter-bearing exports must
  * skip `renderSwfBundleBatch` — the halo fallback emits many extra

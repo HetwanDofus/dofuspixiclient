@@ -337,6 +337,9 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
             output_mode: ctx.output_mode,
             hat_equipped: ctx.hat_equipped,
             depth_path: ctx.depth_path.clone(),
+            // Frame pins propagate into the filter sub-render so a
+            // settled static child keeps its pose under drop-shadow.
+            child_frame_overrides: ctx.child_frame_overrides,
         };
         super::render_symbol_into(&mut sub_ctx, sym);
     }

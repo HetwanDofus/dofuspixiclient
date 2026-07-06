@@ -32,14 +32,15 @@ pub mod union;
 pub mod zone_patch;
 
 pub use band::{render_body_band, render_body_band_dual, render_body_band_nogpu};
-pub use bounds::{band_bounds, build_frame_state, symbol_bounds};
+pub use bounds::{band_bounds, build_frame_state, symbol_bounds, symbol_bounds_pinned};
 pub use cache::{RenderCache, set_record_fragments};
 pub use clip::collect_mask_path;
 pub use ctx::{RenderCtx, RenderMode};
 pub use slot_depths::{
     band_count, band_range, body_has_toggle_sprite, compute_band_presence,
     compute_bfix_sensitive_bands, export_uses_b_fix, extract_slot_depths,
-    find_effective_and_slots, find_effective_body_symbol, BandRange, SlotDepth,
+    find_effective_and_slots, find_effective_and_slots_pinned, find_effective_body_symbol,
+    BandRange, SlotDepth,
 };
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
 
@@ -144,6 +145,7 @@ pub fn render_symbol_with_ctx(
 /// morph interpolation, and sprite frame-state walks dedup across
 /// bakes of the same bundle. Without this, accessory + tile bakes
 /// re-flatten every shape from scratch on every call.
+#[allow(clippy::too_many_arguments)]
 pub fn render_symbol_with_ctx_cached(
     wgpu: &mut WgpuCtx,
     doc: &SwfDoc,
@@ -152,12 +154,16 @@ pub fn render_symbol_with_ctx_cached(
     transform: Affine,
     frame: u16,
     cache: &crate::render::cache::RenderCache,
+    // Settled `static*` child pins — pet accessory strips render full
+    // character `static*` exports (see `RenderCache::settled_overrides`).
+    child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_wgpu(inner)
         .with_transform(transform)
-        .with_frame(frame);
+        .with_frame(frame)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -166,6 +172,12 @@ pub fn render_symbol_with_ctx_cached(
 /// zone (see `SwfDoc.sprite_color_zones`). Used by the player-tinting
 /// path. Tile/spell renders should keep using `render_symbol_with_ctx`
 /// since they have no zones.
+///
+/// `child_frame_overrides` pins specific child characters to fixed
+/// frames — the settled `static*` idle pose (canonical AS2 `stop()`
+/// semantics, see `RenderCache::settled_overrides`). `None` for
+/// cycling anims and zone-less renders.
+#[allow(clippy::too_many_arguments)]
 pub fn render_symbol_with_ctx_tinted(
     wgpu: &mut WgpuCtx,
     doc: &SwfDoc,
@@ -174,6 +186,7 @@ pub fn render_symbol_with_ctx_tinted(
     transform: Affine,
     frame: u16,
     player_colors: crate::recolor::PlayerColors,
+    child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let cache = RenderCache::new();
@@ -181,7 +194,8 @@ pub fn render_symbol_with_ctx_tinted(
         .with_wgpu(inner)
         .with_transform(transform)
         .with_frame(frame)
-        .with_player_colors(player_colors);
+        .with_player_colors(player_colors)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -261,6 +275,7 @@ pub fn render_symbol_with_ctx_tinted_accessorized(
 /// shields) get their translation X negated so the global JS-flip
 /// the caller will then apply lands the body part on the canonical
 /// side.
+#[allow(clippy::too_many_arguments)]
 pub fn render_symbol_with_ctx_tinted_accessorized_bfixed(
     wgpu: &mut WgpuCtx,
     doc: &SwfDoc,
@@ -272,6 +287,8 @@ pub fn render_symbol_with_ctx_tinted_accessorized_bfixed(
     cache: &crate::render::cache::RenderCache,
     accessories: &crate::render::ctx::AccessoryDict<'_>,
     apply_b_fix: bool,
+    // Settled `static*` child pins (see `RenderCache::settled_overrides`).
+    child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let mut ctx = RenderCtx::new(doc, scene, cache)
@@ -280,7 +297,8 @@ pub fn render_symbol_with_ctx_tinted_accessorized_bfixed(
         .with_frame(frame)
         .with_player_colors(player_colors)
         .with_accessories(accessories)
-        .with_b_fix(apply_b_fix);
+        .with_b_fix(apply_b_fix)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -291,6 +309,7 @@ pub fn render_symbol_with_ctx_tinted_accessorized_bfixed(
 /// geometry into draw commands happens N times for N cells using the
 /// same tile; the shared cache drops that to once. Same for morph-
 /// shape interpolation and sprite frame-state walks.
+#[allow(clippy::too_many_arguments)]
 pub fn render_symbol_with_shared_cache(
     wgpu: &mut WgpuCtx,
     doc: &SwfDoc,
@@ -300,13 +319,18 @@ pub fn render_symbol_with_shared_cache(
     frame: u16,
     player_colors: crate::recolor::PlayerColors,
     cache: &RenderCache,
+    // Settled `static*` child pins — pets (slot 3) ship full character
+    // bundles with their own settle-in `static*` idles, so the crowd
+    // accessory path pins them exactly like a body.
+    child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_wgpu(inner)
         .with_transform(transform)
         .with_frame(frame)
-        .with_player_colors(player_colors);
+        .with_player_colors(player_colors)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -369,11 +393,20 @@ pub(crate) fn render_accessory_at(
     // to play. Honor the active character anim instead so the pet
     // walks when the player walks, idles when the player idles, and
     // mirrors the player's facing.
-    let symbol = if mount.slot == 3 {
-        resolve_pet_symbol(entry, requested_side).unwrap_or(entry.symbol)
+    let (symbol, pet_export) = if mount.slot == 3 {
+        match resolve_pet_symbol(entry, requested_side) {
+            Some((sym, name)) => (sym, Some(name)),
+            None => (entry.symbol, None),
+        }
     } else {
-        entry.symbol
+        (entry.symbol, None)
     };
+    // Pet `static*` idles are settle-in wrappers like any monster body
+    // — pin their children at the canonical stopped pose (see
+    // `RenderCache::settled_overrides`).
+    let pet_settled = pet_export
+        .as_deref()
+        .and_then(|name| parent.cache.settled_overrides(entry.doc, name));
     let frame = pick_accessory_frame(
         entry.doc,
         symbol,
@@ -399,7 +432,8 @@ pub(crate) fn render_accessory_at(
     });
     let mut acc_ctx = RenderCtx::new(entry.doc, scene, cache)
         .with_transform(transform)
-        .with_frame(frame);
+        .with_frame(frame)
+        .with_child_frame_overrides(pet_settled.as_deref());
     if let Some(w) = inner {
         acc_ctx = acc_ctx.with_wgpu(w);
     }
@@ -418,7 +452,7 @@ pub(crate) fn render_accessory_at(
 fn resolve_pet_symbol<'a>(
     entry: &'a crate::render::ctx::AccessoryEntry<'a>,
     requested_side: &str,
-) -> Option<&'a crate::swf_doc::Symbol> {
+) -> Option<(&'a crate::swf_doc::Symbol, String)> {
     let dir = entry.char_dir_suffix;
     // Map anim_type → preferred base. Walk/run pets cycle their
     // walk anim when the character moves; static pets idle. Pets
@@ -436,9 +470,9 @@ fn resolve_pet_symbol<'a>(
     // R/L still picks the closest direction.
     let side_fb = format!("{base}{requested_side}");
     let candidates = [primary, side_fb, static_d, static_r];
-    for name in &candidates {
-        if let Some(sym) = entry.doc.lookup_export(name) {
-            return Some(sym);
+    for name in candidates {
+        if let Some(sym) = entry.doc.lookup_export(&name) {
+            return Some((sym, name));
         }
     }
     None

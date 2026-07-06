@@ -1136,3 +1136,60 @@ pub fn lookup_sprite<'a>(doc: &'a SwfDoc, name: &str) -> Result<&'a OwnedSprite>
         None => Err(anyhow!("export {} not found", name)),
     }
 }
+
+/// 1-based frame on which this anim calls `GAC.applyEnd(this)` — the
+/// canonical "action point" where a blocking cast action releases the
+/// sequencer. CANONICAL: `GlobalSpriteHandler.applyEnd`
+/// (assets/sources/client-code/ank/battlefield/GlobalSpriteHandler.as:430-440)
+/// runs `_loc3_.sequencer.onActionEnd()` (:437) the moment the body clip's
+/// frame script calls it — MID-swing, EARLIER than the anim's last frame
+/// (the last frame instead calls `GAC.applyAnim(this,"Static")`,
+/// GlobalSpriteHandler.as:415-429, to return to idle). Decompiled character
+/// bodies show e.g. a 69-frame cast with `applyEnd` at frame 16 — the spell
+/// effect must fire at the action point, not after the whole swing.
+///
+/// Body anims are COMPOSED: the named export (`anim1R`) places body-part
+/// child sprites and the `applyEnd` script lives one or more levels DOWN,
+/// so we descend (depth ≤ 4). A child placed at the parent's frame `f` and
+/// playing in sync maps its own `applyEnd` frame `c` to the parent timeline
+/// as `f + c - 1`. `None` when no descendant ships an `applyEnd` script.
+///
+/// Ported from wc3's validated `anim_name.rs::action_point_frame`.
+pub fn action_point_frame(doc: &SwfDoc, sym: &Symbol) -> Option<u16> {
+    fn scan(doc: &SwfDoc, sprite: &OwnedSprite, depth: u8) -> Option<u16> {
+        let mut frame: u16 = 1;
+        // The canonical sequencer advances at the FIRST `applyEnd` reached,
+        // so take the EARLIEST across all body parts (they animate in sync).
+        let mut earliest: Option<u16> = None;
+        let mut take = |f: u16| earliest = Some(earliest.map_or(f, |e| e.min(f)));
+        for op in &sprite.ops {
+            match op {
+                OwnedOp::ShowFrame => frame = frame.saturating_add(1),
+                // The `applyEnd` method name lives verbatim in the frame
+                // script's constant pool / push bytes (same token
+                // `is_method_or_object` matches during parse); a substring
+                // probe avoids a full AVM1 decode on the per-cast hot path.
+                OwnedOp::DoAction(bc) => {
+                    if bc.windows(8).any(|w| w == b"applyEnd") {
+                        take(frame);
+                    }
+                }
+                OwnedOp::Place(p) if depth < 4 => {
+                    if let Some(cid) = p.character_id {
+                        if let Some(Symbol::Sprite(child)) = doc.lookup_id(cid) {
+                            if let Some(child_ap) = scan(doc, child, depth + 1) {
+                                take(frame.saturating_add(child_ap).saturating_sub(1));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        earliest
+    }
+    let Symbol::Sprite(root) = sym else {
+        return None;
+    };
+    scan(doc, root, 0)
+}

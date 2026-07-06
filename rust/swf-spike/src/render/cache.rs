@@ -65,6 +65,13 @@ pub struct RenderCache {
     /// sprite's character_id avoids plumbing the id through every
     /// recursive renderer call.
     frame_states: RefCell<HashMap<(usize, u16), Arc<BTreeMap<u16, OwnedPlace>>>>,
+    /// Settled child-frame pins for `static*` exports, keyed by the
+    /// export's character id. Computing them re-runs AVM1 ticks
+    /// (`tile_behavior::settled_static_overrides`, up to 600 per
+    /// child) — memoized here so per-frame render paths pay one
+    /// HashMap lookup. Empty maps are cached too (a static export
+    /// whose children never settle must not recompute every render).
+    settled_static: RefCell<HashMap<u16, Arc<HashMap<u16, u16>>>>,
 }
 
 impl RenderCache {
@@ -155,11 +162,46 @@ impl RenderCache {
         state
     }
 
+    /// Settled child-frame pins for a `static*` character export —
+    /// `None` for every other export (cycling anims must keep their
+    /// normal `% num_frames` child propagation; pinning them would
+    /// freeze the animation).
+    ///
+    /// CANONICAL SEMANTICS: NPC/monster `static*` exports are 1-frame
+    /// wrappers whose multi-frame children play a settle-in then
+    /// `stop()`; Flash keeps showing the stopped frame (see
+    /// `tile_behavior::settled_static_overrides` for the AS2
+    /// citations). The returned map feeds
+    /// `RenderCtx::with_child_frame_overrides` so every render path
+    /// (strip, class atlas, crowd bands, portraits) shows the settled
+    /// pose. Memoized per export character id; the underlying AVM1
+    /// simulation never runs more than once per (bundle, export).
+    pub fn settled_overrides(
+        &self,
+        doc: &SwfDoc,
+        export: &str,
+    ) -> Option<Arc<HashMap<u16, u16>>> {
+        if !export.starts_with("static") {
+            return None;
+        }
+        let id = *doc.by_name.get(export)?;
+        if let Some(cached) = self.settled_static.borrow().get(&id) {
+            return Some(Arc::clone(cached));
+        }
+        let sym = doc.lookup_id(id)?;
+        let overrides = Arc::new(crate::tile_behavior::settled_static_overrides(doc, sym));
+        self.settled_static
+            .borrow_mut()
+            .insert(id, Arc::clone(&overrides));
+        Some(overrides)
+    }
+
     /// Drop everything. Callers may want this if the SwfDoc was
     /// mutated (it shouldn't be, but defensive).
     pub fn clear(&self) {
         self.shape_cmds.borrow_mut().clear();
         self.morph_frames.borrow_mut().clear();
         self.frame_states.borrow_mut().clear();
+        self.settled_static.borrow_mut().clear();
     }
 }

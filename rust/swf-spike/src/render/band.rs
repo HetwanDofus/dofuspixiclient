@@ -10,6 +10,8 @@
 //! composite (modulo zone recolour, which becomes a Pixi shader
 //! uniform).
 
+use std::collections::HashMap;
+
 use vello::kurbo::Affine;
 
 use crate::recolor::PlayerColors;
@@ -47,6 +49,9 @@ pub fn render_body_band(
     cache: &RenderCache,
     apply_b_fix: bool,
     hat_equipped: bool,
+    // Settled `static*` child pins (canonical AS2 `stop()` — see
+    // `RenderCache::settled_overrides`). `None` for cycling anims.
+    child_frame_overrides: Option<&HashMap<u16, u16>>,
 ) {
     let inner = WgpuCtx {
         device: wgpu.device,
@@ -64,7 +69,8 @@ pub fn render_body_band(
         .with_band_filter(band)
         .with_disable_accessories(true)
         .with_output_mode(output_mode)
-        .with_hat_equipped(hat_equipped);
+        .with_hat_equipped(hat_equipped)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -92,6 +98,7 @@ pub fn render_body_band_dual(
     cache: &RenderCache,
     apply_b_fix: bool,
     hat_equipped: bool,
+    child_frame_overrides: Option<&HashMap<u16, u16>>,
 ) {
     let inner = WgpuCtx {
         device: wgpu.device,
@@ -110,7 +117,8 @@ pub fn render_body_band_dual(
         .with_disable_accessories(true)
         .with_output_mode(RenderMode::Colour)
         .with_zone_scene(zone_scene)
-        .with_hat_equipped(hat_equipped);
+        .with_hat_equipped(hat_equipped)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }
 
@@ -131,6 +139,7 @@ pub fn render_body_band_nogpu(
     cache: &RenderCache,
     apply_b_fix: bool,
     hat_equipped: bool,
+    child_frame_overrides: Option<&HashMap<u16, u16>>,
 ) {
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_transform(transform)
@@ -140,6 +149,7 @@ pub fn render_body_band_nogpu(
         .with_band_filter(band)
         .with_disable_accessories(true)
         .with_output_mode(output_mode)
-        .with_hat_equipped(hat_equipped);
+        .with_hat_equipped(hat_equipped)
+        .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
 }

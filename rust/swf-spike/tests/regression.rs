@@ -174,7 +174,20 @@ fn player_static_r_tinted_warm() {
         filter_pipelines: &pipelines,
         output_scale: twip_scale,
     };
-    render_symbol_with_ctx_tinted(&mut wgpu_ctx, &doc, sym, &mut scene, xform, 0, pc);
+    // Settled pins as the live path computes them — player staticR is a
+    // 1-real-frame idle whose children settle at frame 0, so the golden
+    // hash is unchanged; monsters/NPCs with settle-in idles differ.
+    let settled = swf_spike::tile_behavior::settled_static_overrides(&doc, sym);
+    render_symbol_with_ctx_tinted(
+        &mut wgpu_ctx,
+        &doc,
+        sym,
+        &mut scene,
+        xform,
+        0,
+        pc,
+        Some(&settled),
+    );
     drop(wgpu_ctx);
     drop(pipelines);
     let pixels = headless

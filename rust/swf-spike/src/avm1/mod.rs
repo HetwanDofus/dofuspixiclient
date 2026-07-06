@@ -29,7 +29,7 @@ pub mod runtime;
 pub mod state;
 
 pub use exec::exec;
-pub use runtime::{prop_index_pub, property_set_pub};
+pub use runtime::{prop_index_pub, property_set_pub, seed_rng};
 pub use state::{
     AvmEngine, ClipState, ExecOutcome, FnDef, InstanceId, SpawnRequest, Value,
 };
