@@ -43,8 +43,15 @@ export function CanvasStack({ onMount }: CanvasStackProps) {
         ref={canvasRef}
         className="canvas-main"
         style={{
+          // Canonical letterbox: the engine sizes the canvas to the
+          // 742×556 stage block (Kernel.as:146) x the container fit;
+          // centring here puts flat black around it like canonical
+          // fullscreen. Pixi's autoDensity overwrites style.width/
+          // height per resize but leaves the centring transform alone.
           position: "absolute",
-          inset: 0,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
           width: "100%",
           height: "100%",
         }}

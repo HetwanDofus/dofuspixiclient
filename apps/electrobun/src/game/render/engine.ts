@@ -243,11 +243,10 @@ export class Engine {
   private calculateCanvasSize(): CanvasSize {
     const containerWidth = this.container.clientWidth || GAME_WIDTH;
     const containerHeight = this.container.clientHeight || GAME_HEIGHT;
-    // Widescreen canvas: the renderer fills a VIEW_WIDTH × VIEW_HEIGHT
-    // (≈1.95 aspect) logical area. The game itself still lives in the
-    // central DISPLAY_WIDTH×FULL_HEIGHT region — the lateral padding
-    // (SIDE_BAND_WIDTH each side) is filled by SideBandCompositor's
-    // mirror+blur sampling of the game render texture.
+    // Canonical stage fit: the canvas renders the 742×556 block
+    // (`Kernel.as:146 setScreenSize`) scaled uniformly to the largest
+    // size that fits the container — canonical fullscreen letterbox.
+    // The host component centres the canvas in the container.
     const rawZoom = Math.min(
       containerWidth / VIEW_WIDTH,
       containerHeight / VIEW_HEIGHT

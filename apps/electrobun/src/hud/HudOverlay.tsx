@@ -2,7 +2,6 @@ import { useSyncExternalStore } from "react";
 
 import type { GameSession as GameClient } from "@/game/session";
 import {
-  BOTTOM_BAND_HEIGHT,
   DISPLAY_HEIGHT,
   VIEW_HEIGHT,
 } from "@/game/constants/battlefield";
@@ -52,11 +51,9 @@ export function HudOverlay({
   );
 
   // Use the measured canvas rect for width/height (CSS pixels, accounts for autoDensity).
-  // Banner sits below the game area AND the bottom-neighbour preview
-  // band, so its top fraction is (DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT) /
-  // VIEW_HEIGHT.
-  const bannerTopPx =
-    canvasRect.h * ((DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT) / VIEW_HEIGHT);
+  // Banner sits directly below the game area — canonical stack is
+  // 432 map + 124 banner = 556 (Kernel.as:146).
+  const bannerTopPx = canvasRect.h * (DISPLAY_HEIGHT / VIEW_HEIGHT);
 
   const panelWrapStyle: React.CSSProperties = {
     position: "absolute",

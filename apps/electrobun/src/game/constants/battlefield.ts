@@ -32,24 +32,16 @@ export const FULL_HEIGHT = DISPLAY_HEIGHT + BANNER_HEIGHT;
 export const GAME_WIDTH = 1049;
 export const GAME_HEIGHT = 786;
 
-// Widescreen canvas — render to a ~1.95 aspect block so the game area
-// (DISPLAY_WIDTH × DISPLAY_HEIGHT = 742×432, native ~1.72 aspect) sits
-// centred, with flat-black lateral bands and a bottom band between the
-// game area and the React banner (the neighbour-map side previews were
-// removed; the layout constants remain the canvas contract).
-//
-// Vertical stack inside the central column (top → bottom):
-//   - game area     (DISPLAY_HEIGHT)
-//   - bottom band   (BOTTOM_BAND_HEIGHT — bottom-neighbour preview)
-//   - banner area   (BANNER_HEIGHT     — React HUD sits on top of this)
-//
-// VIEW_HEIGHT carries all three. VIEW_WIDTH is derived from the target
-// aspect so SIDE_BAND_WIDTH stays a wide-enough lateral strip to show
-// a real piece of the left/right neighbour map (not just a 50 px sliver).
-export const BOTTOM_BAND_HEIGHT = 124;
-export const VIEW_ASPECT = 1950 / 1000;
-export const VIEW_HEIGHT = DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT + BANNER_HEIGHT;
-export const VIEW_WIDTH = Math.round(VIEW_HEIGHT * VIEW_ASPECT);
+// Canonical stage block — `Kernel.as:146 setScreenSize(742, 556)`:
+// the game area (DISPLAY_WIDTH × DISPLAY_HEIGHT = 742×432,
+// `ank/battlefield/Constants.as:7-8`) stacked on the 124-px banner
+// area (556 − 432). The canvas renders exactly this block, scaled by
+// the container fit (`Engine.computeBaseZoom`) and letterboxed by the
+// host component — the canonical fullscreen behaviour. The widescreen
+// 1.95-aspect contract (side/bottom neighbour bands) is gone with the
+// side-map rendering.
+export const VIEW_HEIGHT = DISPLAY_HEIGHT + BANNER_HEIGHT;
+export const VIEW_WIDTH = DISPLAY_WIDTH;
 export const SIDE_BAND_WIDTH = Math.round((VIEW_WIDTH - DISPLAY_WIDTH) / 2);
 
 export const DEFAULT_WIDTH = 15;
