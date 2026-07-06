@@ -9,6 +9,7 @@ import { CrowdRenderer } from "@/game/render/crowd-renderer";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { Scene } from "@/game/scene/scene";
+import { wireColorsToZones } from "@/game/assets/color-zone";
 import { parseLook } from "@/game/assets/look-parser";
 import {
   type CharacterSpriteLoader,
@@ -1167,13 +1168,14 @@ export class PlayerRenderer {
         const parsed = parseLook(p.look);
         // Canonical sentinel: -1 (or NaN) = unset → authored fill.
         // 0 is a REAL colour (flat black) — applyColor skips only -1.
+        // Wire slots redistribute to engine zones per getColorIndex.
         const norm = (c: number) => (Number.isFinite(c) && c >= 0 ? c : -1);
-        cached = {
-          look: p.look,
-          c1: norm(parsed.color1),
-          c2: norm(parsed.color2),
-          c3: norm(parsed.color3),
-        };
+        const [z1, z2, z3] = wireColorsToZones(parsed.gfxId, [
+          norm(parsed.color1),
+          norm(parsed.color2),
+          norm(parsed.color3),
+        ]);
+        cached = { look: p.look, c1: z1, c2: z2, c3: z3 };
         this.parsedLookCache.set(id, cached);
       }
 

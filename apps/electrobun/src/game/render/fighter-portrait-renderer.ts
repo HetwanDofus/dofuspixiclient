@@ -1,3 +1,4 @@
+import { wireColorsToZones } from "@/game/assets/color-zone";
 import { createLogger } from "@/utils/logger";
 
 import { renderHudAssetToCanvas } from "./hud-vello-atlas";
@@ -138,7 +139,9 @@ export class FighterPortraitRenderer {
     }
 
     const resolution = pixelSize / dims.longEdge;
-    applyZoneColors(colors);
+    // Callers pass wire-order Player.color1/2/3 — redistribute to
+    // engine zones per the canonical getColorIndex permutation.
+    applyZoneColors(colors ? wireColorsToZones(gfxId, colors) : colors);
 
     // Over-size the snapshot to absorb Vello's 1-px AA pad + worst-
     // case floor/ceil rounding (rust/vello-wasm/src/lib.rs:801-807,

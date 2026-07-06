@@ -7,6 +7,7 @@ import {
   preloadAccessoryBundles,
   resolveAccessoryBundle,
 } from "@/game/assets/accessory-resolver";
+import { wireColorsToZones } from "@/game/assets/color-zone";
 import { parseLook } from "@/game/assets/look-parser";
 import { VelloAssetRegistry } from "@/game/assets/vello-asset-registry";
 import { Direction } from "@/game/fight/types";
@@ -326,14 +327,15 @@ export class CharacterSpriteLoader {
     const parsed = look ? parseLook(look) : null;
     // Canonical sentinel: -1 (or NaN/undefined) = zone unset → authored
     // fill. 0 is a legitimate flat-black tint (GlobalSpriteHandler.as
-    // applyColor skips only undefined/-1).
+    // applyColor skips only undefined/-1). Wire slots redistribute to
+    // engine zones per the canonical getColorIndex permutation.
     const normZone = (c: number) => (Number.isFinite(c) && c >= 0 ? c : -1);
     const colorZones = parsed
-      ? ([
+      ? wireColorsToZones(gfxId, [
           normZone(parsed.color1),
           normZone(parsed.color2),
           normZone(parsed.color3),
-        ] as [number, number, number])
+        ])
       : null;
 
     // Resolve accessory bundle list. Each entry feeds the World layer's
