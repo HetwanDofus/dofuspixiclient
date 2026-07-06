@@ -1,0 +1,24 @@
+# Differential oracle (wc3 side). Standalone throwaway crate — NOT a
+# member of the wc2 workspace (own [workspace] table below). Path-dep
+# on wc3's swf-spike (READ-ONLY reference tree, never modified) to run
+# THEIR validated tile_behavior::resolve_full over the same bundles ×
+# cell seeds as wc2's `tile-behavior-dump` bin. Outputs must be
+# byte-identical.
+[package]
+name = "tile-behavior-diff"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+swf-spike-wc3 = { package = "swf-spike", path = "../../../dofuswebclient3/rust/swf-spike" }
+
+# wc3's swf-spike expects the vendored vello 0.7 fork (bump-buffer +
+# retained-scene patches). Mirror wc3's own [patch.crates-io] here so
+# the path-dep resolves against the same sources it was validated with.
+[patch.crates-io]
+vello = { path = "../../../dofuswebclient3/rust/vello" }
+vello_encoding = { path = "../../../dofuswebclient3/rust/vello_encoding" }
+vello_shaders = { path = "../../../dofuswebclient3/rust/vello_shaders" }

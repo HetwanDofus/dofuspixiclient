@@ -17,6 +17,10 @@ import { getCellPosition } from "@/game/datacenter/cell";
 import { swfTileBehavior } from "@/game/render/vello-loader";
 import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
 
+/** Count of placements where the wasm classifier refused and the legacy
+ * token-scan fallback silently engaged (see pushPlacementByKey). */
+let wasmClassifyRefusals = 0;
+
 interface CellPlacementInput {
   cellId: number;
   cellX: number;
@@ -78,10 +82,20 @@ export function pushPlacementByKey(
   // assets/sources/client-code/ank/battlefield/MapHandler.as:226),
   // explicit tactic frame overrides, and trivially-static 1-frame
   // exports.
-  const behaviorInfo =
-    !hasFrameOverride && resolved.kind !== "slope" && resolved.frameCount > 1
-      ? swfTileBehavior(resolved.bundle, resolved.exportName, cell.cellId)
-      : null;
+  const shouldClassify =
+    !hasFrameOverride && resolved.kind !== "slope" && resolved.frameCount > 1;
+  const behaviorInfo = shouldClassify
+    ? swfTileBehavior(resolved.bundle, resolved.exportName, cell.cellId)
+    : null;
+  if (shouldClassify && !behaviorInfo) {
+    // Wasm refused (bundle not loaded / export not a sprite / renderer
+    // halted) — the placement silently rides the legacy token-scan
+    // fallback below. Keep that visible: it means classification
+    // parity with wc3 is NOT in effect for this tile.
+    console.warn(
+      `[placements] wasm tile classification refused #${++wasmClassifyRefusals}: ${resolved.bundle}/${resolved.exportName} cell=${cell.cellId}`
+    );
+  }
 
   let isAnimated =
     !hasFrameOverride &&

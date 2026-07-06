@@ -1,6 +1,5 @@
 //! Per-instance simulated AVM1 state for multi-frame children of an
-//! animated wrapper sprite. Ported from wc3's validated implementation
-//! (`dofuswebclient3/rust/swf-spike/src/tile_script.rs`).
+//! animated tile wrapper.
 //!
 //! Canonical example (chimney smoke `gfx 343` on map 35):
 //!
@@ -16,16 +15,6 @@
 //!     - The placement's `onClipEvent(enterFrame)` runs `if
 //!       Math.random() < 0.001 { play() }` every tick (~16.7 s mean
 //!       idle time at 60 fps).
-//!
-//! The SAME machinery drives settled NPC/monster idles: `static*`
-//! character exports are 1-frame wrappers placing multi-frame children
-//! that play a settle-in and then `stop()` (canonical Flash just runs
-//! the timeline until the Stop; `GlobalSpriteHandler.recursiveGotoAndStop`,
-//! assets/sources/client-code/ank/battlefield/GlobalSpriteHandler.as:505-516,
-//! is the only place the client ever forces child playheads, and it does so
-//! to PIN a stopped pose). Ticking a `ChildScript` until `!playing`
-//! recovers exactly the frame Flash would be showing once the idle has
-//! settled — see `tile_behavior::settled_static_overrides`.
 //!
 //! ## Spawn sequence (matches Flash)
 //!
@@ -52,8 +41,8 @@
 
 use std::collections::HashMap;
 
-use crate::avm1::{exec, seed_rng, AvmEngine, InstanceId};
-use crate::swf_doc::{clip_event, OwnedClipAction, OwnedOp, OwnedSprite};
+use crate::avm1::{AvmEngine, InstanceId, exec, seed_rng};
+use crate::swf_doc::{OwnedClipAction, OwnedOp, OwnedSprite, clip_event};
 
 const AVM1_VERSION: u8 = 6;
 const THIS_ID: InstanceId = 1;
@@ -155,23 +144,6 @@ impl ChildScript {
         }
     }
 
-    /// True when the placement carries an `onClipEvent(enterFrame)`
-    /// handler — the canonical random-trigger mechanism (chimney
-    /// elevator: `if Math.random() < 0.001 { play() }` per tick).
-    /// Such a clip can change state at ANY tick, so it can never ride
-    /// a precomputed linear frame counter.
-    pub fn has_enter_frame(&self) -> bool {
-        self.on_enter_frame.is_some()
-    }
-
-    /// True when the child's own timeline carries per-frame DoActions
-    /// (`stop()` parks, `gotoAndPlay` jumps). A clip with frame
-    /// actions can park mid-cycle (elevator stops at frame 102), so
-    /// its playhead must be simulated, not derived from elapsed time.
-    pub fn has_frame_actions(&self) -> bool {
-        !self.frame_actions.is_empty()
-    }
-
     pub fn tick(&mut self) {
         self.tick_count = self.tick_count.wrapping_add(1);
         let seed = self
@@ -217,8 +189,8 @@ impl ChildScript {
 /// caller's `(frame, playing)` into it, runs the bytecode, reads the
 /// resulting state back. Allocation cost is one `HashMap<InstanceId,
 /// ClipState>` + one `ClipState` per call — measured below tens of
-/// microseconds in practice, fine for the handful of scripted clips a
-/// map / character carries.
+/// microseconds in practice, fine for the handful of scripted tiles a
+/// map carries.
 fn run_avm(
     bytecode: &[u8],
     current_frame: u16,
@@ -357,5 +329,34 @@ mod tests {
         }
         assert_eq!(s.current_frame, 0);
         assert!(!s.playing);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// wc2 EXTENSIONS — everything ABOVE this line is a byte-verbatim copy of
+// wc3's tile_script.rs (dofuswebclient3/rust/swf-spike/src/tile_script.rs);
+// verify with `diff <(head -n <wc3 lines> tile_script.rs) <wc3 file>`.
+// Below: read-only predicates over ChildScript's private state, used by the
+// wc2-only strip-atlas fast path (`tile_behavior::TileResolution::
+// is_simple_loop`) and the `verify-tile-scripts` diagnostic bin. No wc3
+// counterpart (wc3 always ticks a TileAnimator per instance).
+// ---------------------------------------------------------------------------
+
+impl ChildScript {
+    /// True when the placement carries an `onClipEvent(enterFrame)`
+    /// handler — the canonical random-trigger mechanism (chimney
+    /// elevator: `if Math.random() < 0.001 { play() }` per tick).
+    /// Such a clip can change state at ANY tick, so it can never ride
+    /// a precomputed linear frame counter.
+    pub fn has_enter_frame(&self) -> bool {
+        self.on_enter_frame.is_some()
+    }
+
+    /// True when the child's own timeline carries per-frame DoActions
+    /// (`stop()` parks, `gotoAndPlay` jumps). A clip with frame
+    /// actions can park mid-cycle (elevator stops at frame 102), so
+    /// its playhead must be simulated, not derived from elapsed time.
+    pub fn has_frame_actions(&self) -> bool {
+        !self.frame_actions.is_empty()
     }
 }

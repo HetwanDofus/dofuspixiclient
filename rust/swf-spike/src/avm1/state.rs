@@ -80,12 +80,16 @@ impl ClipState {
 /// event property (`this.onEnterFrame = function(){…}`).
 #[derive(Debug)]
 pub struct FnDef {
-    pub params: Vec<String>,
-    pub code: Vec<u8>,
-    pub swf_version: u8,
     /// Function body's source SWF bytecode. We store the bytes inline so the
     /// FnDef can outlive the parent action stream's lifetime.
-    pub register_count: u8,
+    pub code: Vec<u8>,
+    pub swf_version: u8,
+    /// Constant pool captured from the DEFINING script. AVM1 function closures
+    /// share their enclosing frame's pool, so the body's `Push ConstantPool(i)`
+    /// (e.g. spell 103 `baton`'s `onEnterFrame` reading `vy`/`t`/`_root`)
+    /// resolves against this, not an empty pool. `Rc` so re-invoking a handler
+    /// (a baton's per-tick `onEnterFrame`) clones a refcount, not the strings.
+    pub constant_pool: Rc<Vec<String>>,
 }
 
 /// AVM1 dynamic value.
@@ -104,6 +108,10 @@ pub enum Value {
     /// init-object args (e.g. `attachMovie("frag","f"+c,c,{_x:_X,_y:_Y})`)
     /// and by general property bag patterns.
     Object(Rc<RefCell<HashMap<String, Value>>>),
+    /// Array literal `[v0,v1,…]` from `InitArray`. Dofus lang SWFs
+    /// emit one of these per spell-level row (20-plus fields per row),
+    /// so this is the heavy variant in lang parsing.
+    Array(Rc<RefCell<Vec<Value>>>),
 }
 
 impl Value {
@@ -137,12 +145,7 @@ impl Value {
             Value::Clip(_) => "[movie clip]".to_string(),
             Value::Function(_) => "[function]".to_string(),
             Value::Object(_) => "[object]".to_string(),
-        }
-    }
-    pub fn as_clip(&self) -> Option<InstanceId> {
-        match self {
-            Value::Clip(id) => Some(*id),
-            _ => None,
+            Value::Array(_) => "[array]".to_string(),
         }
     }
     /// AVM1 boolean coercion (used by `Not`, `If`).
@@ -152,7 +155,7 @@ impl Value {
             Value::Number(n) => *n != 0.0 && !n.is_nan(),
             Value::String(s) => !s.is_empty() && s != "0" && s != "false",
             Value::Undefined | Value::Null => false,
-            Value::Clip(_) | Value::Function(_) | Value::Object(_) => true,
+            Value::Clip(_) | Value::Function(_) | Value::Object(_) | Value::Array(_) => true,
         }
     }
 }
@@ -190,6 +193,10 @@ pub struct ExecOutcome {
     pub stop: bool,
     pub play: bool,
     pub goto: Option<u16>,
+    /// `gotoAndPlay("label")` — resolved against the running clip's sprite
+    /// `frame_labels` by the renderer (which holds the `OwnedSprite`), since
+    /// the interpreter is timeline-agnostic.
+    pub goto_label: Option<String>,
     pub spawns: Vec<SpawnRequest>,
     /// Set by `Return` action — the value popped from the stack at the
     /// return site. The recursive caller (when invoking a user-defined

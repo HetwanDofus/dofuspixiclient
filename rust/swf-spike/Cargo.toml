@@ -87,6 +87,13 @@ path = "src/bin/verify_stroke_floor.rs"
 # floor (max(natural_width × total_scale, 1 device px)) lands
 # identically through every cache.
 
+[[bin]]
+name = "tile-behavior-dump"
+path = "src/bin/tile_behavior_dump.rs"
+# Differential oracle (wc2 side): resolve_full for every tile-bundle
+# export × fixed cell seeds. Must match rust/tile-behavior-diff's
+# wc3-backed dump line-for-line.
+
 [dependencies]
 swf = "0.2"
 vello = "0.8"
@@ -96,6 +103,7 @@ image = "0.25"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
+thiserror = "1"
 bytes = "1"
 flate2 = "1"
 bytemuck = { version = "1", features = ["derive"] }

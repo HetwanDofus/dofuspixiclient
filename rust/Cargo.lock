@@ -2559,6 +2559,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swf",
+ "thiserror 1.0.69",
  "vello",
  "web-sys",
  "wgpu",

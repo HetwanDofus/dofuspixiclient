@@ -4,8 +4,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::avm1::{exec, seed_rng, AvmEngine, InstanceId};
-use crate::swf_doc::{clip_event, OwnedOp, OwnedSprite, SwfDoc, Symbol};
+use crate::avm1::{AvmEngine, InstanceId, exec, seed_rng};
+use crate::swf_doc::{OwnedOp, OwnedSprite, SwfDoc, Symbol, clip_event};
 
 use crate::tile_script::ChildScript;
 

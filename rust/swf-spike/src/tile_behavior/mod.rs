@@ -1,8 +1,6 @@
-//! Resolve a wrapper sprite's canonical render behavior by executing
-//! its frame-1 AS2 script — and the frame-1 scripts of every
-//! multi-frame descendant placed at frame 1 — via `swf-spike::avm1::exec`.
-//! Ported from wc3's validated implementation
-//! (`dofuswebclient3/rust/swf-spike/src/tile_behavior/`).
+//! Resolve a tile sprite's canonical render behavior by executing its
+//! frame-1 AS2 script — and the frame-1 scripts of every multi-frame
+//! descendant placed at frame 1 — via `swf-spike::avm1::exec`.
 //!
 //! ## The chimney-smoke / slope-wrapper insight
 //!
@@ -18,11 +16,7 @@
 //!   children, several with multi-frame timelines and **no** Stop in
 //!   their frame 1 — those genuinely animate.
 //!
-//! Character `static*` exports follow the same wrapper pattern: a
-//! 1-frame export placing multi-frame children that play a settle-in
-//! then `stop()`. See [`settled_static_overrides`].
-//!
-//! Algorithm: see `resolve_inner` in `resolve.rs`.
+//! Algorithm: see [`resolve_inner`].
 //!
 //! ## Per-cell determinism
 //!
@@ -38,11 +32,9 @@ mod tests;
 
 use std::collections::HashMap;
 
-use crate::swf_doc::{OwnedSprite, SwfDoc, Symbol};
+use crate::swf_doc::{OwnedSprite, SwfDoc};
 
 use crate::tile_script::ChildScript;
-
-pub use seed::seed_for_cell;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TileBehavior {
@@ -77,16 +69,50 @@ pub struct TileResolution {
     pub behavior: TileBehavior,
     /// Children with an `onClipEvent(enterFrame)` handler OR a frame
     /// timeline that's still playing after frame-0 scripts. These need
-    /// per-tick AVM1 simulation, so an animating consumer attaches a
-    /// ticker and rebuilds the scene each frame (and the settled-static
-    /// path ticks them offline until they park — see
-    /// [`settled_static_overrides`]).
+    /// per-tick AVM1 simulation, so the renderer attaches a
+    /// `TileAnimator` and rebuilds the `VelloScene` each frame.
     pub child_scripts: Vec<ChildScript>,
     /// Children whose initial frame-0 script left them stopped and have
     /// no `enterFrame` handler. They'll never change state, so the
-    /// renderer just pins them via `RenderCtx::with_child_frame_overrides`.
+    /// renderer just pins them via `render_symbol_with_overrides` once.
     pub child_overrides: HashMap<u16, u16>,
 }
+
+pub fn resolve(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileBehavior {
+    resolve_full(sprite, doc, cell_id).behavior
+}
+
+/// Same as [`resolve`] but also extracts per-instance script state for
+/// every immediate multi-frame child of the wrapper. Callers attaching
+/// a `TileAnimator` need this; diagnostic dumps that only want the
+/// classification go through [`resolve`].
+pub fn resolve_full(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileResolution {
+    resolve::resolve_full(sprite, doc, cell_id)
+}
+
+// ---------------------------------------------------------------------------
+// wc2 EXTENSIONS — everything ABOVE this line is a byte-verbatim copy of
+// wc3's tile_behavior/mod.rs (dofuswebclient3/rust/swf-spike/src/
+// tile_behavior/mod.rs); verify with
+//   `diff <(head -n <wc3 lines> mod.rs) <wc3 mod.rs>`.
+// Everything below is wc2-only surface built ON TOP of the verbatim engine
+// (no behavior changes to resolve/classification):
+// - `seed_for_cell` re-export: wc3 keeps `mod seed` private (its only
+//   consumers live inside tile_behavior); wc2's vello-wasm exposes the seed
+//   to JS diagnostics, so we bridge it out.
+// - `TileResolution::is_simple_loop` + `overrides_signature`: the wc2
+//   strip-atlas fast path + texture-cache keying (no wc3 counterpart —
+//   wc3 ticks a TileAnimator per instance).
+// - `settled_static_overrides`: byte-identical body to wc3's private fn in
+//   bake_body.rs:163 (their bake spine). It moves THERE when bake_body.rs
+//   is adopted in unified-atlas Step 3; parked here until then because wc2
+//   has no bake_body module yet. Consumers: render/cache.rs (cached),
+//   render_settled_static / render_player_tinted bins.
+// ---------------------------------------------------------------------------
+
+pub use seed::seed_for_cell;
+
+use crate::swf_doc::Symbol;
 
 impl TileResolution {
     /// Fast-path eligibility: TRUE means a single linear frame counter
@@ -140,18 +166,6 @@ pub fn overrides_signature(frame: u16, overrides: &HashMap<u16, u16>) -> u32 {
     h
 }
 
-pub fn resolve(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileBehavior {
-    resolve_full(sprite, doc, cell_id).behavior
-}
-
-/// Same as [`resolve`] but also extracts per-instance script state for
-/// every immediate multi-frame child of the wrapper. Callers attaching
-/// a per-tick animator need this; diagnostic dumps that only want the
-/// classification go through [`resolve`].
-pub fn resolve_full(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileResolution {
-    resolve::resolve_full(sprite, doc, cell_id)
-}
-
 /// Settled child-frame pins for a `static*` character export.
 ///
 /// CANONICAL SEMANTICS: Dofus 1.29 attaches the idle body with
@@ -175,6 +189,9 @@ pub fn resolve_full(sprite: &OwnedSprite, doc: &SwfDoc, cell_id: u16) -> TileRes
 /// `RenderCtx::with_child_frame_overrides`. Children that never stop
 /// (a genuinely looping idle) are left un-pinned so they keep their
 /// normal `% num_frames` propagation.
+///
+/// BODY IS BYTE-IDENTICAL to wc3's `bake_body.rs::settled_static_overrides`
+/// (private there); keep them in lockstep until Step 3 adopts bake_body.
 ///
 /// COST: re-runs AVM1 ticks (up to 600 per child) — callers MUST cache
 /// the result per (bundle, export); see `RenderCache::settled_overrides`.

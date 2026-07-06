@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::swf_doc::{OwnedOp, OwnedPlace, OwnedSprite, SwfDoc, Symbol};
 
-use super::{resolve, resolve_full, TileBehavior};
+use super::{TileBehavior, resolve, resolve_full};
 
 fn sprite(num_frames: u16, ops: Vec<OwnedOp>) -> OwnedSprite {
     OwnedSprite {
@@ -28,11 +28,13 @@ fn empty_doc() -> SwfDoc {
     }
 }
 
-/// Minimum payload to flip playing=false — the canonical
-/// `gotoAndStop(random(_totalframes - 1) + 2)` reduces to a Stop for
-/// classification purposes (sprite 1721 in g1.swf).
-fn stop_script() -> Vec<u8> {
-    vec![0x07, 0x00]
+/// gotoAndStop(random(_totalframes - 1) + 2) — the canonical
+/// random-variant script we extracted from sprite 1721 in g1.swf.
+fn random_variant_script() -> Vec<u8> {
+    vec![
+        // Stop + End — minimum payload to flip playing=false.
+        0x07, 0x00,
+    ]
 }
 
 #[test]
@@ -137,13 +139,17 @@ fn wrapper_with_stopping_child_freezes_via_override() {
     // Resolve must put it in `child_overrides` (one-shot pin), NOT
     // `child_scripts` (per-tick AVM1) — animating a permanently-
     // stopped child would re-rasterise its scene every frame for no
-    // visible change.
+    // visible change. The wrapper is classified Static so the
+    // `PendingFreeze` countdown lets VelloPlugin retire the scene.
     let mut d = empty_doc();
     d.by_id.insert(
         99,
         Symbol::Sprite(OwnedSprite {
             num_frames: 5,
-            ops: vec![OwnedOp::DoAction(stop_script()), OwnedOp::ShowFrame],
+            ops: vec![
+                OwnedOp::DoAction(random_variant_script()),
+                OwnedOp::ShowFrame,
+            ],
             frame_labels: HashMap::new(),
         }),
     );
@@ -174,6 +180,15 @@ fn wrapper_with_stopping_child_freezes_via_override() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// wc2 EXTENSIONS — everything ABOVE this line is wc3's tile_behavior/tests.rs
+// verbatim EXCEPT two type-bridge deletions in `empty_doc()`: wc3's SwfDoc
+// carries `lazy` + `base_zone_colors` fields (their swf_doc/ module — adopted
+// in a later unified-atlas step); wc2's SwfDoc doesn't have them yet.
+// Below: tests for the wc2-only extension surface (settled_static_overrides,
+// overrides_signature) appended after the verbatim suite.
+// ---------------------------------------------------------------------------
+
 #[test]
 fn settled_static_ticks_playing_child_to_its_stop() {
     // Canonical settle-in idle: a 1-frame `staticR` wrapper places a
@@ -191,7 +206,7 @@ fn settled_static_ticks_playing_child_to_its_stop() {
                 OwnedOp::ShowFrame,
                 OwnedOp::ShowFrame,
                 OwnedOp::ShowFrame,
-                OwnedOp::DoAction(stop_script()),
+                OwnedOp::DoAction(random_variant_script()),
                 OwnedOp::ShowFrame,
             ],
             frame_labels: HashMap::new(),
