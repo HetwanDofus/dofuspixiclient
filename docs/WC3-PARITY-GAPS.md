@@ -46,7 +46,21 @@ Ranked gaps:
    (`world_compose_deferred.rs:994-1001`); wc2 has NO scale field
    anywhere in the character path (CrowdPlayerSnapshot, strip,
    character-sprite). Non-100 NPCs/monsters render wrong-sized.
-5. **[LOW] Quantization details:** wc2 `roundPixels: true` snaps
+5. **[HIGHEST — found live] Hairline strokes collapse in encode-once
+   caches.** Canonical Flash renders sub-1px strokes at minimum 1
+   DEVICE pixel (the dofasset NonScaling port in emit.rs:75-85
+   implements this) — but `shape_frags` pre-encodes every shape at
+   `Affine::IDENTITY` (cache.rs:119), so the clamp resolves to 1 TWIP;
+   appended at `resolution/20` every outline renders ~6× thinner than
+   canonical ("twip lines missing"). Applies to ALL twip-identity
+   scene caches (shape_frags, body_subscene_cache, tile_subscenes,
+   acc_subscenes) = tiles + atlases + crowd. FIX (Wave 1.3): key those
+   caches by `scale_milli` and thread the downstream bake scale into
+   the non-scaling clamp. ALSO canonical layout fix landed
+   (d5552775b6): VIEW block = 742×556 (Kernel.as:146), canvas centred
+   — baseZoom was previously computed against the phantom 1.95-aspect
+   band frame and left-anchored.
+6. **[LOW] Quantization details:** wc2 `roundPixels: true` snaps
    inside fractionally-scaled containers (shimmer, `engine.ts:169`);
    zIndex rounds sub-cell offset (`renderer.ts:840`) vs wc3 continuous
    0.5-step depth bands.
