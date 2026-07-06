@@ -2260,9 +2260,10 @@ export class PlayerStripRendererV2 {
       atlas: null,
       variant: null,
       bandInstances: new Map(),
-      zone1: 0,
-      zone2: 0,
-      zone3: 0,
+      // -1 = unset (authored fill); 0 would be a real flat-black tint.
+      zone1: -1,
+      zone2: -1,
+      zone3: -1,
       accessories: new Map(),
       mounts: null,
       slotZ: new Map(),
@@ -2298,9 +2299,10 @@ export class PlayerStripRendererV2 {
       st.zone2 = cz[1];
       st.zone3 = cz[2];
     } else {
-      st.zone1 = 0;
-      st.zone2 = 0;
-      st.zone3 = 0;
+      // -1 = unset → authored fill (0 would be a real flat-black tint)
+      st.zone1 = -1;
+      st.zone2 = -1;
+      st.zone3 = -1;
     }
     for (const bi of st.bandInstances.values()) {
       bi.batch.setZones(bi.instanceIdx, st.zone1, st.zone2, st.zone3);

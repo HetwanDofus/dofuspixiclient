@@ -66,9 +66,10 @@ export interface GMSpriteAdd {
   /** AS2 `_loc19_` — sprite-type modifier; `false` when the gfx had a
    *  leading `*` (used by mounts / chevauchors). */
   defaultRig: boolean;
-  /** RGB colour zones — `-1` means "use gfx default". Always present
-   *  for player / creature / monster; absent (0) for kinds we don't
-   *  yet decode. */
+  /** RGB colour zones — `-1` means "use gfx default" (canonical
+   *  applyColor skips only `undefined`/`-1`; `0` is a REAL colour,
+   *  flat black). Parsed for player / creature / monster / npc /
+   *  offlineCharacter; `-1` for kinds we don't yet decode. */
   color1: number;
   color2: number;
   color3: number;
@@ -185,6 +186,11 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
       // GameIn.as#onMovement L173+). Colors arrive as hex strings.
       //
       //   creature / monster (`-1`/`-2`):  c1=[8] c2=[9] c3=[10] acc=[11]
+      //   npc (`-4`):                      sex=[7] c1=[8] c2=[9] c3=[10]
+      //                                    acc=[11] extraClip=[12]
+      //                                    customArtwork=[13]
+      //   offlineCharacter (`-5`):         c1=[7] c2=[8] c3=[9] acc=[10]
+      //                                    guild=[11] emblem=[12] ...
       //   player (>0, non-fight):          c1=[9] c2=[10] c3=[11] acc=[12]
       //   player (>0, in-fight):           c1=[10] c2=[11] c3=[12] acc=[13]
       //
@@ -194,9 +200,9 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
       // it's a fight row. Roleplay non-fight is the only path the
       // step-3 vertical needs today; the heuristic keeps us correct
       // when the server later flips into combat.
-      let color1 = 0;
-      let color2 = 0;
-      let color3 = 0;
+      let color1 = -1;
+      let color2 = -1;
+      let color3 = -1;
       let accessories = "";
       let restStart = 7;
       if (kind === "creature" || kind === "monster") {
@@ -205,6 +211,18 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
         color3 = parseHexOr(fields[10], -1);
         accessories = fields[11] ?? "";
         restStart = 12;
+      } else if (kind === "npc") {
+        color1 = parseHexOr(fields[8], -1);
+        color2 = parseHexOr(fields[9], -1);
+        color3 = parseHexOr(fields[10], -1);
+        accessories = fields[11] ?? "";
+        restStart = 12; // keep extraClip/customArtwork in `rest`
+      } else if (kind === "offlineCharacter") {
+        color1 = parseHexOr(fields[7], -1);
+        color2 = parseHexOr(fields[8], -1);
+        color3 = parseHexOr(fields[9], -1);
+        accessories = fields[10] ?? "";
+        restStart = 11; // guildName/emblem/offlineType/characterID in `rest`
       } else if (kind === "player") {
         // Field [8] is `alignment` in roleplay, `level` in fight.
         // Field count is the cleanest discriminator: fight rows

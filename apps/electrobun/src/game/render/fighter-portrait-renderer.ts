@@ -247,15 +247,12 @@ function cacheKey(
 function applyZoneColors(
   colors: readonly [number, number, number] | null | undefined,
 ): void {
+  // -1 = unset → authored fill (canonical applyColor sentinel; 0 = black).
   if (!colors) {
-    setSwfPlayerColors(0, 0, 0);
+    setSwfPlayerColors(-1, -1, -1);
     return;
   }
-  setSwfPlayerColors(
-    colors[0] >= 0 ? colors[0] : 0,
-    colors[1] >= 0 ? colors[1] : 0,
-    colors[2] >= 0 ? colors[2] : 0,
-  );
+  setSwfPlayerColors(colors[0], colors[1], colors[2]);
 }
 
 let instance: FighterPortraitRenderer | null = null;

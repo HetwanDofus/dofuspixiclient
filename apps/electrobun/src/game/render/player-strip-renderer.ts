@@ -303,9 +303,9 @@ export class PlayerStripRendererLegacy {
     const frameCount = animation.frameCount;
     const resolution = this.resolution;
     const cz = animation.colorZones;
-    const c1 = cz ? cz[0] : 0;
-    const c2 = cz ? cz[1] : 0;
-    const c3 = cz ? cz[2] : 0;
+    const c1 = cz ? cz[0] : -1;
+    const c2 = cz ? cz[1] : -1;
+    const c3 = cz ? cz[2] : -1;
 
     const render = (): unknown => {
       // Apply this bot's color zones immediately before the render —

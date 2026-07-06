@@ -229,10 +229,11 @@ fn hsl_to_rgb(hsl: vec3<f32>) -> vec3<f32> {
   return vec3<f32>(r, g, b);
 }
 
+// Canonical applyColor: ColorTransform {ra:0, rb:R, ...} — the zone
+// becomes the flat target colour (alpha preserved by the caller).
+// Shading comes from separate authored overlay shapes.
 fn recolor_to_zone(orig: vec3<f32>, tgt: vec3<f32>) -> vec3<f32> {
-  let target_hsl = rgb_to_hsl(tgt);
-  let orig_hsl = rgb_to_hsl(orig);
-  return hsl_to_rgb(vec3<f32>(target_hsl.x, target_hsl.y, orig_hsl.z));
+  return tgt;
 }
 
 @fragment
@@ -354,10 +355,9 @@ vec3 hsl_to_rgb(vec3 hsl) {
   );
 }
 
+// Canonical applyColor: flat target colour (see WGSL twin above).
 vec3 recolor_to_zone(vec3 orig, vec3 target) {
-  vec3 th = rgb_to_hsl(target);
-  vec3 oh = rgb_to_hsl(orig);
-  return hsl_to_rgb(vec3(th.x, th.y, oh.z));
+  return target;
 }
 
 void main() {
@@ -745,7 +745,10 @@ export class BodyBandBatch {
     base: number,
     value: number,
   ): void {
-    if (value === 0) {
+    // -1 = unset (canonical applyColor skips only undefined/-1) →
+    // alpha 0 disables the zone recolor in the shader. 0 is a REAL
+    // colour (flat black).
+    if (value < 0) {
       out[base] = 0;
       out[base + 1] = 0;
       out[base + 2] = 0;

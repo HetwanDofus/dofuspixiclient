@@ -753,10 +753,11 @@ struct BodyStructCache {
 /// Pack an actor's `PlayerColors` (0xRRGGBB per zone) into the slab's
 /// per-slot overlay format: `[zone1, zone2, zone3]`, each `[R, G, B, A]`
 /// little-endian (the slab packs via `u32::from_le_bytes`; the shader reads
-/// R from the low byte and re-applies the patch's authored alpha). A zone the
-/// player leaves unset falls back to white, leaving the placeholder fill —
-/// matching the canonical "colour == -1 → no recolour" sentinel for the
-/// common crowd case (all stress bots carry a full palette).
+/// R from the low byte and re-applies the patch's authored alpha). A zone
+/// the player leaves unset gets A=0 — the expand shader SKIPS the patch
+/// write so the authored fill shows through, matching the canonical
+/// "colour == -1 → no recolour" sentinel (GlobalSpriteHandler.as:63;
+/// `0` is a real colour: flat black).
 fn player_color_overlay(pc: swf_spike::recolor::PlayerColors) -> [[u8; 4]; 3] {
     let zone = |z: u8| -> [u8; 4] {
         match pc.lookup(z) {
@@ -766,7 +767,7 @@ fn player_color_overlay(pc: swf_spike::recolor::PlayerColors) -> [[u8; 4]; 3] {
                 (rgb & 0xFF) as u8,
                 255,
             ],
-            None => [255, 255, 255, 255],
+            None => [0, 0, 0, 0],
         }
     };
     [zone(1), zone(2), zone(3)]
@@ -4697,8 +4698,10 @@ impl VelloRenderer {
                 .unwrap_or(false)
         };
         let opt_color = |c: f64| -> Option<u32> {
+            // Canonical applyColor sentinel: only -1 (or NaN) = unset →
+            // authored fill. 0 is a REAL colour (flat black).
             let v = c as i64;
-            if v > 0 {
+            if c.is_finite() && v >= 0 {
                 Some((v as u32) & 0x00FF_FFFF)
             } else {
                 None
@@ -5066,8 +5069,10 @@ impl VelloRenderer {
                 .unwrap_or(false)
         };
         let opt_color = |c: f64| -> Option<u32> {
+            // Canonical applyColor sentinel: only -1 (or NaN) = unset →
+            // authored fill. 0 is a REAL colour (flat black).
             let v = c as i64;
-            if v > 0 {
+            if c.is_finite() && v >= 0 {
                 Some((v as u32) & 0x00FF_FFFF)
             } else {
                 None
@@ -7721,8 +7726,10 @@ impl VelloRenderer {
                 .unwrap_or(false)
         };
         let opt_color = |c: f64| -> Option<u32> {
+            // Canonical applyColor sentinel: only -1 (or NaN) = unset →
+            // authored fill. 0 is a REAL colour (flat black).
             let v = c as i64;
-            if v > 0 {
+            if c.is_finite() && v >= 0 {
                 Some((v as u32) & 0x00FF_FFFF)
             } else {
                 None
@@ -11399,13 +11406,14 @@ impl VelloRenderer {
     }
 
     /// Set the player's three zone colours used by the SWF render path.
-    /// Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
-    /// Mirrors what the dofasset path does via `build_color_replacements`
-    /// — but applied at render time directly to the SWF, with no bake.
+    /// Each value is `0xRRGGBB`; pass any value > 0xFFFFFF (the JS side
+    /// sends 0xFFFFFFFF for canonical `-1`) to leave that zone untinted.
+    /// `0` is a REAL colour (flat black) — canonical applyColor skips
+    /// only `undefined`/`-1` (GlobalSpriteHandler.as:63).
     /// Call before `renderSwfFrame` for player/character sprites.
     #[wasm_bindgen(js_name = "setSwfPlayerColors")]
     pub fn set_swf_player_colors(&mut self, c1: u32, c2: u32, c3: u32) {
-        let pack = |v: u32| if v == 0 { None } else { Some(v & 0xff_ff_ff) };
+        let pack = |v: u32| if v > 0x00FF_FFFF { None } else { Some(v) };
         self.swf_player_colors = swf_spike::recolor::PlayerColors([pack(c1), pack(c2), pack(c3)]);
     }
 

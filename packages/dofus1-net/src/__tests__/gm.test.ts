@@ -85,13 +85,34 @@ describe("GM — sprite stream", () => {
     expect(p.rows[2]?.op).toBe("replace");
   });
 
-  test("captures unknown sprite types as `unknown` kind, leaving the rest", () => {
-    // -4 = NPC (not parsed in step 3); rest should hold the tail.
-    const raw = "GM*+30;1;0;n9;Dasha;-4;200;0;extraA;extraB";
+  test("decodes an npc (-4) row canonically (GameIn.as case -4)", () => {
+    // Real AraknemuHorizon milicien row (npc_template 334, gfx 1211):
+    // sex=[7] c1=[8] c2=[9] c3=[10] acc=[11] extraClip=[12] artwork=[13].
+    // Colors are hex; `0` is a REAL colour (flat black) — canonical
+    // applyColor skips only undefined/-1.
+    const raw = "GM*+256;3;0;-22304;334;-4;1211^100x100;0;0;0;828282;0,0,0,0;;0";
     const row = (dispatch(raw).payload as GM).rows[0] as GMSpriteAdd;
     expect(row.kind).toBe("npc");
-    // Player/creature/monster aren't matched → restStart = 7
-    expect(row.rest).toBe("0;extraA;extraB");
+    expect(row.gfxId).toBe(1211);
+    expect(row.color1).toBe(0);
+    expect(row.color2).toBe(0);
+    expect(row.color3).toBe(0x828282);
+    expect(row.accessories).toBe("0,0,0,0");
+    // extraClip + customArtwork stay in `rest` for the npc handler.
+    expect(row.rest).toBe(";0");
+  });
+
+  test("decodes an offlineCharacter (-5) row canonically (GameIn.as case -5)", () => {
+    // c1=[7] c2=[8] c3=[9] acc=[10] guild=[11] emblem=[12] type=[13] charId=[14]
+    const raw =
+      "GM*+88;1;0;o5;Merchant;-5;10^100x100;ff0000;-1;40;16_9;MyGuild;e1;1;123";
+    const row = (dispatch(raw).payload as GM).rows[0] as GMSpriteAdd;
+    expect(row.kind).toBe("offlineCharacter");
+    expect(row.color1).toBe(0xff0000);
+    expect(row.color2).toBe(-1);
+    expect(row.color3).toBe(0x40);
+    expect(row.accessories).toBe("16_9");
+    expect(row.rest).toBe("MyGuild;e1;1;123");
   });
 
   test("strips `*` flags and `^scale` from gfx", () => {

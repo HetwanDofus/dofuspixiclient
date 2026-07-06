@@ -1764,9 +1764,10 @@ export class VelloRenderer {
     }
     /**
      * Set the player's three zone colours used by the SWF render path.
-     * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
-     * Mirrors what the dofasset path does via `build_color_replacements`
-     * — but applied at render time directly to the SWF, with no bake.
+     * Each value is `0xRRGGBB`; pass any value > 0xFFFFFF (the JS side
+     * sends 0xFFFFFFFF for canonical `-1`) to leave that zone untinted.
+     * `0` is a REAL colour (flat black) — canonical applyColor skips
+     * only `undefined`/`-1` (GlobalSpriteHandler.as:63).
      * Call before `renderSwfFrame` for player/character sprites.
      * @param {number} c1
      * @param {number} c2
@@ -3284,13 +3285,13 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 188, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 152, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 264, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 214, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h5fcecf7e12083474);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0) {
@@ -3324,8 +3325,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h5fcecf7e12083474(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h5fcecf7e12083474(arg0, arg1, arg2);
 }
 
 function wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9(arg0, arg1, arg2) {

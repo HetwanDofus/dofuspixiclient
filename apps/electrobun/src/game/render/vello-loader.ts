@@ -2051,10 +2051,14 @@ export function swfExportHasFilters(
 
 /**
  * Set the player's three zone colours used by `renderSwfFrame` for the next
- * render. Each value is `0xRRGGBB`; pass `0` to leave a zone untinted.
+ * render. Each value is `0xRRGGBB`; pass `-1` to leave a zone untinted
+ * (authored fill). `0` is a REAL colour — flat black — matching canonical
+ * `applyColor`, which skips only `undefined`/`-1`.
  */
 export function setSwfPlayerColors(c1: number, c2: number, c3: number): void {
-  renderer?.setSwfPlayerColors(c1, c2, c3);
+  // The wasm boundary is u32: canonical -1 travels as 0xFFFFFFFF.
+  const enc = (c: number) => (Number.isFinite(c) && c >= 0 ? c : 0xffffffff);
+  renderer?.setSwfPlayerColors(enc(c1), enc(c2), enc(c3));
 }
 
 export interface VelloSwfStripResult {

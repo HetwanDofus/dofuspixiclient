@@ -47,7 +47,9 @@ export interface CharacterAnimation {
   /**
    * Three RGB-packed `0xRRGGBB` color zone values per AS2
    * `applyColor` mounts, or null when the look carries no class
-   * tinting (mobs / no-class characters). Threaded directly into
+   * tinting (mobs / no-class characters). `-1` per zone = unset
+   * (canonical applyColor skips only `undefined`/`-1`; `0` is a
+   * REAL colour — flat black). Threaded directly into
    * `CharWorldPlacement.colorZones` — eliminates the legacy
    * `setSwfPlayerColors` global state.
    */
@@ -322,11 +324,15 @@ export class CharacterSpriteLoader {
     const fps = HOST_FPS;
 
     const parsed = look ? parseLook(look) : null;
+    // Canonical sentinel: -1 (or NaN/undefined) = zone unset → authored
+    // fill. 0 is a legitimate flat-black tint (GlobalSpriteHandler.as
+    // applyColor skips only undefined/-1).
+    const normZone = (c: number) => (Number.isFinite(c) && c >= 0 ? c : -1);
     const colorZones = parsed
       ? ([
-          parsed.color1 >= 0 ? parsed.color1 : 0,
-          parsed.color2 >= 0 ? parsed.color2 : 0,
-          parsed.color3 >= 0 ? parsed.color3 : 0,
+          normZone(parsed.color1),
+          normZone(parsed.color2),
+          normZone(parsed.color3),
         ] as [number, number, number])
       : null;
 

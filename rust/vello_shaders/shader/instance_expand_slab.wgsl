@@ -375,7 +375,12 @@ fn main(
             let zone = (zp >> 16u) & 0xFFu;
             let alpha = (zp >> 24u) & 0xFFu;
             // Player color packed as little-endian RGBA u32 by the host.
+            // A=0 = zone unset (canonical colour == -1): skip the write so
+            // the authored fill shows through.
             let player_color = scene[overlay_base + zone];
+            if (player_color >> 24u) == 0u {
+                continue;
+            }
             let r_raw = player_color & 0xFFu;
             let g_raw = (player_color >> 8u) & 0xFFu;
             let b_raw = (player_color >> 16u) & 0xFFu;

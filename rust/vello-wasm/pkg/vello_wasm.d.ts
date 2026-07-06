@@ -960,9 +960,10 @@ export class VelloRenderer {
     setCrowdOffThreadBake(on: boolean): void;
     /**
      * Set the player's three zone colours used by the SWF render path.
-     * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
-     * Mirrors what the dofasset path does via `build_color_replacements`
-     * — but applied at render time directly to the SWF, with no bake.
+     * Each value is `0xRRGGBB`; pass any value > 0xFFFFFF (the JS side
+     * sends 0xFFFFFFFF for canonical `-1`) to leave that zone untinted.
+     * `0` is a REAL colour (flat black) — canonical applyColor skips
+     * only `undefined`/`-1` (GlobalSpriteHandler.as:63).
      * Call before `renderSwfFrame` for player/character sprites.
      */
     setSwfPlayerColors(c1: number, c2: number, c3: number): void;
@@ -1306,7 +1307,7 @@ export interface InitOutput {
     readonly vellorenderer_wasmHeapBytes: (a: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h59f6a18f366ace3f: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h5fcecf7e12083474: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

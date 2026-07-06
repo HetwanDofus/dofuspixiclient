@@ -1,7 +1,7 @@
 //! Low-level scene emission. Takes a single `DrawCmd` and a target
 //! transform/CXFORM and produces a `scene.fill` or `scene.stroke`
-//! call. Includes the SWF ColorTransform tinting math and the HSL
-//! recolor for `applyColor` zones.
+//! call. Includes the SWF ColorTransform tinting math and the
+//! canonical flat-replace recolor for `applyColor` zones.
 
 use std::sync::Arc;
 
@@ -14,8 +14,9 @@ use crate::shape::{DrawCmd, DrawKind};
 use crate::swf_doc::OwnedColorTransform;
 
 /// Replace each fill/stroke brush in the cmd with its zone-recolored
-/// equivalent. Solid colours and gradient stops get HSL-preserve-
-/// lightness; bitmap brushes are left as-is (no zone tinting on
+/// equivalent. Solid colours and gradient stops become the flat target
+/// colour (canonical applyColor: multiplier 0 + offset = target, alpha
+/// preserved); bitmap brushes are left as-is (no zone tinting on
 /// bitmap fills).
 pub(super) fn recolor_cmd_in_place(cmd: &mut DrawCmd, target: u32) {
     let recolor_brush = |b: &mut Brush| match b {
