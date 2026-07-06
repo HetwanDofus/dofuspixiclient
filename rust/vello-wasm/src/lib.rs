@@ -272,25 +272,185 @@ fn get_scale_percent(o: &JsValue, k: &str) -> f32 {
 ///   - `retain = true`: RETAINED — encode each unique `(sig, frame)` look
 ///     ONCE into `look_cache`, then per tick just `scene.append` the cached
 ///     encoding at each player's transform (the "Flash display list" model).
+/// One actor's atlas cell (unified-atlas Step 3): tight-packed per-actor
+/// rect on one of the crowd's atlas pages. The actor renders with its feet
+/// at `(x + anchor_x, y + anchor_y)`; the JS makes one Pixi sprite per
+/// actor sampling `(x, y, w, h)` of page `page`, anchored at the feet, at
+/// the actor's world position + `playerZIndex(cellId)`.
+#[derive(Clone, Copy)]
+struct CrowdCell {
+    page: u32,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    anchor_x: f64,
+    anchor_y: f64,
+}
+
+/// One crowd atlas page. The `wgpu::Texture` itself lives in
+/// `self.textures` under `tex_id` (extracted BEFORE this view was created,
+/// so view drops never enqueue it into the deferred-destroy GC); its
+/// storage is retired by the JS generation lifecycle via
+/// `freeRenderTexture(tex_id)` — never by Rust drops.
+struct CrowdPage {
+    tex_id: u64,
+    view: wgpu::TextureView,
+    w: u32,
+    h: u32,
+}
+
+/// Fallback cell extents (twips) for an actor whose bundle isn't loaded
+/// yet at setup time (JS normally loads bundles before rostering).
+const CROWD_FALLBACK_EXTENTS: (f64, f64, f64) = (600.0, 1200.0, 120.0);
+
+/// Bundle-max extents for atlas-cell fitting (TWIPS, feet-origin):
+/// resolves the export's `(half_w, up, down)` from `symbol_bounds`
+/// (cached per `"bundle|export"`), folds it into the bundle's GROW-ONLY
+/// max, and returns that max. Free function so callers can split-borrow
+/// `VelloRenderer` fields (`crowd_export_extents` / `crowd_bundle_extents`
+/// / `swf_bundles`).
+fn crowd_cell_extents(
+    export_extents: &mut HashMap<String, (f64, f64, f64)>,
+    bundle_extents: &mut HashMap<String, (f64, f64, f64)>,
+    bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
+    bundle: &str,
+    export: &str,
+) -> (f64, f64, f64) {
+    let key = format!("{bundle}|{export}");
+    let ext = if let Some(e) = export_extents.get(&key) {
+        Some(*e)
+    } else if let Some(doc) = bundles.get(bundle) {
+        doc.lookup_export(export).map(|sym| {
+            let b = swf_spike::render::symbol_bounds(doc, sym, 0);
+            let e = (
+                b.x0.abs().max(b.x1.abs()).max(1.0),
+                (-b.y0).max(1.0),
+                b.y1.max(0.0),
+            );
+            export_extents.insert(key, e);
+            e
+        })
+    } else {
+        None
+    };
+    let ext = ext.unwrap_or(CROWD_FALLBACK_EXTENTS);
+    let bmax = bundle_extents
+        .entry(bundle.to_owned())
+        .or_insert((1.0, 1.0, 0.0));
+    bmax.0 = bmax.0.max(ext.0);
+    bmax.1 = bmax.1.max(ext.1);
+    bmax.2 = bmax.2.max(ext.2);
+    *bmax
+}
+
+/// Per-actor atlas cell dims `(w, h, anchor_x, anchor_y)` from bundle-max
+/// extents. `scale` = bake scale (resolution / 20); `sxf`/`syf` = the
+/// actor's gfx-scale factors. Padding mirrors the pre-Step-3 uniform
+/// grid: 1.5× on width/up (swinging accessories), 1.2× below the feet,
+/// +8 px guard band. Cells are x-symmetric so flip-around-feet stays in
+/// the cell.
+fn crowd_cell_dims(
+    ext: (f64, f64, f64),
+    scale: f64,
+    sxf: f64,
+    syf: f64,
+    cap: u32,
+) -> (u32, u32, f64, f64) {
+    let ax = (ext.0 * sxf * scale * 1.5).ceil() + 8.0;
+    let ay = (ext.1 * syf * scale * 1.5).ceil() + 8.0;
+    let w = ((2.0 * ax).ceil() as u32).clamp(2, cap);
+    let h = ((ay + (ext.2 * syf * scale).max(0.0) * 1.2 + 8.0).ceil() as u32).clamp(2, cap);
+    (w, h, f64::from(w) / 2.0, ay.min(f64::from(h)))
+}
+
+/// Tight-pack per-actor cells into atlas pages: shelf packer over a
+/// balanced sqrt-derived page width, tallest-first (the tile-atlas-page
+/// approach). Returns per-actor cells (parallel to `dims`) + per-page
+/// `(w, h)` texture dims. Overflow past `cap` height rolls into the next
+/// page — multiple pages at high zoom are expected.
+fn pack_crowd_cells(
+    dims: &[(u32, u32, f64, f64)],
+    cap: u32,
+) -> (Vec<CrowdCell>, Vec<(u32, u32)>) {
+    let n = dims.len();
+    let total_area: f64 = dims
+        .iter()
+        .map(|d| f64::from(d.0) * f64::from(d.1))
+        .sum();
+    let widest = dims.iter().map(|d| d.0).max().unwrap_or(2);
+    let page_w = ((total_area * 1.15).sqrt().ceil() as u32).clamp(widest.max(64), cap);
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| dims[b].1.cmp(&dims[a].1));
+    let mut cells = vec![
+        CrowdCell {
+            page: 0,
+            x: 0,
+            y: 0,
+            w: 2,
+            h: 2,
+            anchor_x: 1.0,
+            anchor_y: 1.0,
+        };
+        n
+    ];
+    let mut pages: Vec<(u32, u32)> = Vec::new();
+    let mut page = 0u32;
+    let mut cur_x = 0u32;
+    let mut cur_y = 0u32;
+    let mut shelf_h = 0u32;
+    let mut used_w = 0u32;
+    for &i in &order {
+        let (w, h, ax, ay) = dims[i];
+        if cur_x + w > page_w && cur_x > 0 {
+            cur_x = 0;
+            cur_y += shelf_h;
+            shelf_h = 0;
+        }
+        if cur_y + h > cap && cur_y > 0 {
+            pages.push((used_w.max(1), cur_y.max(1)));
+            page += 1;
+            cur_x = 0;
+            cur_y = 0;
+            shelf_h = 0;
+            used_w = 0;
+        }
+        cells[i] = CrowdCell {
+            page,
+            x: cur_x,
+            y: cur_y,
+            w,
+            h,
+            anchor_x: ax,
+            anchor_y: ay,
+        };
+        cur_x += w;
+        used_w = used_w.max(cur_x);
+        shelf_h = shelf_h.max(h);
+    }
+    pages.push((used_w.max(1), (cur_y + shelf_h).max(1)));
+    (cells, pages)
+}
+
 struct RealAnimCrowd {
     players: Vec<AnimPlayer>,
     off_x: f64,
     off_y: f64,
+    /// Page-0 dims — legacy world-compose diag paths (naive tick, non-slab
+    /// batched, flipbook) still render into page 0 at these dims.
     tw: u32,
     th: u32,
     scale: f64,
     pos_scale: f64,
     retain: bool,
-    /// ATLAS layout (see `realCrowdSetup`): the crowd renders each actor into
-    /// cell `(idx % cols, idx / cols)` of `target`, feet at
-    /// `(atlas_anchor_x, atlas_anchor_y)` inside a `cell_w × cell_h` cell. The
-    /// JS reads these to make one Pixi sprite per actor sampling its cell, at
-    /// the actor's world position + `playerZIndex(cellId)`.
-    atlas_cols: u32,
-    atlas_cell_w: u32,
-    atlas_cell_h: u32,
-    atlas_anchor_x: f64,
-    atlas_anchor_y: f64,
+    /// Tight-packed per-actor atlas cells, parallel to `players`.
+    cells: Vec<CrowdCell>,
+    /// Atlas pages (≥1). One slab dispatch per page per frame.
+    pages: Vec<CrowdPage>,
+    /// Max page dim used to fit `cells` — `crowdUpdateLooks` re-derives
+    /// each changed look's required cell under the same cap to detect
+    /// misfits (cell too small for the new look → JS re-fits).
+    cell_cap: u32,
     /// LIVE path: once `crowdUpdateFrames` has been called, render uses each
     /// player's explicit `frame` rather than deriving it from a global clock.
     explicit_frames: bool,
@@ -305,8 +465,6 @@ struct RealAnimCrowd {
     look_used: HashMap<String, u64>,
     /// Monotonic render counter for `look_used` stamps.
     crowd_frame: u64,
-    target: wgpu::Texture,
-    view: wgpu::TextureView,
     /// Batched-render scratch (created on demand by `realCrowdRenderBatched`
     /// when actor count exceeds the single-scene ceiling). One texture per
     /// batch of `batch_size` actors + one composite-target view. Reused
@@ -1307,6 +1465,16 @@ pub struct VelloRenderer {
     /// `realCrowdTick` re-emits only frame-changed players. Used to
     /// measure the real ANIMATED per-frame cost over a long run.
     real_anim_crowd: Option<RealAnimCrowd>,
+    /// Cell-fit extents cache, `"bundle|export"` → `(half_w, up, down)`
+    /// in TWIPS (scale-independent, from `symbol_bounds` frame 0).
+    crowd_export_extents: HashMap<String, (f64, f64, f64)>,
+    /// GROW-ONLY per-bundle max over every export queried so far. Atlas
+    /// cells are fitted to this, so an anim swap within a bundle (walk ↔
+    /// run ↔ static, whose bounds differ) rarely overflows the cell; the
+    /// first sighting of a bigger export grows the max and reports a
+    /// misfit (JS re-fits with a fresh generation), after which that
+    /// bundle's cells stay stable.
+    crowd_bundle_extents: HashMap<String, (f64, f64, f64)>,
     /// DIAG: lazy single-pass compositor for the batched crowd render
     /// (folds all per-batch textures past the single-scene shape ceiling in
     /// ONE fullscreen pass instead of N sequential `over` passes).
@@ -1917,6 +2085,8 @@ impl VelloRenderer {
             cpf: (0.0, 0.0, 0.0, 0),
             swf_bundles: HashMap::new(),
             real_anim_crowd: None,
+            crowd_export_extents: HashMap::new(),
+            crowd_bundle_extents: HashMap::new(),
             crowd_composite_pipeline: None,
             slab_crowd: slab_crowd::SlabCrowdState::default(),
             crowd_body_struct: HashMap::new(),
@@ -5426,50 +5596,53 @@ impl VelloRenderer {
                 Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
-        // Fit the target to content bounds (symbol_bounds — NO emit/bake).
+        // Retire the OLD crowd's private scratch (legacy batch textures).
+        // Its atlas PAGES are deliberately left alive in `self.textures`:
+        // the JS generation lifecycle keeps sampling them (frozen) until
+        // the new generation's cells have rendered, then retires them via
+        // `freeRenderTexture` after the 2-tick settle.
+        if let Some(old) = self.real_anim_crowd.take() {
+            for t in &old.batch_targets {
+                t.destroy();
+            }
+            for t in &old.composite_scratch {
+                t.destroy();
+            }
+        }
+
+        // World content bounds (symbol_bounds — NO emit/bake) for the
+        // world-space origin `off_x/off_y`, which the picking hit-test and
+        // the legacy world-compose diag paths still use. Per-actor extents
+        // come from the grow-only bundle-max cache so cells stay stable
+        // across anim swaps (walk/run/static bounds differ per export).
         let mut min_x = f64::INFINITY;
         let mut min_y = f64::INFINITY;
-        let mut max_x = f64::NEG_INFINITY;
-        let mut max_y = f64::NEG_INFINITY;
-        // Per-actor extents relative to the feet origin (0,0), in TWIP, for
-        // the atlas cell size: half-width (symmetric, for flip), height above
-        // feet (`-y0`), and below feet (`y1`).
-        let mut max_half_w = 1.0_f64;
-        let mut max_up = 1.0_f64;
-        let mut max_down = 1.0_f64;
         let acc_total: u32 = players_vec.iter().map(|p| p.acc.len() as u32).sum();
+        let cap = target_dim_max.min(8192).max(64);
+        // Per-actor tight cells: `(w, h, anchor_x, anchor_y)` at the live
+        // bake scale, fitted to the actor's OWN bundle-max bbox × its gfx
+        // scale (unified-atlas Step 3 — replaces the uniform grid whose
+        // largest-actor cell size blew past the texture cap and clipped).
+        let mut dims: Vec<(u32, u32, f64, f64)> = Vec::with_capacity(players_vec.len());
         for p in &players_vec {
-            let wx = p.x * pos_scale;
-            let wy = p.y * pos_scale;
-            // Per-actor gfx scale grows the actor's extents (a `^200x200`
-            // actor covers 2× the symbol bounds). Folding it in here sizes
-            // the shared atlas cell for the largest SCALED actor. NOTE:
-            // cells are uniform across the roster, and looks that join
-            // later via `crowdUpdateLooks` can't re-fit them — an actor
-            // scaled up after setup may overflow its fixed cell (clipped
-            // at the cell edge). Accepted: cells already carry 1.5×
-            // padding, and wc3 has no atlas to overflow.
             let sxf = f64::from(p.scale_x) / 100.0;
             let syf = f64::from(p.scale_y) / 100.0;
-            if let Some(doc) = self.swf_bundles.get(&p.bundle) {
-                if let Some(sym) = doc.lookup_export(&p.export) {
-                    let b = swf_spike::render::symbol_bounds(doc, sym, 0);
-                    let xext = b.x0.abs().max(b.x1.abs()) * sxf;
-                    min_x = min_x.min(wx - xext * scale);
-                    max_x = max_x.max(wx + xext * scale);
-                    min_y = min_y.min(wy + b.y0 * syf * scale);
-                    max_y = max_y.max(wy + b.y1 * syf * scale);
-                    max_half_w = max_half_w.max(xext);
-                    max_up = max_up.max(-b.y0 * syf);
-                    max_down = max_down.max((b.y1 * syf).max(0.0));
-                }
-            }
+            let ext = crowd_cell_extents(
+                &mut self.crowd_export_extents,
+                &mut self.crowd_bundle_extents,
+                &self.swf_bundles,
+                &p.bundle,
+                &p.export,
+            );
+            let wx = p.x * pos_scale;
+            let wy = p.y * pos_scale;
+            min_x = min_x.min(wx - ext.0 * sxf * scale);
+            min_y = min_y.min(wy - ext.1 * syf * scale);
+            dims.push(crowd_cell_dims(ext, scale, sxf, syf, cap));
         }
         if !min_x.is_finite() {
             min_x = 0.0;
             min_y = 0.0;
-            max_x = 1.0;
-            max_y = 1.0;
         }
         let margin = 64.0_f64;
         // World-space content origin — kept for the picking hit-test, which
@@ -5477,49 +5650,55 @@ impl VelloRenderer {
         // atlas layout used for rendering.
         let off_x = margin - min_x;
         let off_y = margin - min_y;
-        let cap = target_dim_max.min(8192).max(64);
 
-        // ATLAS layout: render each actor into its own non-overlapping cell so
-        // the JS can composite one Pixi sprite per actor at its own
-        // per-cell zIndex (canonical interleave with object2 tiles). Cell is
-        // generous (1.5× body extents) so wide accessories don't clip; feet
-        // sit at (anchor_x, anchor_y) inside the cell. Cells are static per
-        // actor index → the slab's per-instance transforms never change →
-        // reuse_fast every frame; world movement is applied by the Pixi sprite.
-        let acc_pad = 1.5_f64;
-        let anchor_x = (max_half_w * scale * acc_pad).ceil() + 8.0;
-        let anchor_y = (max_up * scale * acc_pad).ceil() + 8.0;
-        let cell_w = ((2.0 * anchor_x).ceil() as u32).max(2);
-        let cell_h = ((anchor_y + max_down * scale * 1.2 + 8.0).ceil() as u32).max(2);
-        let n_cells = players_vec.len().max(1) as u32;
-        let cols = ((n_cells as f64).sqrt().ceil() as u32).max(1);
-        let rows = n_cells.div_ceil(cols);
-        let tw = (cols * cell_w).min(cap).max(1);
-        let th = (rows * cell_h).min(cap).max(1);
-        let atlas_anchor_x = anchor_x;
-        let atlas_anchor_y = anchor_y;
-
-        let target = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("real-anim-crowd"),
-            size: wgpu::Extent3d {
-                width: tw,
-                height: th,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            // RENDER_ATTACHMENT is required because the batched path's
-            // composite pass writes this texture via a render pass (not
-            // Vello's STORAGE compute write).
-            usage: wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        });
-        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        // ATLAS layout: tight-pack each actor's cell across pages. Cells
+        // are static per actor index for the generation's lifetime → the
+        // slab's per-instance transforms never change frame-to-frame →
+        // reuse_fast every frame; world movement + zIndex are applied by
+        // the per-actor Pixi sprite.
+        let (cells, page_dims) = pack_crowd_cells(&dims, cap);
+        let mut pages: Vec<CrowdPage> = Vec::with_capacity(page_dims.len());
+        for &(pw, ph) in &page_dims {
+            let tex = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("crowd-atlas-page"),
+                size: wgpu::Extent3d {
+                    width: pw,
+                    height: ph,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                // RENDER_ATTACHMENT is required because the legacy batched
+                // path's composite pass writes page 0 via a render pass
+                // (not Vello's STORAGE compute write).
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            });
+            // Extract-before-view (Step-2 lesson, commit 639b85bbc0): mark
+            // the texture extracted BEFORE any view exists — a view drop
+            // of an UNextracted texture enqueues the page into the
+            // deferred-destroy GC and Chrome then rejects every Pixi
+            // submit that samples it. Storage lifetime is owned by
+            // `self.textures` + the JS `freeRenderTexture` retire.
+            let _ = extract_gpu_texture(&tex);
+            let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let tex_id = self.next_texture_id;
+            self.next_texture_id += 1;
+            self.textures.insert(tex_id, tex);
+            pages.push(CrowdPage {
+                tex_id,
+                view,
+                w: pw,
+                h: ph,
+            });
+        }
+        let (tw, th) = (pages[0].w, pages[0].h);
+        let n_pages = pages.len() as u32;
 
         let count = players_vec.len() as u32;
         self.real_anim_crowd = Some(RealAnimCrowd {
@@ -5531,17 +5710,13 @@ impl VelloRenderer {
             scale,
             pos_scale,
             retain,
-            atlas_cols: cols,
-            atlas_cell_w: cell_w,
-            atlas_cell_h: cell_h,
-            atlas_anchor_x,
-            atlas_anchor_y,
+            cells,
+            pages,
+            cell_cap: cap,
             explicit_frames: false,
             look_cache: HashMap::new(),
             look_used: HashMap::new(),
             crowd_frame: 0,
-            target,
-            view,
             batch_size: 0,
             batch_targets: Vec::new(),
             batch_views: Vec::new(),
@@ -5561,6 +5736,7 @@ impl VelloRenderer {
         set("accessoriesDrawn", f64::from(acc_total));
         set("texW", f64::from(tw));
         set("texH", f64::from(th));
+        set("pages", f64::from(n_pages));
         // LIVE cutover: the content offset baked into the texture. A player at world
         // `(wx, wy)` (== p.x*pos_scale, p.y*pos_scale) lands at texture-local
         // `(wx + offX, wy + offY)`, so mounting the crowd sprite at `(-offX, -offY)`
@@ -6131,7 +6307,7 @@ impl VelloRenderer {
             &self.device,
             &self.queue,
             &scene,
-            &crowd.view,
+            &crowd.pages[0].view,
             &params,
         );
         let n = crowd.players.len() as u32;
@@ -6323,9 +6499,10 @@ impl VelloRenderer {
         let n_batches = n_players.div_ceil(batch_size).max(1);
         let (tw, th) = (crowd.tw, crowd.th);
         if self.slab_mode {
-            // Tier-7 slab path: the whole Y-sorted crowd in one slab
-            // block, rendered straight into `crowd.view` — batch
-            // textures and the composite pass are skipped entirely.
+            // Tier-7 slab path (unified-atlas Step 3): each actor renders
+            // into its OWN tight-packed atlas cell; one slab block per
+            // atlas PAGE, rendered straight into that page's texture —
+            // batch textures and the composite pass are skipped entirely.
             let t_build = web_time::Instant::now();
             let mut sorted_idx: Vec<usize> = (0..crowd.players.len()).collect();
             sorted_idx.sort_by(|&a, &b| {
@@ -6338,12 +6515,6 @@ impl VelloRenderer {
             let pos_scale = crowd.pos_scale;
             let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
             let scale_aff = vello::kurbo::Affine::scale(scale);
-            let params = vello::RenderParams {
-                base_color: Color::TRANSPARENT,
-                width: tw,
-                height: th,
-                antialiasing_method: AaConfig::Area,
-            };
             // LIVE render (wc3 model): NO mid-run SubLibrary reset. The
             // content-deduped working set (body bands shared across same-gfx
             // actors + per-accessory subs) is bounded and fits the pre-sized
@@ -6353,7 +6524,14 @@ impl VelloRenderer {
             // Memory is tracked in the per-second `[crowd]` log; if it ever
             // approaches the cap that log will show it, and the correct
             // response is a per-MapEpoch reset at map-change, never mid-run.
-            let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
+            // One emit list PER PAGE (each page is its own slab dispatch).
+            let n_pages = crowd.pages.len().max(1);
+            let mut page_emits: Vec<Vec<slab_crowd::SlabEmit>> =
+                (0..n_pages).map(|_| Vec::new()).collect();
+            // Per-actor "was in this frame's slab scene" flags — the JS
+            // generation swap gates each sprite's cutover to the new
+            // atlas cell on its first rendered frame (no empty-cell pop).
+            let mut rendered_flags = vec![0u8; crowd.players.len()];
             let mut interned_this_frame: u32 = 0;
             let mut layouts_built_this_frame: u32 = 0;
             // wc3-style bake pacing (pump_deferred's "1-decode-per-frame"
@@ -6366,16 +6544,15 @@ impl VelloRenderer {
             // (never a stale pose).
             let mut bake_ms_spent: f64 = 0.0;
             let mut bakes_deferred: u32 = 0;
+            // Advance the crowd frame + SubLibrary age ONCE (shared by the
+            // per-page dispatches below) and reset the per-frame stats.
+            self.slab_crowd.begin_frame(&mut self.renderer);
             {
                 let RealAnimCrowd {
                     ref players,
+                    ref cells,
                     off_x,
                     off_y,
-                    atlas_cols,
-                    atlas_cell_w,
-                    atlas_cell_h,
-                    atlas_anchor_x,
-                    atlas_anchor_y,
                     explicit_frames,
                     ..
                 } = crowd;
@@ -6420,18 +6597,18 @@ impl VelloRenderer {
                         if p.flipped { world_t * flip_x } else { world_t },
                         actor_scale,
                     );
-                    // ATLAS transform — where the actor is RENDERED: its static
-                    // cell, feet at the cell anchor. Constant per actor index,
-                    // so the slab's per-instance transforms never change frame-
-                    // to-frame; the Pixi sprite applies world movement + zIndex.
-                    // A >100% actor can exceed the fit computed at setup for a
-                    // 100% roster (sparse look updates can't re-fit cells) and
-                    // clip at its cell edge — accepted, see `real_crowd_setup`.
-                    let col = (idx as u32) % atlas_cols.max(1);
-                    let row = (idx as u32) / atlas_cols.max(1);
+                    // ATLAS transform — where the actor is RENDERED: its own
+                    // tight-packed cell, feet at the cell anchor. Constant per
+                    // actor index for the generation's lifetime, so the slab's
+                    // per-instance transforms never change frame-to-frame; the
+                    // Pixi sprite applies world movement + zIndex. A look that
+                    // outgrows its cell via `crowdUpdateLooks` clips at the
+                    // cell edge until the reported misfit triggers a JS re-fit
+                    // (fresh generation).
+                    let actor_cell = &cells[idx];
                     let cell = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
-                        f64::from(col * atlas_cell_w) + atlas_anchor_x,
-                        f64::from(row * atlas_cell_h) + atlas_anchor_y,
+                        f64::from(actor_cell.x) + actor_cell.anchor_x,
+                        f64::from(actor_cell.y) + actor_cell.anchor_y,
                     ));
                     let place = with_actor_scale(
                         if p.flipped { cell * flip_x } else { cell },
@@ -6555,6 +6732,7 @@ impl VelloRenderer {
                     // Remember the actor's current pose so a future uncached
                     // (new-direction) frame falls back to it instead of vanishing.
                     self.slab_crowd.set_last_layout(idx as u32, layout.clone());
+                    let emits = &mut page_emits[(actor_cell.page as usize).min(n_pages - 1)];
                     for ls in layout.iter() {
                         emits.push(slab_crowd::SlabEmit {
                             look: ls.look,
@@ -6568,6 +6746,7 @@ impl VelloRenderer {
                             overlay: if ls.is_body { Some(overlay) } else { None },
                         });
                     }
+                    rendered_flags[idx] = 1;
                     self.slab_crowd.hit_actors.push(slab_crowd::HitActor {
                         idx: idx as u32,
                         world: place_world,
@@ -6575,25 +6754,43 @@ impl VelloRenderer {
                     });
                 }
             }
-            let (slab_scene, used, overflow) = slab_crowd::build_crowd_slab_scene(
-                &mut self.renderer,
-                &mut self.slab_crowd,
-                &emits,
-            );
             let build_ms = t_build.elapsed().as_secs_f64() * 1000.0;
             // Upload all crowd subs deferred since the last render (off-thread
             // bake interns + the sync emit path both defer their GPU writes) in
-            // ONE write, before the slab render reads the SubLibrary buffer.
+            // ONE write, before the slab renders read the SubLibrary buffer.
             self.renderer.sub_library_flush(&self.queue);
-            let render_result = slab_crowd::render_crowd_slab(
-                &mut self.renderer,
-                &mut self.slab_crowd,
-                &self.device,
-                &self.queue,
-                &slab_scene,
-                &params,
-                &crowd.view,
-            );
+            // One slab dispatch per atlas page (per-page retained scene
+            // buffer + envelope live in `slab_crowd`, indexed by page).
+            let mut render_result: Result<(), vello::Error> = Ok(());
+            for (page_idx, emits) in page_emits.iter().enumerate() {
+                let page = &crowd.pages[page_idx];
+                let params = vello::RenderParams {
+                    base_color: Color::TRANSPARENT,
+                    width: page.w,
+                    height: page.h,
+                    antialiasing_method: AaConfig::Area,
+                };
+                let (slab_scene, _used, _overflow) = slab_crowd::build_crowd_slab_scene(
+                    &mut self.slab_crowd,
+                    page_idx,
+                    emits,
+                );
+                let r = slab_crowd::render_crowd_slab(
+                    &mut self.renderer,
+                    &mut self.slab_crowd,
+                    page_idx,
+                    &self.device,
+                    &self.queue,
+                    &slab_scene,
+                    &params,
+                    &page.view,
+                );
+                if r.is_err() {
+                    render_result = r;
+                }
+            }
+            let used = self.slab_crowd.last.slots_used;
+            let overflow = self.slab_crowd.last.overflow;
             // Crowd working set = the content-deduped interned sub count + GPU
             // bytes used in the SubLibrary (tracked so growth toward the cap is
             // visible in the log rather than silently overflowing → blanks).
@@ -6622,6 +6819,16 @@ impl VelloRenderer {
             let result = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&result, &"mode".into(), &"slab".into());
             let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"pages".into(),
+                &JsValue::from(n_pages as u32),
+            );
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"rendered".into(),
+                &js_sys::Uint8Array::from(&rendered_flags[..]).into(),
+            );
             let _ = js_sys::Reflect::set(&result, &"slots".into(), &JsValue::from(used));
             let _ = js_sys::Reflect::set(&result, &"overflow".into(), &JsValue::from(overflow));
             let _ = js_sys::Reflect::set(&result, &"fast".into(), &JsValue::from(s.fast));
@@ -6826,7 +7033,7 @@ impl VelloRenderer {
                     label: Some("crowd-composite-encoder"),
                 });
             let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
-            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.pages[0].view);
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
@@ -7126,7 +7333,7 @@ impl VelloRenderer {
                     label: Some("crowd-composite-encoder"),
                 });
             let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
-            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.pages[0].view);
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
@@ -7549,7 +7756,7 @@ impl VelloRenderer {
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                             label: Some("crowd-composite"),
                         });
-                comp.composite(&self.device, &self.queue, &mut encoder, &views, &crowd.view);
+                comp.composite(&self.device, &self.queue, &mut encoder, &views, &crowd.pages[0].view);
                 self.queue.submit(std::iter::once(encoder.finish()));
             } else {
                 let mut written = 0usize;
@@ -7565,7 +7772,7 @@ impl VelloRenderer {
                     }
                     srcs.extend(views[written..written + take].iter().copied());
                     let dst: &wgpu::TextureView = if is_last {
-                        &crowd.view
+                        &crowd.pages[0].view
                     } else {
                         &crowd.composite_scratch_views[next_scratch]
                     };
@@ -7813,7 +8020,7 @@ impl VelloRenderer {
                     label: Some("crowd-composite-encoder"),
                 });
             let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
-            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.pages[0].view);
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         self.real_anim_crowd = Some(crowd);
@@ -7837,7 +8044,10 @@ impl VelloRenderer {
         let Some(crowd) = self.real_anim_crowd.take() else {
             return JsValue::NULL;
         };
-        let bmp = self.texture_to_bitmap(&crowd.target, crowd.tw, crowd.th, "realCrowd");
+        let tex = self.textures.get(&crowd.pages[0].tex_id).cloned();
+        let bmp = tex.and_then(|t| {
+            self.texture_to_bitmap(&t, crowd.tw, crowd.th, "realCrowd")
+        });
         self.real_anim_crowd = Some(crowd);
         match bmp {
             Some(b) => b.into(),
@@ -7854,7 +8064,10 @@ impl VelloRenderer {
     #[wasm_bindgen(js_name = "realCrowdContentRatio")]
     pub fn real_crowd_content_ratio(&self) -> js_sys::Promise {
         let (tex, tw, th) = match &self.real_anim_crowd {
-            Some(c) => (c.target.clone(), c.tw, c.th),
+            Some(c) => match self.textures.get(&c.pages[0].tex_id) {
+                Some(t) => (t.clone(), c.tw, c.th),
+                None => return js_sys::Promise::resolve(&JsValue::from(-1.0)),
+            },
             None => return js_sys::Promise::resolve(&JsValue::from(-1.0)),
         };
         let device = self.device.clone();
@@ -7931,48 +8144,84 @@ impl VelloRenderer {
         })
     }
 
-    /// LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
-    /// width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
-    /// ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
-    /// the same texture and the JS side marks the source dirty. The GPUTexture stays
-    /// valid while the crowd lives (retired by `realCrowdFree`).
+    /// DIAG compat: expose page 0 as a Pixi-adoptable `{texture: GPUTexture,
+    /// width, height}` (no readback). The live per-actor path uses
+    /// `crowdAtlasInfo` (all pages + per-actor cells) instead.
     #[wasm_bindgen(js_name = "crowdTextureHandle")]
     pub fn crowd_texture_handle(&self) -> JsValue {
         let Some(crowd) = self.real_anim_crowd.as_ref() else {
             return JsValue::NULL;
         };
+        let Some(tex) = self.textures.get(&crowd.pages[0].tex_id) else {
+            return JsValue::NULL;
+        };
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"texture".into(),
-            &extract_gpu_texture(&crowd.target),
-        );
+        let _ = js_sys::Reflect::set(&result, &"texture".into(), &extract_gpu_texture(tex));
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(crowd.tw));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(crowd.th));
         result.into()
     }
 
-    /// Atlas layout for the per-actor compositing path: `{cols, cellW, cellH,
-    /// anchorX, anchorY}`. Actor at `realCrowdSetup` index `i` occupies cell
-    /// `(i % cols, i / cols)`; its feet are at `(anchorX, anchorY)` inside the
-    /// `cellW × cellH` cell. The JS makes one Pixi sprite per actor sampling
-    /// its cell, anchored at the feet, at the actor's world position +
-    /// `playerZIndex(cellId)`.
+    /// Atlas layout for the per-actor compositing path (unified-atlas
+    /// Step 3): `{ count, pages: [{texture, textureId, width, height}],
+    /// cellPage/cellX/cellY/cellW/cellH: Uint32Array, anchorX/anchorY:
+    /// Float64Array }`. Actor at `realCrowdSetup` index `i` occupies
+    /// rect `(cellX[i], cellY[i], cellW[i], cellH[i])` of page
+    /// `cellPage[i]`; its feet sit at `(anchorX[i], anchorY[i])` inside
+    /// the cell. The JS makes one Pixi sprite per actor sampling its
+    /// cell, anchored at the feet, at the actor's world position +
+    /// `playerZIndex(cellId)`. Page GPUTextures are zero-copy handles;
+    /// their storage is retired by the JS generation lifecycle via
+    /// `freeRenderTexture(textureId)`.
     #[wasm_bindgen(js_name = "crowdAtlasInfo")]
     pub fn crowd_atlas_info(&self) -> JsValue {
         let Some(crowd) = self.real_anim_crowd.as_ref() else {
             return JsValue::NULL;
         };
         let o = js_sys::Object::new();
-        let set = |k: &str, v: f64| {
-            let _ = js_sys::Reflect::set(&o, &k.into(), &JsValue::from(v));
-        };
-        set("cols", f64::from(crowd.atlas_cols));
-        set("cellW", f64::from(crowd.atlas_cell_w));
-        set("cellH", f64::from(crowd.atlas_cell_h));
-        set("anchorX", crowd.atlas_anchor_x);
-        set("anchorY", crowd.atlas_anchor_y);
-        set("count", crowd.players.len() as f64);
+        let n = crowd.cells.len() as u32;
+        let pages = js_sys::Array::new();
+        for page in &crowd.pages {
+            let Some(tex) = self.textures.get(&page.tex_id) else {
+                return JsValue::NULL;
+            };
+            let po = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&po, &"texture".into(), &extract_gpu_texture(tex));
+            let _ = js_sys::Reflect::set(
+                &po,
+                &"textureId".into(),
+                &JsValue::from(page.tex_id as f64),
+            );
+            let _ = js_sys::Reflect::set(&po, &"width".into(), &JsValue::from(page.w));
+            let _ = js_sys::Reflect::set(&po, &"height".into(), &JsValue::from(page.h));
+            pages.push(&po);
+        }
+        let cell_page = js_sys::Uint32Array::new_with_length(n);
+        let cell_x = js_sys::Uint32Array::new_with_length(n);
+        let cell_y = js_sys::Uint32Array::new_with_length(n);
+        let cell_w = js_sys::Uint32Array::new_with_length(n);
+        let cell_h = js_sys::Uint32Array::new_with_length(n);
+        let anchor_x = js_sys::Float64Array::new_with_length(n);
+        let anchor_y = js_sys::Float64Array::new_with_length(n);
+        for (i, c) in crowd.cells.iter().enumerate() {
+            let i = i as u32;
+            cell_page.set_index(i, c.page);
+            cell_x.set_index(i, c.x);
+            cell_y.set_index(i, c.y);
+            cell_w.set_index(i, c.w);
+            cell_h.set_index(i, c.h);
+            anchor_x.set_index(i, c.anchor_x);
+            anchor_y.set_index(i, c.anchor_y);
+        }
+        let _ = js_sys::Reflect::set(&o, &"count".into(), &JsValue::from(n));
+        let _ = js_sys::Reflect::set(&o, &"pages".into(), &pages.into());
+        let _ = js_sys::Reflect::set(&o, &"cellPage".into(), &cell_page.into());
+        let _ = js_sys::Reflect::set(&o, &"cellX".into(), &cell_x.into());
+        let _ = js_sys::Reflect::set(&o, &"cellY".into(), &cell_y.into());
+        let _ = js_sys::Reflect::set(&o, &"cellW".into(), &cell_w.into());
+        let _ = js_sys::Reflect::set(&o, &"cellH".into(), &cell_h.into());
+        let _ = js_sys::Reflect::set(&o, &"anchorX".into(), &anchor_x.into());
+        let _ = js_sys::Reflect::set(&o, &"anchorY".into(), &anchor_y.into());
         o.into()
     }
 
@@ -8017,8 +8266,15 @@ impl VelloRenderer {
     /// WITHOUT clearing `look_cache` (new `(sig, frame)` combos are baked lazily by
     /// the next `realCrowdRenderBatched`, old entries persist for reuse). Roster
     /// add/remove still requires a fresh `realCrowdSetup`.
+    ///
+    /// Returns the number of MISFITS: players whose new look (or scale)
+    /// needs a bigger atlas cell than the one fitted at setup. The caller
+    /// re-fits with a fresh `realCrowdSetup` generation when > 0 (until
+    /// then the outgrown actor clips at its cell edge). Extents fold into
+    /// the grow-only per-bundle max, so a re-fit sized off it makes the
+    /// same anim swap fit forever after.
     #[wasm_bindgen(js_name = "crowdUpdateLooks")]
-    pub fn crowd_update_looks(&mut self, updates: JsValue) {
+    pub fn crowd_update_looks(&mut self, updates: JsValue) -> u32 {
         let get_f64 = |o: &JsValue, k: &str| -> f64 {
             js_sys::Reflect::get(o, &JsValue::from_str(k))
                 .ok()
@@ -8052,8 +8308,9 @@ impl VelloRenderer {
         // Collect into owned data first so we can register caches on &mut self
         // without holding a borrow of the crowd.
         let mut new_bundles: Vec<String> = Vec::new();
+        let mut misfits: u32 = 0;
         let Some(crowd) = self.real_anim_crowd.as_mut() else {
-            return;
+            return 0;
         };
         for k in 0..arr.length() {
             let o = arr.get(k);
@@ -8125,13 +8382,30 @@ impl VelloRenderer {
             p.sig = sig;
             p.layout_sig = layout_sig;
             // Per-actor `^scale` percent — place-transform only, never a
-            // cache signature. NOTE: the atlas cell grid was fitted at
-            // setup; a scale-up arriving here may overflow its fixed cell
-            // (accepted, see `real_crowd_setup`).
+            // cache signature.
             p.scale_x = get_scale_percent(&o, "scaleX");
             p.scale_y = get_scale_percent(&o, "scaleY");
             if p.frame >= fc {
                 p.frame = fc - 1;
+            }
+            // MISFIT check: the cells were tight-fitted at setup; a new
+            // export (or scale-up) can need a bigger cell. Fold the new
+            // export's bounds into the grow-only bundle max and compare
+            // the required cell against the fitted one.
+            let ext = crowd_cell_extents(
+                &mut self.crowd_export_extents,
+                &mut self.crowd_bundle_extents,
+                &self.swf_bundles,
+                &crowd.players[i].bundle,
+                &crowd.players[i].export,
+            );
+            let sxf = f64::from(crowd.players[i].scale_x) / 100.0;
+            let syf = f64::from(crowd.players[i].scale_y) / 100.0;
+            let (req_w, req_h, _, _) =
+                crowd_cell_dims(ext, crowd.scale, sxf, syf, crowd.cell_cap);
+            let cell = &crowd.cells[i];
+            if req_w > cell.w || req_h > cell.h {
+                misfits += 1;
             }
         }
         // Register per-bundle render caches for any newly-referenced bundle/acc
@@ -8139,6 +8413,7 @@ impl VelloRenderer {
         for b in new_bundles {
             self.swf_render_caches.entry(b).or_default();
         }
+        misfits
     }
 
     #[wasm_bindgen(js_name = "realCrowdFree")]
@@ -8147,9 +8422,12 @@ impl VelloRenderer {
         // (otherwise the patched-wgpu no-op Drop leaks them).
         self.renderer.free_all_reused();
         if let Some(crowd) = self.real_anim_crowd.take() {
-            // Explicitly destroy the crowd target + batch textures (patched-wgpu Drop is
-            // a no-op, so dropping alone would leak them).
-            crowd.target.destroy();
+            // Explicitly destroy the legacy batch scratch (patched-wgpu Drop
+            // is a no-op, so dropping alone would leak them). The atlas
+            // PAGES are NOT destroyed here: their storage lives in
+            // `self.textures` and is retired by the JS generation
+            // lifecycle via `freeRenderTexture(textureId)` after Pixi has
+            // stopped sampling them (2-tick settle).
             for t in &crowd.batch_targets {
                 t.destroy();
             }

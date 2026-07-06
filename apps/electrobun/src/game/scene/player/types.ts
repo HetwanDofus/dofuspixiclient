@@ -233,6 +233,14 @@ export interface PlayerRendererConfig {
    * the validated 60fps@500-player baseline this targets.
    */
   stripRenderer: PlayerStripRenderer;
+  /**
+   * LIVE display zoom accessor. Seeds the crowd renderer's bake
+   * density at creation (exact float — milli-quantized inside) so
+   * actors are edge-crisp from the very first frame instead of baking
+   * at a stale default until the first zoom-settle event (the
+   * blurry-boot bug). Optional: falls back to the strip resolution.
+   */
+  getZoom?: () => number | null;
 }
 
 /** Parse gfxId from the look string (format: "gfx|color1|color2|color3"). */

@@ -229,8 +229,11 @@ pub(crate) struct SlabCrowdState {
     /// order). Cleared before the per-actor loop and pushed one entry per
     /// drawn actor; read back-to-front by [`hit_test`].
     pub(crate) hit_actors: Vec<HitActor>,
-    high_water: SlabHighWater,
-    retained: Option<RetainedSlab>,
+    /// PER ATLAS PAGE (unified-atlas Step 3): each crowd page is its own
+    /// slab dispatch with its own grow-only envelope + retained scene
+    /// buffer. Indexed by page; grown on demand via [`ensure_pages`].
+    high_water: Vec<SlabHighWater>,
+    retained: Vec<Option<RetainedSlab>>,
     frame: u64,
     token_seq: u64,
     pub(crate) last: SlabFrameStats,
@@ -466,16 +469,42 @@ impl SlabCrowdState {
         -1
     }
 
-    /// Drop all retained slab state: frees the resident scene buffer,
+    /// Start one crowd frame: advance the frame counter + SubLibrary age
+    /// step ONCE (the per-page dispatches below share the frame), and reset
+    /// the per-frame aggregate stats (`fast` starts true and is ANDed per
+    /// page render).
+    pub(crate) fn begin_frame(&mut self, renderer: &mut Renderer) {
+        self.frame += 1;
+        renderer.sub_library_frame_step();
+        self.last = SlabFrameStats {
+            fast: true,
+            ..Default::default()
+        };
+    }
+
+    /// Grow the per-page envelope/retained vectors to `n` pages.
+    fn ensure_pages(&mut self, n: usize) {
+        while self.high_water.len() < n {
+            self.high_water.push(SlabHighWater::default());
+        }
+        while self.retained.len() < n {
+            self.retained.push(None);
+        }
+    }
+
+    /// Drop all retained slab state: frees the resident scene buffers,
     /// resets the SubLibrary + pinned ramp/atlas caches, drops the sub +
-    /// layout caches, and forgets the envelope. Call on crowd (re)setup —
+    /// layout caches, and forgets the envelopes. Call on crowd (re)setup —
     /// the pinned caches are append-only within a crowd lifetime (wc3 resets
     /// per MapEpoch for the same reason); interned handles go stale the
     /// moment the SubLibrary is reset, so they must be dropped together.
     pub(crate) fn reset(&mut self, renderer: &mut Renderer) {
-        if let Some(r) = self.retained.take() {
-            renderer.free_reused(r.token);
+        for slot in self.retained.iter_mut() {
+            if let Some(r) = slot.take() {
+                renderer.free_reused(r.token);
+            }
         }
+        self.retained.clear();
         renderer.reset_slab_interns();
         self.handle_by_look.clear();
         self.hit_by_sub.clear();
@@ -483,7 +512,7 @@ impl SlabCrowdState {
         self.layout_by_sig.clear();
         self.fallback_layout_by_sig.clear();
         self.last_layout_by_idx.clear();
-        self.high_water = SlabHighWater::default();
+        self.high_water.clear();
         self.frame = 0;
         // Off-thread queues reference looks interned into the now-reset
         // SubLibrary — drop them so stale in-flight requests don't intern
@@ -503,17 +532,18 @@ struct SlotEmit {
     overlay: Option<[[u8; 4]; 3]>,
 }
 
-/// Build the whole-crowd slab scene. `emits` must already be in paint
+/// Build one atlas PAGE's slab scene. `emits` must already be in paint
 /// order (back-to-front Y sort): the GPU expander tight-packs geometry by
-/// slot index, so slot order IS paint order. Returns the scene plus
-/// `(slots_used, overflow)`.
+/// slot index, so slot order IS paint order. (Per-actor atlas cells never
+/// overlap, so within a page the order only matters for slot stability.)
+/// Call [`SlabCrowdState::begin_frame`] once per crowd frame BEFORE the
+/// per-page builds. Returns the scene plus `(slots_used, overflow)`.
 pub(crate) fn build_crowd_slab_scene(
-    renderer: &mut Renderer,
     state: &mut SlabCrowdState,
+    page: usize,
     emits: &[SlabEmit],
 ) -> (Scene, u32, u32) {
-    state.frame += 1;
-    renderer.sub_library_frame_step();
+    state.ensure_pages(page + 1);
     let mut scene = Scene::new();
     let mut used = 0u32;
     let mut overflow = 0u32;
@@ -576,8 +606,9 @@ pub(crate) fn build_crowd_slab_scene(
     // Reserve the block at the grow-only high-water envelope, not the
     // live size: a constant slot count + constant per-stream gap keeps
     // the packed byte layout identical while actors animate.
+    let frame = state.frame;
     let (pinned_totals, pinned_slot_count) =
-        state.high_water.observe(live, live_slot_count, state.frame);
+        state.high_water[page].observe(live, live_slot_count, frame);
     let block_idx = begin_slab_block(scene.encoding_mut(), pinned_slot_count);
     let transforms_base = scene.encoding().instance_slab_blocks[block_idx].transforms_base;
 
@@ -648,44 +679,44 @@ pub(crate) fn build_crowd_slab_scene(
         block.live_path_tags_words = live.path_tags_words;
         block.live_draw_tags_words = live.draw_tags_words;
     }
-    state.last = SlabFrameStats {
-        slots_used: used,
-        overflow,
-        ..Default::default()
-    };
+    // Per-frame AGGREGATE across pages (reset in `begin_frame`).
+    state.last.slots_used += used;
+    state.last.overflow += overflow;
     (scene, used, overflow)
 }
 
-/// Resolve + render the slab scene with reuse: fast path narrow-writes
-/// only the descriptor/aux/transform/overlay regions and replays the
-/// retained recording; any fingerprint miss re-prepares the resident
-/// buffer in full. Port of wc3 `render_with_reuse` for a single
-/// whole-crowd "band".
+/// Resolve + render one atlas page's slab scene with reuse: fast path
+/// narrow-writes only the descriptor/aux/transform/overlay regions and
+/// replays the retained recording; any fingerprint miss re-prepares the
+/// resident buffer in full. Port of wc3 `render_with_reuse`, one retained
+/// "band" per crowd atlas page.
 pub(crate) fn render_crowd_slab(
     renderer: &mut Renderer,
     state: &mut SlabCrowdState,
+    page: usize,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     scene: &Scene,
     params: &vello::RenderParams,
     texture: &wgpu::TextureView,
 ) -> Result<(), vello::Error> {
+    state.ensure_pages(page + 1);
     let t_resolve = web_time::Instant::now();
     let resolved = renderer.resolve_scene_reuse(scene, params);
-    state.last.resolve_ms = t_resolve.elapsed().as_secs_f64() * 1000.0;
-    state.last.packed_kb = resolved.packed.len() as f64 / 1024.0;
+    state.last.resolve_ms += t_resolve.elapsed().as_secs_f64() * 1000.0;
+    state.last.packed_kb += resolved.packed.len() as f64 / 1024.0;
 
     if resolved.layout.n_paths == 0 && resolved.layout.n_slab_blocks == 0 {
-        // Empty crowd: the caller hides the crowd sprite; the stale
-        // texture content is never sampled, so skip the pipeline.
-        if let Some(r) = state.retained.take() {
+        // Empty page: the caller hides/parks the affected sprites; the
+        // stale texture content is never sampled, so skip the pipeline.
+        if let Some(r) = state.retained[page].take() {
             renderer.free_reused(r.token);
         }
         return Ok(());
     }
 
     let mut stable_token: Option<ReuseToken> = None;
-    if let Some(r) = state.retained.take() {
+    if let Some(r) = state.retained[page].take() {
         let layout_matches = r.packed_len == resolved.packed.len()
             && r.transform_len == resolved.transform_len()
             && r.descriptor_slab_base == resolved.layout.descriptor_slab_base
@@ -695,7 +726,7 @@ pub(crate) fn render_crowd_slab(
         if layout_matches {
             let t_upload = web_time::Instant::now();
             run_fast_writes(renderer, queue, &resolved, r.token, &r.prev_live, scene);
-            state.last.upload_ms = t_upload.elapsed().as_secs_f64() * 1000.0;
+            state.last.upload_ms += t_upload.elapsed().as_secs_f64() * 1000.0;
             let t_replay = web_time::Instant::now();
             let result = renderer.reuse_replay(
                 device,
@@ -708,9 +739,8 @@ pub(crate) fn render_crowd_slab(
                 resolved.sub_library_proxy,
                 resolved.slab_image_proxies,
             );
-            state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
-            state.last.fast = true;
-            state.retained = Some(RetainedSlab {
+            state.last.replay_ms += t_replay.elapsed().as_secs_f64() * 1000.0;
+            state.retained[page] = Some(RetainedSlab {
                 prev_live: slab_live_words(scene),
                 ..r
             });
@@ -732,7 +762,7 @@ pub(crate) fn render_crowd_slab(
     });
     let t_prepare = web_time::Instant::now();
     renderer.prepare_reuse(device, queue, token, &resolved);
-    state.last.upload_ms = t_prepare.elapsed().as_secs_f64() * 1000.0;
+    state.last.upload_ms += t_prepare.elapsed().as_secs_f64() * 1000.0;
     let t_replay = web_time::Instant::now();
     let result = renderer.reuse_replay(
         device,
@@ -745,10 +775,10 @@ pub(crate) fn render_crowd_slab(
         resolved.sub_library_proxy,
         resolved.slab_image_proxies,
     );
-    state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
+    state.last.replay_ms += t_replay.elapsed().as_secs_f64() * 1000.0;
     state.last.fast = false;
     if result.is_ok() {
-        state.retained = Some(RetainedSlab {
+        state.retained[page] = Some(RetainedSlab {
             token,
             packed_len: resolved.packed.len(),
             transform_len: resolved.transform_len(),

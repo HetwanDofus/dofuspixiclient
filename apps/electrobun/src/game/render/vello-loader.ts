@@ -1421,12 +1421,13 @@ export function getSwfLoadStats(): {
 }
 
 /**
- * Internal helper: ensure first-time observation of a textureId is
- * counted. Bridge migration: most renderSwf* paths no longer return
- * a textureId — the remaining users are the spell-instance path and
- * the zero-copy tile atlas pages (`renderSwfTileAtlasPage`).
+ * Ensure first-time observation of a textureId is counted. Bridge
+ * migration: most renderSwf* paths no longer return a textureId — the
+ * remaining users are the spell-instance path, the zero-copy tile
+ * atlas pages (`renderSwfTileAtlasPage`) and the crowd atlas pages
+ * (`crowdAtlasInfo`, tracked by `CrowdRenderer` at adoption).
  */
-function trackRenderTexture(textureId: number, label: string): void {
+export function trackRenderTexture(textureId: number, label: string): void {
   if (textureId === 0 || textureId === -1) return;
   if (!liveRenderTextureIds.has(textureId)) {
     liveRenderTextureIds.add(textureId);

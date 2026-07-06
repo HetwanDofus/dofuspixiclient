@@ -35,14 +35,23 @@ export interface PickableObject {
   bounds?: PickableBounds;
   parentContainer?: Container;
   /**
-   * Marks a crowd-managed pickable. The picker skips it in the
-   * sprite-AABB loop and instead resolves it via the registered
-   * crowd hit-test, gated by `parentContainer.zIndex` against the
-   * sprite candidates.
+   * Marks a crowd-managed pickable. When `resolveSprite` yields a live
+   * sprite it takes the NORMAL sprite-AABB + alphaTest pass (the Pixi
+   * route — primary); otherwise the picker resolves it via the
+   * registered crowd hit-test, gated by `parentContainer.zIndex`
+   * against the sprite candidates (fallback).
    */
   crowd?: boolean;
   /** Player id this crowd pickable resolves to (crowd pickables only). */
   playerId?: number;
+  /**
+   * Lazy sprite accessor for crowd pickables: the per-actor atlas
+   * sprites are GENERATION-scoped (recreated on roster/zoom rebuilds)
+   * while registration happens once at spawn, so the picker must
+   * resolve the live sprite per pick. Returns null while the actor has
+   * no rendered cell content yet.
+   */
+  resolveSprite?: () => Sprite | null;
   /**
    * Optional pixel-test override. Called by `PickingSystem.pick`
    * after the AABB pass has placed the hover point inside

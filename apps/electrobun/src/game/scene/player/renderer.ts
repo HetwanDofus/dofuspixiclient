@@ -150,6 +150,10 @@ export class PlayerRenderer {
   /** Reused output array for `crowdSnapshot()` — its length is reset and
    *  the reused per-id objects are re-pushed each tick. */
   private readonly crowdSnapOut: CrowdPlayerSnapshot[] = [];
+  /** LIVE display zoom accessor (see `PlayerRendererConfig.getZoom`) —
+   *  seeds the crowd's bake density at creation so the boot render is
+   *  edge-crisp at the canonical zoom. */
+  private readonly getZoom: (() => number | null) | null;
 
   constructor(parentContainer: Container, config: PlayerRendererConfig) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
@@ -160,6 +164,7 @@ export class PlayerRenderer {
     this.pathfinding = config.pathfinding ?? null;
     this.scene = config.scene;
     this.stripRenderer = config.stripRenderer;
+    this.getZoom = config.getZoom ?? null;
     this.container = parentContainer;
 
     this.sprites = new PlayerSpriteController(
@@ -294,10 +299,18 @@ export class PlayerRenderer {
     const player = this.buildActivePlayer(data);
     this.players.set(data.id, player);
     this.registerPlayerActor(data.id, player);
-    // Mount the strip-rendered Pixi sprite as a child of the player's
-    // container; sprite-controller's onApplied callback will hand it
-    // texture frames as soon as the first animation lands.
-    this.stripRenderer.attach(player);
+    // Strip residue fix (unified-atlas Step 3): crowd-managed bodies
+    // never touch the strip — no slot, no composition-atlas acquire,
+    // no `strip.players` count. The strip attaches lazily the moment a
+    // player actually needs it (mount transition in `syncPlacement`,
+    // or the crowd-disable fallback in `onPostTick`); `attach` is
+    // idempotent. With the crowd disabled, attach at spawn as before.
+    if (!this.crowdEnabled) {
+      // Mount the strip-rendered Pixi sprite as a child of the player's
+      // container; sprite-controller's onApplied callback will hand it
+      // texture frames as soon as the first animation lands.
+      this.stripRenderer.attach(player);
+    }
 
     if (data.linkedChildren && data.linkedChildren.length > 0) {
       return this.loadWithLinkedChildren(data, player);
@@ -595,19 +608,33 @@ export class PlayerRenderer {
         container: Container;
         alphaTest?: import("@/game/types").PickableObject["alphaTest"];
       }
-    | { crowd: true; container: Container; playerId: number }
+    | {
+        crowd: true;
+        container: Container;
+        playerId: number;
+        resolveSprite?: () => Sprite | null;
+        alphaTest?: import("@/game/types").PickableObject["alphaTest"];
+      }
     | null {
     const f = this.players.get(id);
     if (!f) {
       return null;
     }
-    // Crowd-managed bodies have no baked strip sprite — they're picked
-    // by the wasm point-in-path hit-test (`CrowdRenderer.hitTest`),
-    // wired into the picking system as a crowd pickable. Return the
-    // crowd descriptor so `BattlefieldPicking.registerPlayer` takes the
-    // sprite-less registration path.
+    // Crowd-managed bodies are ordinary per-actor atlas sprites now
+    // (unified-atlas Step 3): the PIXI route is primary — the picking
+    // system resolves the live sprite lazily (`resolveSprite`, sprites
+    // are generation-scoped) and pixel-tests via the wasm point-in-path
+    // silhouette. The sprite-less crowd resolver remains the fallback
+    // while an actor has no rendered cell yet.
     if (this.isCrowdManaged(f)) {
-      return { crowd: true, container: f.container, playerId: id };
+      return {
+        crowd: true,
+        container: f.container,
+        playerId: id,
+        resolveSprite: () => this.crowd?.getActorSprite(id) ?? null,
+        alphaTest: (adjX: number, adjY: number) =>
+          this.crowd?.actorAlphaHit(id, adjX, adjY) ?? true,
+      };
     }
     const sprite = this.stripRenderer.getSlotSprite(id, "main");
     if (!sprite) {
@@ -767,6 +794,11 @@ export class PlayerRenderer {
     this.unsubPreTick();
     this.unsubPostTick();
     this.clear();
+    // Retire the crowd's atlas generations (page sources +
+    // freeRenderTexture) — the world-actors init destroys us on every
+    // map change, and leaked pages would otherwise accumulate per map.
+    this.crowd?.destroy();
+    this.crowd = null;
   }
 
   // ── Internals ───────────────────────────────────────────────────────
@@ -1082,6 +1114,9 @@ export class PlayerRenderer {
       for (const player of this.players.values()) {
         if (player.mountLayers) continue;
         if (!player.currentAnimData || !player.currentAnimName) continue;
+        // Crowd bots skipped the spawn-time strip attach entirely
+        // (strip residue fix) — create their strip state now.
+        this.stripRenderer.attach(player);
         const dir = animNameDir(player.currentAnimName);
         const flipped = isDirectionFlipped(player.direction);
         void this.stripRenderer.applyAnimation(
@@ -1112,10 +1147,16 @@ export class PlayerRenderer {
    */
   private syncCrowd(): void {
     if (!this.crowd) {
-      this.crowd = new CrowdRenderer(
-        this.container,
-        this.stripRenderer.getResolution(),
-      );
+      // Seed the bake density from the LIVE zoom (exact float) — the
+      // strip default (3) is unrelated to the display zoom and made
+      // the boot crowd the blurriest layer on screen until the first
+      // zoom-settle event replaced it.
+      const liveZoom = this.getZoom?.() ?? null;
+      const seedRes =
+        liveZoom != null && liveZoom > 0
+          ? Math.round(Math.max(0.5, liveZoom) * 1000) / 1000
+          : this.stripRenderer.getResolution();
+      this.crowd = new CrowdRenderer(this.container, seedRes);
       // Route crowd picking through the wasm point-in-path hit-test.
       // Idempotent — the crowd is created once, so this installs the
       // resolver a single time. `pick()` gates the resolved id by
@@ -1349,6 +1390,10 @@ export class PlayerRenderer {
     const dirChar = animNameDir(player.currentAnimName);
 
     if (player.mountLayers) {
+      // Mounted actors render through the strip. Crowd-managed spawns
+      // skip the spawn-time attach (strip residue fix), so make sure
+      // the strip state exists the moment a mount engages (idempotent).
+      this.stripRenderer.attach(player);
       // Body is hidden — the `_Back` half is what the user sees.
       this.stripRenderer.setSlotVisible(player, "main", false);
       const ml = player.mountLayers;

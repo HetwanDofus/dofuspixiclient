@@ -166,12 +166,14 @@ export class PickingSystem {
     let bestZIndex = -Infinity;
 
     for (const [, obj] of this.pickableObjects) {
-      // Crowd / sprite-less pickables are resolved after this loop via
-      // `crowdResolver`, not by a sprite-local AABB.
-      if (obj.crowd || !obj.sprite) {
+      // PIXI route (primary for crowd actors, unified-atlas Step 3):
+      // a crowd pickable with a LIVE per-actor atlas sprite takes the
+      // normal sprite-AABB + alphaTest pass below. Sprite-less crowd
+      // pickables fall through to the `crowdResolver` after this loop.
+      const sprite = obj.crowd ? obj.resolveSprite?.() ?? null : obj.sprite;
+      if (!sprite) {
         continue;
       }
-      const sprite = obj.sprite;
       const container = obj.parentContainer;
 
       if (!sprite.visible || !sprite.texture || !sprite.parent) {

@@ -67,6 +67,9 @@ export interface BattlefieldWorldActorsDeps {
    * Vello strip dispatch per anim swap, then per-tick pointer swap).
    */
   stripRenderer(): PlayerStripRenderer | null;
+  /** LIVE display zoom — seeds the crowd's bake density at renderer
+   *  creation (boot crispness; see `PlayerRendererConfig.getZoom`). */
+  currentZoom(): number | null;
   currentMapWidth(): number;
   transparencyEnabled(): boolean;
   applyTransparency(): void;
@@ -396,6 +399,7 @@ export class BattlefieldWorldActors {
       pathfinding: this.deps.pathfinding(),
       scene: this.deps.scene(),
       stripRenderer,
+      getZoom: () => this.deps.currentZoom(),
     });
 
     this.deps

@@ -209,6 +209,8 @@ export class Battlefield {
     cellDataMap: () => this.cellDataMap,
     rendererRegistry: () => this.rendererRegistry,
     stripRenderer: () => this.playerStripRenderer,
+    currentZoom: () =>
+      this.interactionHandler?.getZoom() ?? this.engine.getZoom() ?? null,
     currentMapWidth: () => this.currentMapData?.width ?? 15,
     transparencyEnabled: () => this.transparencyMode,
     applyTransparency: () => this.applyTransparencyMode(),

@@ -66,6 +66,15 @@ citizens of the same scene graph as actors/tiles.
 2. Tile atlas consolidation + new lifecycle. Fixes QA-3 (map revisit).
 3. Actor slab→atlas→per-actor-sprites conversion (+ bake_body spine).
    Fixes QA-4 (resolution lifecycle) + Phase-4 strip residue.
+   [DONE except bake_body: tight-packed per-actor cells across pages,
+   (rosterKey, resMilli) generations w/ rendered-flag swap + 2-tick
+   retire, per-actor Pixi sprites Y-sorted via playerZIndex(cellId),
+   Pixi-primary picking via resolveSprite + wasm-silhouette alphaTest,
+   strip no longer attaches crowd bots at spawn. bake_body.rs adoption
+   DEFERRED to its own pass: replacing emit_player_look_split with
+   wc3's wgpu-free content-hash bake is a full-size change (493-line
+   module + dedup plumbing through the slab intern path) and must not
+   be half-adopted.]
 4. Reveal gating (map+actors appear together, canonical loading
    semantics). Fixes QA-2.
 5. Remaining wc3 features: minimap, spell-FX via modular avm1,

@@ -202,14 +202,19 @@ export class BattlefieldPicking {
 
     const pickableId = this.nextPickableId++;
     if ("crowd" in data) {
-      // Crowd-managed body: no baked strip sprite. Register a
-      // sprite-less crowd pickable resolved by the wasm point-in-path
-      // hit-test (`PickingSystem.crowdResolver`), keyed on playerId.
+      // Crowd-managed body (unified-atlas Step 3): an ordinary
+      // per-actor atlas sprite, resolved LAZILY per pick because the
+      // sprites are generation-scoped (`resolveSprite`), pixel-tested
+      // via the wasm point-in-path silhouette (`alphaTest`). While the
+      // actor has no rendered cell yet, the sprite-less crowd-resolver
+      // fallback (`PickingSystem.crowdResolver`) picks it instead.
       pickingSystem.registerObject({
         id: pickableId,
         crowd: true,
         playerId,
         parentContainer: data.container,
+        resolveSprite: data.resolveSprite,
+        alphaTest: data.alphaTest,
       });
     } else {
       pickingSystem.registerObject({

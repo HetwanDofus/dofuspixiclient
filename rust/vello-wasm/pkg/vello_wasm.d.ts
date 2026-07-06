@@ -156,12 +156,17 @@ export class VelloRenderer {
      */
     createSwfSpellInstance(bundle: string, resolution: number): number;
     /**
-     * Atlas layout for the per-actor compositing path: `{cols, cellW, cellH,
-     * anchorX, anchorY}`. Actor at `realCrowdSetup` index `i` occupies cell
-     * `(i % cols, i / cols)`; its feet are at `(anchorX, anchorY)` inside the
-     * `cellW × cellH` cell. The JS makes one Pixi sprite per actor sampling
-     * its cell, anchored at the feet, at the actor's world position +
-     * `playerZIndex(cellId)`.
+     * Atlas layout for the per-actor compositing path (unified-atlas
+     * Step 3): `{ count, pages: [{texture, textureId, width, height}],
+     * cellPage/cellX/cellY/cellW/cellH: Uint32Array, anchorX/anchorY:
+     * Float64Array }`. Actor at `realCrowdSetup` index `i` occupies
+     * rect `(cellX[i], cellY[i], cellW[i], cellH[i])` of page
+     * `cellPage[i]`; its feet sit at `(anchorX[i], anchorY[i])` inside
+     * the cell. The JS makes one Pixi sprite per actor sampling its
+     * cell, anchored at the feet, at the actor's world position +
+     * `playerZIndex(cellId)`. Page GPUTextures are zero-copy handles;
+     * their storage is retired by the JS generation lifecycle via
+     * `freeRenderTexture(textureId)`.
      */
     crowdAtlasInfo(): any;
     /**
@@ -200,11 +205,9 @@ export class VelloRenderer {
      */
     crowdTakePendingBakes(): any;
     /**
-     * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
-     * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
-     * ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
-     * the same texture and the JS side marks the source dirty. The GPUTexture stays
-     * valid while the crowd lives (retired by `realCrowdFree`).
+     * DIAG compat: expose page 0 as a Pixi-adoptable `{texture: GPUTexture,
+     * width, height}` (no readback). The live per-actor path uses
+     * `crowdAtlasInfo` (all pages + per-actor cells) instead.
      */
     crowdTextureHandle(): any;
     /**
@@ -222,8 +225,15 @@ export class VelloRenderer {
      * WITHOUT clearing `look_cache` (new `(sig, frame)` combos are baked lazily by
      * the next `realCrowdRenderBatched`, old entries persist for reuse). Roster
      * add/remove still requires a fresh `realCrowdSetup`.
+     *
+     * Returns the number of MISFITS: players whose new look (or scale)
+     * needs a bigger atlas cell than the one fitted at setup. The caller
+     * re-fits with a fresh `realCrowdSetup` generation when > 0 (until
+     * then the outgrown actor clips at its cell edge). Extents fold into
+     * the grow-only per-bundle max, so a re-fit sized off it makes the
+     * same anim swap fit forever after.
      */
-    crowdUpdateLooks(updates: any): void;
+    crowdUpdateLooks(updates: any): number;
     /**
      * LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same
      * order as `realCrowdSetup`) WITHOUT re-setup. Re-`setup` clears the look cache, so
@@ -1386,7 +1396,7 @@ export interface InitOutput {
     readonly vellorenderer_crowdTakePendingBakes: (a: number) => any;
     readonly vellorenderer_crowdTextureHandle: (a: number) => any;
     readonly vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
-    readonly vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
+    readonly vellorenderer_crowdUpdateLooks: (a: number, b: any) => number;
     readonly vellorenderer_crowdUpdatePositions: (a: number, b: number, c: number) => void;
     readonly vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
     readonly vellorenderer_drainBakeTelemetry: (a: number) => any;

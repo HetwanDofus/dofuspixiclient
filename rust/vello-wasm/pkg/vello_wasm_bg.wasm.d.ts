@@ -25,7 +25,7 @@ export const vellorenderer_crowdLookPatchDiag: (a: number, b: number, c: number,
 export const vellorenderer_crowdTakePendingBakes: (a: number) => any;
 export const vellorenderer_crowdTextureHandle: (a: number) => any;
 export const vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
-export const vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
+export const vellorenderer_crowdUpdateLooks: (a: number, b: any) => number;
 export const vellorenderer_crowdUpdatePositions: (a: number, b: number, c: number) => void;
 export const vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
 export const vellorenderer_drainBakeTelemetry: (a: number) => any;
