@@ -51,12 +51,34 @@ Ranked gaps:
    zIndex rounds sub-cell offset (`renderer.ts:840`) vs wc3 continuous
    0.5-step depth bands.
 
-## B. Anim timing / applyEnd / NPC poses (report 2 — pending)
+## B. Anim timing / applyEnd / NPC poses (report 2 — COMPLETE)
 
-Known already: wc2 `loadApplyEnd` is a NO-OP stub
-(`character-sprite.ts` "would need a Rust-side bytecode walker") while
-wc3 recovers the AS2 `GAC.applyEnd(this)` stop frame — NPC statics hold
-the wrong frame.
+Root cause of "wrong NPC poses": **wc2 has no AVM1 playhead simulation
+to recover the settled idle pose.** It clamps `static*` to frame 0;
+players' static IS 1 real frame (fine), but NPCs/monsters ship
+multi-frame settle-in idles → wc2 shows the transitional frame-0 setup
+pose. wc3 runs a real AVM1 interpreter at bake time
+(`bake_body.rs:163-181 settled_static_overrides` +
+`tile_script.rs:66-216 ChildScript` + `tile_behavior/resolve.rs`),
+ticks each child to its `stop()`, and pins that frame
+(`render_body_to_deferred_with_overrides`).
+
+Ranked gaps:
+
+1. **[HIGHEST] Settled-static recovery missing** (above). wc2's
+   `loadApplyEnd` stub: `character-sprite.ts:171-181`; child frames
+   render `0 % N = 0` (`ctx.rs:374-380`). Fix: port wc3's
+   `settled_static_overrides` + the AVM1 playhead into the wc2 body
+   bake path — NOTE it reuses the SAME wc3 modules as the tile fix
+   (tile_script/tile_behavior/avm1), one port serves both.
+2. **[HIGH] Cast action-point missing** — spells fire at frame 1
+   instead of the authored mid-swing `applyEnd` frame. wc3
+   `anim_name.rs:228-263 action_point_frame`; wc2 `getApplyEndFrame`
+   stub → `renderer.ts:476-488` defaults launchFrame=1.
+3. **[PARITY — ruled out]** direction/flip tables byte-identical;
+   accessory frame selection (name-label + fallback) identical; host
+   60fps clock equivalent (wc3 catch-up ≤240 vs wc2 ≤1 frame/tick —
+   cosmetic); movement speed tables identical canonical.
 
 ## C. Tiles / animated scenery (report 3 — COMPLETE)
 
@@ -99,6 +121,44 @@ Ranked gaps:
 Fix = port wc3's `tile_behavior/` + `tile_script.rs` +
 `render/tile_parts.rs` (the Phase-2 swf-spike merge's tile leg), then
 key wc2's tile ticker per-instance (cell seed) instead of per-export.
+
+## Proposed fix waves (order of execution)
+
+**Wave 1 — scale correctness (wc2-native, no port):**
+1. Bake density == display density everywhere (the wc3 invariant).
+   `currentZoom` is discrete per window size (baseZoom × [1..5]), so
+   bake EXACTLY at the float `currentZoom` (not `ceil`-quantized):
+   tiles (`tile-sprite-renderer.ts:551`), map bg (re-bake on
+   zoom-settle instead of pinned 4), strips
+   (`scene/player/renderer.ts:712`), crowd (wire
+   `setResolution(currentZoom)` into the zoom path — currently never
+   called). Respect the 8192 texture clamps; re-bake on zoom-settle
+   (debounced), transient sprite scaling only during the gesture.
+   Result: every raster displays at exactly 1:1 → twip-crisp.
+2. Per-actor `scaleX/scaleY` (`^100x100`): already parsed in
+   dofus1-net GM rows — thread through look/snapshot and apply at
+   strip root scale and crowd emit transform (wc3
+   `world_compose_deferred.rs:994`).
+3. Re-evaluate `roundPixels: true` after (1) — snapping is harmless
+   once containers are 1:1, may still shimmer actors; test.
+4. Oversize-map fit-scale: fold into bake density or letterbox
+   (defer — only affects maps > 15×17).
+
+**Wave 2 — the AVM1 playhead port (one port, three fixes):** wc3's
+`avm1` engine + `tile_behavior/` + `tile_script.rs` are the shared
+machinery behind BOTH the animated-scenery model AND the NPC settled
+pose. Port them into wc2's swf-spike (the heart of the Phase-2 merge),
+then wire three consumers:
+  2a. `settled_static_overrides` in the body bake → NPC/monster idle
+      poses (B.1).
+  2b. Tile classification-by-execution + per-child `ChildScript`
+      playheads + per-cell seeds → parked/random/phased scenery
+      (C.1-C.5); `render/tile_parts.rs` for heavy tiles.
+  2c. `action_point_frame` → implement `getApplyEndFrame` → spell
+      cast timing (B.2).
+
+Each wave ends with the side-by-side re-test below before the next
+starts.
 
 ## Re-test protocol
 
