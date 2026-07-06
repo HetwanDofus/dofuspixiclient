@@ -3,10 +3,10 @@
 // `onAdjacentMapsData(cb)` and is responsible for:
 //   (a) fetching + decrypting the current map and handing it to the
 //       battlefield as today,
-//   (b) loading the three neighbour maps in parallel and pushing them
-//       into the NeighborBandRenderer for the side-band preview,
-//   (c) emitting GI once the current map is rendered so the server
+//   (b) emitting GI once the current map is rendered so the server
 //       streams sprite data.
+// (The neighbour descriptors are parsed but currently unused — the
+// side-map preview rendering was removed.)
 
 import { GDA, type GDASegments } from "@dofus/dofus1-net";
 

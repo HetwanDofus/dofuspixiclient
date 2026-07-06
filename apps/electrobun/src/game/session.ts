@@ -13,11 +13,7 @@
 // (`net/handlers/`, drives stores/machines on the running game
 // socket). GameSession just owns the lifecycle.
 
-import type {
-  GDASegments,
-  GMSpriteAdd,
-  NeighborSegment,
-} from "@dofus/dofus1-net";
+import type { GDASegments, GMSpriteAdd } from "@dofus/dofus1-net";
 import {
   type AH,
   GAOut,
@@ -693,55 +689,9 @@ export class GameSession {
       // `MapReady` (GDK). Without this ack the server never streams
       // our player sprite.
       this.client.send(GIOut, {});
-
-      // Neighbour previews — non-blocking, after the ack.
-      void this.loadNeighborBands(bf, segs);
     } catch (err) {
       log.error(`map load failed for ${cur.mapId}: ${String(err)}`);
     }
-  }
-
-  /**
-   * Load the left/right/bottom neighbour maps (best-effort, parallel)
-   * and push each into its band. Missing segments (server sent `;;`)
-   * resolve immediately to a cleared (flat-black) band.
-   */
-  private async loadNeighborBands(
-    bf: Battlefield,
-    segs: GDASegments
-  ): Promise<void> {
-    const sides: Array<{
-      side: "left" | "right" | "bottom";
-      seg: NeighborSegment | null;
-    }> = [
-      { side: "left", seg: segs.left },
-      { side: "right", seg: segs.right },
-      { side: "bottom", seg: segs.bottom },
-    ];
-    await Promise.allSettled(
-      sides.map(async ({ side, seg }) => {
-        if (!seg) {
-          bf.setNeighborMap(side, null);
-          return;
-        }
-        try {
-          const mapData = await loadMap(
-            seg.mapId,
-            seg.dateTime,
-            seg.decryptKey
-          );
-          // Bail if the battlefield changed underneath us (rapid map
-          // walks) — a newer GDA's loadMapsAsset owns the bands now.
-          if (this.battlefield !== bf) return;
-          bf.setNeighborMap(side, mapData);
-        } catch (err) {
-          log.warn(
-            `neighbour ${side} (map ${seg.mapId}) load failed: ${String(err)}`
-          );
-          if (this.battlefield === bf) bf.setNeighborMap(side, null);
-        }
-      })
-    );
   }
 
   /**

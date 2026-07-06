@@ -159,11 +159,10 @@ export class Engine {
       width,
       height,
       backgroundColor: this.config.backgroundColor,
-      // Transparent canvas — Pixi paints the world on top of the page
-      // background. Kept at 0 because the legacy three-canvas stack
-      // composited via DOM; with the new single-canvas pipeline a
-      // future change can flip this to opaque if it improves blending.
-      backgroundAlpha: 0,
+      // Opaque black canvas: the map renders directly on stage (the
+      // neighbour-band side compositor is gone) and the area around
+      // the centred game rect must read as flat black.
+      backgroundAlpha: 1,
       resolution: 1,
       autoDensity: true,
       antialias: true,

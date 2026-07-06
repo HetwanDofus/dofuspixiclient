@@ -4,6 +4,8 @@ import {
   type Application,
   type Container,
   extensions,
+  Sprite,
+  Texture,
   TextureSource,
   Ticker,
 } from "pixi.js";
@@ -15,10 +17,6 @@ import type { AtlasLoader } from "@/game/render/atlas-loader";
 // inside a loaded battle. Delete with the spike file.
 import "@/game/render/spike-bitmap-bridge";
 
-import type {
-  NeighborBandRenderer,
-  NeighborSide,
-} from "@/game/render/neighbor-band-renderer";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type {
@@ -33,6 +31,11 @@ import {
   type CharacterSpriteLoader,
   initCharacterSpriteLoader,
 } from "@/game/assets/character-sprite";
+import {
+  DISPLAY_HEIGHT,
+  DISPLAY_WIDTH,
+  SIDE_BAND_WIDTH,
+} from "@/game/constants/battlefield";
 import { type CellData, findCellAtPosition } from "@/game/datacenter/cell";
 import { computeMapScale, type MapData } from "@/game/datacenter/map";
 import { Camera } from "@/game/render/camera";
@@ -134,6 +137,9 @@ export class Battlefield {
   private canvas: HTMLCanvasElement;
   private app: Application | null = null;
   private mapContainer: Container | null = null;
+  /** Opaque black covers hard-cropping the game rect (see layoutGameAreaCrop). */
+  private cropCovers: { left: Sprite; right: Sprite; bottom: Sprite } | null =
+    null;
   private atlasLoader: AtlasLoader | null = null;
   /**
    * Strip-rendered character sprite owner. Constructed by
@@ -172,14 +178,6 @@ export class Battlefield {
 
   /** Blur-out old map → blur-in new map on map change. */
   private mapTransition: MapTransition | null = null;
-  /**
-   * Widescreen neighbour-band compositor. Positions `mapContainer` at
-   * the canvas's central game area and fills the left/right/bottom
-   * bands with pre-rendered tile art of the neighbour maps (GDA).
-   * Constructed by `initEngineAndVello` and resized via
-   * `handleCanvasResize`.
-   */
-  private neighborBandRenderer: NeighborBandRenderer | null = null;
 
   /** Capability-bucketed actor registry + single ticker entry point. */
   private scene: Scene = new Scene();
@@ -304,11 +302,8 @@ export class Battlefield {
       this.interactionHandler.setBaseZoom(this.engine.getBaseZoom());
     }
 
-    // Reallocate the side-band gameRt + reposition wrapper/bands. The
-    // compositor is idempotent on unchanged dims, so calling on every
-    // continuous-resize tick is cheap; only an actual screen dim
-    // change triggers a real reallocation.
-    this.neighborBandRenderer?.resize();
+    // Keep the map anchored at the centring offset for the new dims.
+    this.recenterMap();
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.notifyResize(zoom, width, height);
@@ -321,6 +316,69 @@ export class Battlefield {
       screenWidth: screenW,
       screenHeight: screenH,
     });
+  }
+
+  /**
+   * Anchor `mapContainer` at the wide canvas's central game-area origin.
+   * Interaction math reads `mapContainer.x` as the screen anchor
+   * (interaction-handler.ts uses the same `SIDE_BAND_WIDTH × baseZoom`
+   * offset), so the offset must live directly on the container.
+   */
+  private recenterMap(): void {
+    this.mapContainer?.position.set(
+      SIDE_BAND_WIDTH * this.engine.getBaseZoom(),
+      0,
+    );
+    this.layoutGameAreaCrop();
+  }
+
+  /**
+   * Canonical hard crop of the game rect: three opaque black sprites
+   * (left / right / below-game-area) drawn ABOVE the map so edge
+   * objects that overhang the 742×432 game area are covered instead of
+   * spilling onto the black surround. Plain sprites — no Pixi `.mask`
+   * and no filters, both of which churn TexturePool and leak under the
+   * patched wgpu fork.
+   */
+  private layoutGameAreaCrop(): void {
+    if (!this.app || !this.mapContainer) {
+      return;
+    }
+    if (!this.cropCovers) {
+      const stage = this.app.stage;
+      const mapIdx = stage.getChildIndex(this.mapContainer);
+      const mk = (label: string, idx: number): Sprite => {
+        const s = new Sprite(Texture.WHITE);
+        s.label = label;
+        s.tint = 0x000000;
+        s.eventMode = "none";
+        // Directly above the map container, below later-added overlays
+        // (debug HUD etc. — stage children render in index order).
+        stage.addChildAt(s, idx);
+        return s;
+      };
+      this.cropCovers = {
+        left: mk("game-area-crop-left", mapIdx + 1),
+        right: mk("game-area-crop-right", mapIdx + 2),
+        bottom: mk("game-area-crop-bottom", mapIdx + 3),
+      };
+    }
+    const baseZoom = this.engine.getBaseZoom();
+    const screenW = this.app.screen.width;
+    const screenH = this.app.screen.height;
+    const sideCss = SIDE_BAND_WIDTH * baseZoom;
+    const gameWCss = DISPLAY_WIDTH * baseZoom;
+    const gameHCss = DISPLAY_HEIGHT * baseZoom;
+    const c = this.cropCovers;
+    c.left.position.set(0, 0);
+    c.left.width = Math.max(1, sideCss);
+    c.left.height = screenH;
+    c.right.position.set(sideCss + gameWCss, 0);
+    c.right.width = Math.max(1, screenW - (sideCss + gameWCss));
+    c.right.height = screenH;
+    c.bottom.position.set(sideCss, gameHCss);
+    c.bottom.width = gameWCss;
+    c.bottom.height = Math.max(1, screenH - gameHCss);
   }
 
   private handleResizeStart(): void {
@@ -796,15 +854,10 @@ export class Battlefield {
     // sprite "runs everywhere" after a teleport / zaap.
     this.worldActors.setMapDimensions(mapData.width);
 
-    // Reset map position. Pre-widescreen this was just (0, 0); with
-    // the neighbour-band compositor the "rest" position is the centring
-    // offset so the game sits in the canvas's central game area.
-    if (this.neighborBandRenderer) {
-      this.neighborBandRenderer.recenter();
-    } else {
-      this.mapContainer.x = 0;
-      this.mapContainer.y = 0;
-    }
+    // Reset map position to the centring offset so the game sits in
+    // the canvas's central game area (interaction math reads
+    // `mapContainer.x` as the screen anchor).
+    this.recenterMap();
 
     this.picking.clearTiles();
     // Drop alpha-map cache for sources from the prior map. Each cached
@@ -920,15 +973,6 @@ export class Battlefield {
    */
   async revealMap(): Promise<void> {
     await this.mapTransition?.reveal();
-  }
-
-  /**
-   * Push a baked neighbour map (or `null` to clear) into the
-   * widescreen band on the given side. Called per-side by the session
-   * as each neighbour's GDA-described asset finishes loading.
-   */
-  setNeighborMap(side: NeighborSide, mapData: MapData | null): void {
-    this.neighborBandRenderer?.setNeighbor(side, mapData);
   }
 
   /** Set the player character ID (used for tracking). */
@@ -1148,13 +1192,6 @@ export class Battlefield {
     // Clean up map transition
     this.mapTransition?.destroy();
     this.mapTransition = null;
-
-    // NeighborBandRenderer owns three RenderTextures + the bake rig.
-    // Tear down BEFORE the engine destroys the Pixi app so mapContainer
-    // is back on the stage when `app.destroy(true, {...})` walks the
-    // scene graph.
-    this.neighborBandRenderer?.destroy();
-    this.neighborBandRenderer = null;
 
     this.zoom.destroy();
     hideContextMenu();

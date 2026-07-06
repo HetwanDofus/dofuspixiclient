@@ -34,11 +34,9 @@ export const GAME_HEIGHT = 786;
 
 // Widescreen canvas — render to a ~1.95 aspect block so the game area
 // (DISPLAY_WIDTH × DISPLAY_HEIGHT = 742×432, native ~1.72 aspect) sits
-// centred with two lateral bands AND a new bottom band between the
-// game area and the React banner. Each band is fed pre-rendered tile
-// art of the corresponding neighbour map (left/right/bottom) by
-// `NeighborBandRenderer`, replacing the old `SideBandCompositor`
-// downsample-blur of the current map.
+// centred, with flat-black lateral bands and a bottom band between the
+// game area and the React banner (the neighbour-map side previews were
+// removed; the layout constants remain the canvas contract).
 //
 // Vertical stack inside the central column (top → bottom):
 //   - game area     (DISPLAY_HEIGHT)

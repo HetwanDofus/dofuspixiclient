@@ -7,7 +7,6 @@ import type { MapHandler } from "@/game/scene/map/handler";
 import type { Scene } from "@/game/scene/scene";
 import { InteractionHandler } from "@/game/input/interaction-handler";
 import { AtlasLoader } from "@/game/render/atlas-loader";
-import { NeighborBandRenderer } from "@/game/render/neighbor-band-renderer";
 import { PickingSystem } from "@/game/render/picking-system";
 import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
@@ -47,14 +46,6 @@ export interface BattlefieldBootstrapContext {
 
   app: Application | null;
   mapContainer: Container | null;
-  /**
-   * Widescreen neighbour-band compositor. Positions `mapContainer` at
-   * the centring offset for the 1.95-aspect canvas and fills the
-   * lateral + bottom bands with pre-rendered tile art of the
-   * left/right/bottom neighbour maps (descriptors arrive over GDA).
-   * Owned by the Battlefield.
-   */
-  neighborBandRenderer: NeighborBandRenderer | null;
   mapTransition: MapTransition | null;
   /**
    * Map renderer — populated lazily by `Battlefield.loadManifest()`
@@ -120,22 +111,12 @@ export async function initEngineAndVello(
   // Pixi compositor.
   ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
-  // Composition Y: the live map is composited via NeighborBandRenderer's
-  // per-frame capture (`gameRt` + feathered `gameSprite`), not drawn directly.
-  // `renderable = false` skips it in Pixi's stage pass (no wasted double-draw);
-  // the explicit `render({ container: mapContainer })` in `captureFrame` still
-  // renders it — that path only honours `visible`, not `renderable`.
-  ctx.mapContainer.renderable = false;
-  // NeighborBandRenderer positions mapContainer at the centring offset
-  // for the wider 1.95-aspect canvas and stands up the left/right/
-  // bottom band sprites plus a black backdrop around it. The offset
+  // The map renders directly on stage, positioned at the centring
+  // offset for the wide canvas (Battlefield.recenterMap). The offset
   // lives directly on `mapContainer.position` so existing interaction
   // math (which reads `mapContainer.x` as the screen anchor) keeps
-  // working — see the renderer file header for the rationale.
-  ctx.neighborBandRenderer = new NeighborBandRenderer(
-    ctx.app,
-    ctx.mapContainer
-  );
+  // working. Outside the game rect the opaque canvas background reads
+  // flat black (no side-map rendering).
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
 
   // Strip-rendered character sprite owner. Pixi adopted Vello's
@@ -351,11 +332,6 @@ export function startSceneTicker(ctx: BattlefieldBootstrapContext): void {
     const dtMs = Ticker.shared.deltaMS;
     ctx.scene.tick(dtMs);
     ctx.interactionHandler?.tick();
-    // Composition Y: capture the live map into gameRt (NORMAL priority — runs
-    // before Pixi's LOW-priority stage render) so the feathered gameSprite can
-    // composite the current map's edge objects over the blurred neighbour
-    // bands, letting structures spill across the seam instead of being cut.
-    ctx.neighborBandRenderer?.captureFrame();
   };
 
   Ticker.shared.add(ctx.sceneTickerCallback);

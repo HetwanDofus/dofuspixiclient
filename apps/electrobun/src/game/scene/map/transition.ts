@@ -96,13 +96,10 @@ export class MapTransition {
     this.cleanup();
     return;
     // ── unreachable — kept for re-enable ────────────────────────────
-    // NOTE (Composition Y): `mapContainer.renderable` is now `false` and the
-    // live map is composited via NeighborBandRenderer's feathered `gameSprite`.
-    // A re-enabled transition must snapshot `gameSprite`/`gameRt` (the
-    // composited result) and insert ABOVE `gameSprite` — the
-    // `getChildIndex(mapContainer) + 1` insertion below is no longer correct,
-    // and snapshotting `mapContainer` directly would capture an un-feathered,
-    // off-screen-positioned subtree.
+    // NOTE: the map renders directly on stage again (the neighbour-band
+    // compositor was removed), so a re-enabled transition can snapshot
+    // `mapContainer` and insert at `getChildIndex(mapContainer) + 1` as
+    // written below.
     /*
     this.direction = direction ?? null;
     if (this.mapContainer.children.length === 0) return;

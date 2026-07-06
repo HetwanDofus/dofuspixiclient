@@ -3,9 +3,9 @@
 // non-zero tile id, resolving each tile id to its bundle/export/frame
 // via a `TileResolver`.
 //
-// Extracted from `MapHandler.buildPlacements` so the same cell-walk
-// powers both the live map render AND the off-screen neighbour-map
-// bakes used by `NeighborBandRenderer`. The tactic-mode extras
+// Extracted from `MapHandler.buildPlacements` so one cell-walk owns
+// the base layers (it also powered the removed neighbour-map side
+// bakes). The tactic-mode extras
 // (background override + LOS decor) stay in `MapHandler`, which calls
 // `buildBaseMapPlacements` for the base layers then appends its own.
 
