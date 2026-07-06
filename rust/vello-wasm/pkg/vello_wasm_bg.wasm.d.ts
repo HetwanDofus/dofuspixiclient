@@ -40,6 +40,8 @@ export const vellorenderer_getAnimationInfo: (a: number, b: number, c: number, d
 export const vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
 export const vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const vellorenderer_gpuLastRefusedLabel: (a: number) => [number, number];
+export const vellorenderer_gpuLedgerStats: (a: number) => [number, number];
 export const vellorenderer_init: (a: number) => any;
 export const vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
 export const vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
@@ -93,6 +95,7 @@ export const vellorenderer_serializeTileSubsceneCache: (a: number, b: number, c:
 export const vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
 export const vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
 export const vellorenderer_setCrowdOffThreadBake: (a: number, b: number) => void;
+export const vellorenderer_setGpuBudgetBytes: (a: number, b: number) => void;
 export const vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
 export const vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;

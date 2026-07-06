@@ -201,6 +201,16 @@ interface StatsProviders {
   atlasCacheEntries?: () => number;
   testPlayerCount?: () => number;
   swfLoad?: () => SwfLoadStats | null;
+  /** Phase-1 allocation accountant (vello-loader.getGpuLedger). */
+  gpuLedger?: () => {
+    budgetBytes: number;
+    liveBytes: number;
+    refusalCount: number;
+    refusedBytes: number;
+    lastRefusedLabel: string;
+    allocRateBytes: number;
+    rateWindowTicks: number;
+  } | null;
 }
 
 interface PerfWithMemory extends Performance {
@@ -269,6 +279,8 @@ class RenderWatchdog {
     freed: number;
     jsHeapMB: number | null;
   } | null = null;
+  /** GPU-budget refusal total at the last heartbeat (delta alerting). */
+  private lastGpuRefusalCount = 0;
 
   /**
    * watchdog (which runs on `setInterval`, not `requestAnimationFrame`)
@@ -536,8 +548,29 @@ class RenderWatchdog {
       const tileStr = tileStats
         ? ` tile=${tileStats.lastMs.toFixed(1)}ms/${tileStats.dispatchesPerSec.toFixed(0)}fps`
         : "";
+      // Phase-1 GPU allocation accountant: log live bytes vs budget +
+      // the trailing allocation rate, and shout when the hard budget
+      // starts REFUSING allocations — a refusal means a bake got a
+      // placeholder resource (visible corruption is expected and
+      // preferable to a host kill; the working set must shrink).
+      let gpuStr = "";
+      const ledger = safeCall(this.providers.gpuLedger, null);
+      if (ledger) {
+        const mb = (b: number) => (b / 1048576).toFixed(0);
+        gpuStr = ` gpu=${mb(ledger.liveBytes)}MB${ledger.budgetBytes > 0 ? `/${mb(ledger.budgetBytes)}MB` : ""} rate=${mb(ledger.allocRateBytes)}MB/${ledger.rateWindowTicks}t`;
+        if (ledger.refusalCount > this.lastGpuRefusalCount) {
+          log.error(
+            `GPU BUDGET REFUSALS: ${ledger.refusalCount} total (+${
+              ledger.refusalCount - this.lastGpuRefusalCount
+            } this heartbeat), last label "${ledger.lastRefusedLabel}", ` +
+              `${mb(ledger.refusedBytes)}MB refused — live=${mb(ledger.liveBytes)}MB budget=${mb(ledger.budgetBytes)}MB`
+          );
+          this.lastGpuRefusalCount = ledger.refusalCount;
+          this.markDirty();
+        }
+      }
       log.info(
-        `[heartbeat] active=${cur.active} created=${cur.created} freed=${cur.freed}${cur.jsHeapMB !== null ? ` heap=${cur.jsHeapMB.toFixed(0)}MB` : ""}${deltaStr}${poolStr}${tileStr}`
+        `[heartbeat] active=${cur.active} created=${cur.created} freed=${cur.freed}${cur.jsHeapMB !== null ? ` heap=${cur.jsHeapMB.toFixed(0)}MB` : ""}${deltaStr}${poolStr}${tileStr}${gpuStr}`
       );
       this.lastHeartbeatSnapshot = cur;
     }, 1000);
@@ -680,6 +713,11 @@ class RenderWatchdog {
     }
     if (this.texturesActive >= TEXTURE_COUNT_WARN) {
       warnings.push(`High texture count: ${this.texturesActive}`);
+    }
+    if (this.lastGpuRefusalCount > 0) {
+      warnings.push(
+        `GPU budget refusing allocations (${this.lastGpuRefusalCount})`
+      );
     }
     if (slow1s >= 30) {
       warnings.push(`Slow frames last 1s: ${slow1s}`);

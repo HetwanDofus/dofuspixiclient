@@ -628,6 +628,39 @@ export class VelloRenderer {
         return v2;
     }
     /**
+     * Label of the most recently budget-refused allocation ("" when
+     * none yet). Pairs with `gpuLedgerStats` for telemetry.
+     * @returns {string}
+     */
+    gpuLastRefusedLabel() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.vellorenderer_gpuLastRefusedLabel(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Allocation-accountant snapshot. `Float64Array`:
+     * `[budgetBytes, liveTexBytes, liveBufBytes,
+     *   refusalCount, refusedBytes,
+     *   allocRateBytesWindow, rateWindowTicks,
+     *   pendingTexBytes, pendingBufBytes]`.
+     * The rate value is bytes created (tex+buf) over the last
+     * `rateWindowTicks` rAF ticks — the flood watchdog signal.
+     * @returns {Float64Array}
+     */
+    gpuLedgerStats() {
+        const ret = wasm.vellorenderer_gpuLedgerStats(this.__wbg_ptr);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
      * so JS can pass `{ adapter, device }` to Pixi.js.
      * @param {boolean} bake_only
@@ -1761,6 +1794,19 @@ export class VelloRenderer {
      */
     setCrowdOffThreadBake(on) {
         wasm.vellorenderer_setCrowdOffThreadBake(this.__wbg_ptr, on);
+    }
+    /**
+     * Set the hard GPU allocation budget (Phase 1 accountant), in
+     * bytes over ALL live texture + buffer bytes, bake temp pages
+     * included. `0` disables enforcement (accounting continues).
+     * When a create would breach the budget the patched wgpu refuses
+     * it — a minimal placeholder is allocated instead and the refusal
+     * is counted (`gpuLedger().refusals`); the process NEVER
+     * allocates past budget.
+     * @param {number} bytes
+     */
+    setGpuBudgetBytes(bytes) {
+        wasm.vellorenderer_setGpuBudgetBytes(this.__wbg_ptr, bytes);
     }
     /**
      * Set the player's three zone colours used by the SWF render path.

@@ -6083,6 +6083,16 @@ impl VelloRenderer {
             let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
             let mut interned_this_frame: u32 = 0;
             let mut layouts_built_this_frame: u32 = 0;
+            // wc3-style bake pacing (pump_deferred's "1-decode-per-frame"
+            // throttle, generalized to a per-frame wall budget): cold-miss
+            // bake work is metered against `SLAB_BAKE_BUDGET_MS`; misses
+            // past the budget defer to the NEXT frames (brief pop-in,
+            // exactly wc3's prewarm behaviour). A spawn storm becomes a
+            // paced trickle — allocation rate bounded by construction —
+            // and a rendered actor is ALWAYS at its exact current frame
+            // (never a stale pose).
+            let mut bake_ms_spent: f64 = 0.0;
+            let mut bakes_deferred: u32 = 0;
             {
                 let RealAnimCrowd {
                     ref players,
@@ -6188,6 +6198,13 @@ impl VelloRenderer {
                             },
                         }
                     } else {
+                        // Per-frame bake pacing: once this frame's bake budget
+                        // is spent, defer the remaining misses to later frames.
+                        if bake_ms_spent >= SLAB_BAKE_BUDGET_MS {
+                            bakes_deferred += 1;
+                            continue;
+                        }
+                        let bake_t0 = perf_now();
                         // Skip re-encoding subs already interned — the layout
                         // churns per moving actor, but the colour-agnostic subs
                         // don't, so the bake only encodes genuinely-new geometry.
@@ -6241,6 +6258,7 @@ impl VelloRenderer {
                             });
                         }
                         layouts_built_this_frame += 1;
+                        bake_ms_spent += perf_now() - bake_t0;
                         let arc = std::sync::Arc::new(layout_vec);
                         self.slab_crowd.cache_layout(&p.layout_sig, sig_key, arc.clone());
                         arc
@@ -6328,6 +6346,11 @@ impl VelloRenderer {
                 &result,
                 &"layoutsThisFrame".into(),
                 &JsValue::from(layouts_built_this_frame),
+            );
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"bakesDeferred".into(),
+                &JsValue::from(bakes_deferred),
             );
             let _ = js_sys::Reflect::set(
                 &result,
@@ -10856,6 +10879,53 @@ impl VelloRenderer {
     pub fn rust_gpu_reset_by_name(&self) {
         use wgpu::backend::webgpu::deferred_destroy;
         deferred_destroy::reset_by_name();
+    }
+
+    /// Set the hard GPU allocation budget (Phase 1 accountant), in
+    /// bytes over ALL live texture + buffer bytes, bake temp pages
+    /// included. `0` disables enforcement (accounting continues).
+    /// When a create would breach the budget the patched wgpu refuses
+    /// it — a minimal placeholder is allocated instead and the refusal
+    /// is counted (`gpuLedger().refusals`); the process NEVER
+    /// allocates past budget.
+    #[wasm_bindgen(js_name = "setGpuBudgetBytes")]
+    pub fn set_gpu_budget_bytes(&self, bytes: f64) {
+        use wgpu::backend::webgpu::deferred_destroy;
+        deferred_destroy::set_budget_bytes(bytes.max(0.0) as u64);
+    }
+
+    /// Allocation-accountant snapshot. `Float64Array`:
+    /// `[budgetBytes, liveTexBytes, liveBufBytes,
+    ///   refusalCount, refusedBytes,
+    ///   allocRateBytesWindow, rateWindowTicks,
+    ///   pendingTexBytes, pendingBufBytes]`.
+    /// The rate value is bytes created (tex+buf) over the last
+    /// `rateWindowTicks` rAF ticks — the flood watchdog signal.
+    #[wasm_bindgen(js_name = "gpuLedgerStats")]
+    pub fn gpu_ledger_stats(&self) -> Vec<f64> {
+        use wgpu::backend::webgpu::deferred_destroy;
+        let (lt, lb, _ct, _cb, _dt, _db, pt, pb) = deferred_destroy::byte_stats();
+        let (refusals, refused_bytes, _label) = deferred_destroy::budget_refusals();
+        let window = deferred_destroy::RATE_WINDOW;
+        vec![
+            deferred_destroy::budget_bytes() as f64,
+            lt as f64,
+            lb as f64,
+            refusals as f64,
+            refused_bytes as f64,
+            deferred_destroy::alloc_rate_bytes(window) as f64,
+            window as f64,
+            pt as f64,
+            pb as f64,
+        ]
+    }
+
+    /// Label of the most recently budget-refused allocation ("" when
+    /// none yet). Pairs with `gpuLedgerStats` for telemetry.
+    #[wasm_bindgen(js_name = "gpuLastRefusedLabel")]
+    pub fn gpu_last_refused_label(&self) -> String {
+        use wgpu::backend::webgpu::deferred_destroy;
+        deferred_destroy::budget_refusals().2
     }
 
     /// For an accessory (bundle/export at slot+dir+side), return the

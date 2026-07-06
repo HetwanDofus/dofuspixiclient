@@ -2432,27 +2432,64 @@ impl dispatch::DeviceInterface for WebDevice {
     }
 
     fn create_buffer(&self, desc: &crate::BufferDescriptor<'_>) -> dispatch::DispatchBuffer {
-        let mapped_desc = webgpu_sys::GpuBufferDescriptor::new(desc.size as f64, desc.usage.bits());
-        mapped_desc.set_mapped_at_creation(desc.mapped_at_creation);
-        if let Some(label) = desc.label {
+        // DOFUS allocation accountant: over-budget creates are refused
+        // — a minimal 4-byte placeholder is allocated instead, so the
+        // process NEVER allocates past the hard budget. Downstream use
+        // hits WebGPU validation (visible, contained); the JS-side
+        // watchdog reads `budget_refusals()` and halts bakes.
+        let allowed = deferred_destroy::try_reserve(desc.size, desc.label);
+        let effective = if allowed {
+            desc.clone()
+        } else {
+            crate::BufferDescriptor {
+                size: 4,
+                mapped_at_creation: false,
+                ..desc.clone()
+            }
+        };
+        let mapped_desc =
+            webgpu_sys::GpuBufferDescriptor::new(effective.size as f64, effective.usage.bits());
+        mapped_desc.set_mapped_at_creation(effective.mapped_at_creation);
+        if let Some(label) = effective.label {
             mapped_desc.set_label(label);
         }
-        WebBuffer::new(self.inner.create_buffer(&mapped_desc).unwrap(), desc).into()
+        WebBuffer::new(self.inner.create_buffer(&mapped_desc).unwrap(), &effective).into()
     }
 
     fn create_texture(&self, desc: &crate::TextureDescriptor<'_>) -> dispatch::DispatchTexture {
+        // DOFUS allocation accountant: over-budget creates are refused
+        // — a 1×1 placeholder is allocated instead, so the process
+        // NEVER allocates past the hard budget. Downstream use hits
+        // WebGPU validation (visible, contained); the JS-side watchdog
+        // reads `budget_refusals()` and halts bakes.
+        let requested = estimate_texture_byte_size(desc);
+        let allowed = deferred_destroy::try_reserve(requested, desc.label);
+        let effective = if allowed {
+            desc.clone()
+        } else {
+            crate::TextureDescriptor {
+                size: crate::Extent3d {
+                    width: 1,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                ..desc.clone()
+            }
+        };
         let mapped_desc = webgpu_sys::GpuTextureDescriptor::new(
-            map_texture_format(desc.format),
-            &map_extent_3d(desc.size),
-            (desc.usage - crate::TextureUsages::TRANSIENT).bits(),
+            map_texture_format(effective.format),
+            &map_extent_3d(effective.size),
+            (effective.usage - crate::TextureUsages::TRANSIENT).bits(),
         );
-        if let Some(label) = desc.label {
+        if let Some(label) = effective.label {
             mapped_desc.set_label(label);
         }
-        mapped_desc.set_dimension(map_texture_dimension(desc.dimension));
-        mapped_desc.set_mip_level_count(desc.mip_level_count);
-        mapped_desc.set_sample_count(desc.sample_count);
-        let mapped_view_formats = desc
+        mapped_desc.set_dimension(map_texture_dimension(effective.dimension));
+        mapped_desc.set_mip_level_count(effective.mip_level_count);
+        mapped_desc.set_sample_count(effective.sample_count);
+        let mapped_view_formats = effective
             .view_formats
             .iter()
             .map(|format| JsValue::from(map_texture_format(*format)))
@@ -2460,8 +2497,8 @@ impl dispatch::DeviceInterface for WebDevice {
         mapped_desc.set_view_formats(&mapped_view_formats);
 
         let texture = self.inner.create_texture(&mapped_desc).unwrap();
-        let byte_size = estimate_texture_byte_size(desc);
-        deferred_destroy::record_texture_created_named(byte_size, desc.label);
+        let byte_size = estimate_texture_byte_size(&effective);
+        deferred_destroy::record_texture_created_named(byte_size, effective.label);
         WebTexture {
             inner: texture,
             ident: crate::cmp::Identifier::create(),

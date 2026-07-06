@@ -353,6 +353,21 @@ export class VelloRenderer {
      */
     getFrameSize(asset_id: number, animation: string, _frame_index: number, resolution: number): Uint32Array;
     /**
+     * Label of the most recently budget-refused allocation ("" when
+     * none yet). Pairs with `gpuLedgerStats` for telemetry.
+     */
+    gpuLastRefusedLabel(): string;
+    /**
+     * Allocation-accountant snapshot. `Float64Array`:
+     * `[budgetBytes, liveTexBytes, liveBufBytes,
+     *   refusalCount, refusedBytes,
+     *   allocRateBytesWindow, rateWindowTicks,
+     *   pendingTexBytes, pendingBufBytes]`.
+     * The rate value is bytes created (tex+buf) over the last
+     * `rateWindowTicks` rAF ticks — the flood watchdog signal.
+     */
+    gpuLedgerStats(): Float64Array;
+    /**
      * Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
      * so JS can pass `{ adapter, device }` to Pixi.js.
      */
@@ -959,6 +974,16 @@ export class VelloRenderer {
      */
     setCrowdOffThreadBake(on: boolean): void;
     /**
+     * Set the hard GPU allocation budget (Phase 1 accountant), in
+     * bytes over ALL live texture + buffer bytes, bake temp pages
+     * included. `0` disables enforcement (accounting continues).
+     * When a create would breach the budget the patched wgpu refuses
+     * it — a minimal placeholder is allocated instead and the refusal
+     * is counted (`gpuLedger().refusals`); the process NEVER
+     * allocates past budget.
+     */
+    setGpuBudgetBytes(bytes: number): void;
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass any value > 0xFFFFFF (the JS side
      * sends 0xFFFFFFFF for canonical `-1`) to leave that zone untinted.
@@ -1233,6 +1258,8 @@ export interface InitOutput {
     readonly vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
     readonly vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly vellorenderer_gpuLastRefusedLabel: (a: number) => [number, number];
+    readonly vellorenderer_gpuLedgerStats: (a: number) => [number, number];
     readonly vellorenderer_init: (a: number) => any;
     readonly vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
@@ -1286,6 +1313,7 @@ export interface InitOutput {
     readonly vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
     readonly vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
     readonly vellorenderer_setCrowdOffThreadBake: (a: number, b: number) => void;
+    readonly vellorenderer_setGpuBudgetBytes: (a: number, b: number) => void;
     readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
     readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;

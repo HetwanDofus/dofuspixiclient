@@ -98,6 +98,93 @@ std::thread_local! {
         = RefCell::new(HashMap::new());
     static CREATED_TEX_BY_NAME: RefCell<HashMap<String, (u64, u64)>>
         = RefCell::new(HashMap::new());
+
+    // DOFUS allocation accountant (Phase 1, consolidation branch).
+    //
+    // One hard byte budget over ALL live texture + buffer bytes
+    // (including bake temp pages — the historical host-killers).
+    // `0` = unlimited (accounting only). When a create would push
+    // `live_tex + live_buf` past the budget, `try_reserve` refuses:
+    // the backend allocates a minimal placeholder instead of the
+    // requested block, so the process NEVER allocates past budget
+    // (two WindowServer-panic incidents: 2026-06-19, 2026-07-06).
+    static BUDGET_BYTES: Cell<u64> = const { Cell::new(0) };
+    static BUDGET_REFUSAL_COUNT: Cell<u64> = const { Cell::new(0) };
+    static BUDGET_REFUSED_BYTES: Cell<u64> = const { Cell::new(0) };
+    static LAST_REFUSED_LABEL: RefCell<String> = const { RefCell::new(String::new()) };
+
+    // Allocation-rate window for the flood watchdog: per-tick created
+    // bytes (textures + buffers), ring of the last `RATE_WINDOW`
+    // ticks. `tick_deferred_destroys` rotates it. The JS-side policy
+    // reads `alloc_rate_bytes(window)` and pauses bakes / degrades
+    // when a flood is underway — floods must become stutters, never
+    // host kills.
+    static TICK_CREATED_BYTES: Cell<u64> = const { Cell::new(0) };
+    static RATE_RING: RefCell<[u64; RATE_WINDOW]> = const { RefCell::new([0; RATE_WINDOW]) };
+    static RATE_IDX: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Ring length for the allocation-rate window, in ticks (rAF frames).
+/// 120 ≈ 1-2 s of history depending on refresh rate.
+pub const RATE_WINDOW: usize = 120;
+
+/// Set the hard GPU byte budget. `0` disables enforcement (accounting
+/// continues). Applies to the sum of live texture + buffer bytes.
+pub fn set_budget_bytes(bytes: u64) {
+    BUDGET_BYTES.with(|c| c.set(bytes));
+}
+
+/// The configured hard budget in bytes (`0` = unlimited).
+pub fn budget_bytes() -> u64 {
+    BUDGET_BYTES.with(|c| c.get())
+}
+
+/// `(refusal_count, refused_bytes_total, last_refused_label)`.
+pub fn budget_refusals() -> (u64, u64, String) {
+    (
+        BUDGET_REFUSAL_COUNT.with(|c| c.get()),
+        BUDGET_REFUSED_BYTES.with(|c| c.get()),
+        LAST_REFUSED_LABEL.with(|l| l.borrow().clone()),
+    )
+}
+
+/// Budget gate for a prospective allocation of `byte_size`. Returns
+/// `true` when the allocation may proceed. On refusal, records the
+/// telemetry (count / bytes / label) — the caller must allocate a
+/// minimal placeholder instead of the requested block.
+pub fn try_reserve(byte_size: u64, label: Option<&str>) -> bool {
+    let budget = BUDGET_BYTES.with(|c| c.get());
+    if budget == 0 {
+        return true;
+    }
+    let live = LIVE_TEXTURE_BYTES.with(|c| c.get()) + LIVE_BUFFER_BYTES.with(|c| c.get());
+    if live.saturating_add(byte_size) <= budget {
+        return true;
+    }
+    BUDGET_REFUSAL_COUNT.with(|c| c.set(c.get().saturating_add(1)));
+    BUDGET_REFUSED_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
+    LAST_REFUSED_LABEL.with(|l| {
+        *l.borrow_mut() = label.unwrap_or("(unlabeled)").to_string();
+    });
+    false
+}
+
+/// Bytes created (textures + buffers) over the last `window` ticks
+/// (clamped to [`RATE_WINDOW`]). Includes the current, still-open tick.
+pub fn alloc_rate_bytes(window: usize) -> u64 {
+    let window = window.min(RATE_WINDOW);
+    let ring_sum = RATE_RING.with(|r| {
+        let r = r.borrow();
+        let idx = RATE_IDX.with(|i| i.get());
+        let mut sum = 0u64;
+        for k in 0..window {
+            // Walk backwards from the most recently closed slot.
+            let slot = (idx + RATE_WINDOW - 1 - k) % RATE_WINDOW;
+            sum = sum.saturating_add(r[slot]);
+        }
+        sum
+    });
+    ring_sum.saturating_add(TICK_CREATED_BYTES.with(|c| c.get()))
 }
 
 fn record_named(map: &RefCell<HashMap<String, (u64, u64)>>, label: Option<&str>, byte_size: u64) {
@@ -151,6 +238,7 @@ pub fn record_texture_created_named(byte_size: u64, label: Option<&str>) {
     LIVE_TEXTURE_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_TEXTURE_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_TEX_BY_NAME.with(|m| record_named(m, label, byte_size));
+    TICK_CREATED_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
 }
 
 /// Decrement live + increment destroyed texture byte counters. Call
@@ -171,6 +259,7 @@ pub fn record_buffer_created_named(byte_size: u64, label: Option<&str>) {
     LIVE_BUFFER_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_BUFFER_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
     CREATED_BUF_BY_NAME.with(|m| record_named(m, label, byte_size));
+    TICK_CREATED_BYTES.with(|c| c.set(c.get().saturating_add(byte_size)));
 }
 
 pub fn record_buffer_destroyed(byte_size: u64) {
@@ -297,6 +386,18 @@ pub fn tick_deferred_destroys(
         let n = f.get().wrapping_add(1);
         f.set(n);
         n
+    });
+
+    // Close the allocation-rate tick: rotate the created-bytes ring.
+    let tick_bytes = TICK_CREATED_BYTES.with(|c| {
+        let v = c.get();
+        c.set(0);
+        v
+    });
+    RATE_RING.with(|r| {
+        let idx = RATE_IDX.with(|i| i.get());
+        r.borrow_mut()[idx] = tick_bytes;
+        RATE_IDX.with(|i| i.set((idx + 1) % RATE_WINDOW));
     });
 
     let mut budget = max_destroys_per_tick;

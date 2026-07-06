@@ -139,6 +139,69 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
 
 let renderer: VelloRenderer | null = null;
 let maxTextureSize = 8192;
+
+/**
+ * Default hard GPU allocation budget (MB) for the Phase-1 accountant —
+ * all live texture + buffer bytes in the patched wgpu, bake temp pages
+ * included. Both host crashes (2026-06-19: 8.6 GB, 2026-07-06: 3.7 GB)
+ * came from unbounded growth; 3 GB matches the architecture's memory
+ * target and leaves ample host headroom. Override via localStorage
+ * `gpuBudgetMB` (0 = accounting only).
+ */
+const DEFAULT_GPU_BUDGET_MB = 3072;
+
+/** Snapshot of the Phase-1 GPU allocation accountant. */
+export interface GpuLedger {
+  /** Hard budget in bytes (0 = unlimited/accounting-only). */
+  budgetBytes: number;
+  liveTexBytes: number;
+  liveBufBytes: number;
+  /** Total live = textures + buffers — the number the budget gates. */
+  liveBytes: number;
+  /** Allocations refused by the budget (count / requested bytes). */
+  refusalCount: number;
+  refusedBytes: number;
+  /** Label of the most recently refused allocation ("" = none). */
+  lastRefusedLabel: string;
+  /** Bytes created over the trailing rate window (flood signal). */
+  allocRateBytes: number;
+  rateWindowTicks: number;
+  pendingTexBytes: number;
+  pendingBufBytes: number;
+}
+
+/**
+ * Read the allocation-accountant snapshot from the patched wgpu.
+ * Returns null before `initVello()` or on an older wasm build.
+ */
+export function getGpuLedger(): GpuLedger | null {
+  const r = renderer as unknown as {
+    gpuLedgerStats?: () => Float64Array | number[];
+    gpuLastRefusedLabel?: () => string;
+  } | null;
+  const a = r?.gpuLedgerStats?.();
+  if (!a || a.length < 9) return null;
+  return {
+    budgetBytes: a[0],
+    liveTexBytes: a[1],
+    liveBufBytes: a[2],
+    liveBytes: a[1] + a[2],
+    refusalCount: a[3],
+    refusedBytes: a[4],
+    lastRefusedLabel: r?.gpuLastRefusedLabel?.() ?? "",
+    allocRateBytes: a[5],
+    rateWindowTicks: a[6],
+    pendingTexBytes: a[7],
+    pendingBufBytes: a[8],
+  };
+}
+
+/** Set the hard GPU budget at runtime (MB; 0 = accounting only). */
+export function setGpuBudgetMB(mb: number): void {
+  (
+    renderer as unknown as { setGpuBudgetBytes?: (b: number) => void } | null
+  )?.setGpuBudgetBytes?.(Math.max(0, mb) * 1024 * 1024);
+}
 let pixiRenderer: PixiRenderer | null = null;
 /**
  * Resolves the first time `initVello()` finishes wiring up `renderer`
@@ -276,6 +339,30 @@ export async function initVello(wasmUrl?: string): Promise<{
     const r = renderer as unknown as { rustGpuResetByName?: () => void };
     r.rustGpuResetByName?.();
   };
+
+  // Phase-1 allocation accountant: apply the hard GPU byte budget.
+  // Over-budget creates FAIL inside the patched wgpu (a placeholder is
+  // allocated + the refusal counted) — the process can never allocate
+  // past this, closing the WindowServer-panic class (2026-06-19,
+  // 2026-07-06 incidents). Tunable via localStorage `gpuBudgetMB`;
+  // 0 disables enforcement.
+  const budgetMB = Number(
+    (typeof localStorage !== "undefined" &&
+      localStorage.getItem("gpuBudgetMB")) ||
+      DEFAULT_GPU_BUDGET_MB,
+  );
+  (
+    renderer as unknown as { setGpuBudgetBytes?: (b: number) => void }
+  ).setGpuBudgetBytes?.(Math.max(0, budgetMB) * 1024 * 1024);
+  console.log(
+    `[vello-loader] GPU allocation budget: ${budgetMB > 0 ? `${budgetMB} MB (hard)` : "UNLIMITED (accounting only)"}`,
+  );
+  (window as unknown as Record<string, unknown>).__gpuLedger = () =>
+    getGpuLedger();
+  // The watchdog heartbeat logs live-vs-budget + allocation rate and
+  // shouts on budget refusals (see render-watchdog.ts).
+  getRenderWatchdog().setStatsProvider({ gpuLedger: () => getGpuLedger() });
+
   maxTextureSize = (result.maxTextureSize as number) || 8192;
   velloGpu = {
     adapter: result.adapter as GPUAdapter,
