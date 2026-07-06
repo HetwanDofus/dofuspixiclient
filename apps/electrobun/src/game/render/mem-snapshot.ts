@@ -80,8 +80,11 @@ export function takeMemSnapshot(sources: MemSources): MemSnapshot {
   if (sources.tileSpriteRenderer) {
     const t = sources.tileSpriteRenderer.getStats();
     snap["tile.states"] = t.states;
-    snap["tile.cache"] = t.tileCache;
-    snap["tile.refs"] = t.cacheRefs;
+    snap["tile.scripted"] = t.scripted;
+    snap["tile.pages"] = t.pages;
+    snap["tile.pageMB"] = Math.round(t.pageBytes / (1024 * 1024));
+    snap["tile.entries"] = t.entries;
+    snap["tile.scriptedTex"] = t.scriptedTextures;
   }
 
   if (sources.playerStripRenderer) {

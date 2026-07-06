@@ -1492,6 +1492,67 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Bake ONE tile-atlas PAGE: shelf-pack a heterogeneous list of tile
+     * bakes from ONE bundle into a single composite texture and render
+     * them all in ONE Vello dispatch (unified-atlas Step 2,
+     * docs/ARCHITECTURE-UNIFIED-ATLAS.md). Per item `kinds[i]` selects
+     * the bake mode; `params[i]` its argument:
+     *
+     * - `0` — fixed frame render (`params[i]` = frame index). Same scene
+     *   path as `renderSwfBundleBatch`.
+     * - `1` — seeded static variant (`params[i]` = cell id): executes
+     *   the wrapper's frame-1 AS2 with the per-cell seed and renders the
+     *   chosen frame with frozen-child pins. Same scene path as
+     *   `renderSwfTileStaticSeeded`.
+     * - `2` — simple-loop strip block (`params[i]` = total frame count):
+     *   every playable frame rendered as consecutive grid cells inside
+     *   one packed block. Same scene path as
+     *   `renderSwfTileDynamicStripRange(0, total, total)`.
+     *
+     * Items whose block would exceed `max_dim` at the requested
+     * resolution are re-fit at a lower per-item resolution (kinds 0/1 —
+     * this is how the map background self-clamps under the wgpu texture
+     * limit) or refused (kind 2 — the JS caller falls back to per-frame
+     * live re-bakes). Items that measure fine but don't fit on THIS page
+     * are returned with `itemPlaced = 0`; the caller re-requests them on
+     * the next page. Returns `null` only when nothing could be measured
+     * (bundle missing / every item degenerate).
+     *
+     * The page texture is ZERO-COPY: the `wgpu::Texture` stays alive in
+     * `self.textures` under `textureId` and its raw `GPUTexture` handle
+     * is returned for Pixi to adopt as an `ExternalSource` on the shared
+     * GPUDevice (crowd-renderer pattern — no `transferToImageBitmap`
+     * sync point per page). The caller OWNS the lifetime: it MUST call
+     * `freeRenderTexture(textureId)` after a 2-tick settle when the
+     * page's generation retires (`feedback_pixi_wgpu_texture_lifetime`).
+     *
+     * Result: `{texture, textureId, width, height, itemX, itemY, itemW,
+     * itemH, itemFrameW, itemFrameH, itemGridCols, itemFrameCount,
+     * itemAnchorX, itemAnchorY, itemResMilli, itemValid, itemPlaced}` —
+     * anchors are per-cell pixel offsets of the SWF (0,0) origin;
+     * `itemResMilli` is the ACTUAL per-item resolution×1000 after
+     * clamping.
+     * @param {string} bundle
+     * @param {string[]} exports
+     * @param {Uint32Array} kinds
+     * @param {Uint32Array} params
+     * @param {number} resolution
+     * @param {number} max_dim
+     * @returns {any}
+     */
+    renderSwfTileAtlasPage(bundle, exports, kinds, params, resolution, max_dim) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray32ToWasm0(kinds, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passArray32ToWasm0(params, wasm.__wbindgen_malloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfTileAtlasPage(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, resolution, max_dim);
+        return ret;
+    }
+    /**
      * Render the DYNAMIC parts of a multi-frame tile across a contiguous
      * frame range `[start, start+count)`. Output is a strip of
      * per-frame textures at the FULL animation's union bounds — same

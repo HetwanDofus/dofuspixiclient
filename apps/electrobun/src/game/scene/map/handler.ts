@@ -375,7 +375,14 @@ export class MapHandler {
       this.currentMapData,
       this.currentPrefixOverride
     );
-    this.tileSpriteRenderer.setPlacements(placements);
+    // The map id keys the atlas GENERATION: a different id forces a
+    // fresh page set (and whole-page retirement of the previous map's
+    // pages after the swap); tactic toggles on the SAME map append
+    // pages for the extra specs only.
+    this.tileSpriteRenderer.setPlacements(
+      placements,
+      String(this.currentMapData.id)
+    );
   }
 
   /**

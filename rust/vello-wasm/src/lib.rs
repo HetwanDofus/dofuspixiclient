@@ -11780,6 +11780,504 @@ impl VelloRenderer {
         result.into()
     }
 
+    /// Bake ONE tile-atlas PAGE: shelf-pack a heterogeneous list of tile
+    /// bakes from ONE bundle into a single composite texture and render
+    /// them all in ONE Vello dispatch (unified-atlas Step 2,
+    /// docs/ARCHITECTURE-UNIFIED-ATLAS.md). Per item `kinds[i]` selects
+    /// the bake mode; `params[i]` its argument:
+    ///
+    /// - `0` — fixed frame render (`params[i]` = frame index). Same scene
+    ///   path as `renderSwfBundleBatch`.
+    /// - `1` — seeded static variant (`params[i]` = cell id): executes
+    ///   the wrapper's frame-1 AS2 with the per-cell seed and renders the
+    ///   chosen frame with frozen-child pins. Same scene path as
+    ///   `renderSwfTileStaticSeeded`.
+    /// - `2` — simple-loop strip block (`params[i]` = total frame count):
+    ///   every playable frame rendered as consecutive grid cells inside
+    ///   one packed block. Same scene path as
+    ///   `renderSwfTileDynamicStripRange(0, total, total)`.
+    ///
+    /// Items whose block would exceed `max_dim` at the requested
+    /// resolution are re-fit at a lower per-item resolution (kinds 0/1 —
+    /// this is how the map background self-clamps under the wgpu texture
+    /// limit) or refused (kind 2 — the JS caller falls back to per-frame
+    /// live re-bakes). Items that measure fine but don't fit on THIS page
+    /// are returned with `itemPlaced = 0`; the caller re-requests them on
+    /// the next page. Returns `null` only when nothing could be measured
+    /// (bundle missing / every item degenerate).
+    ///
+    /// The page texture is ZERO-COPY: the `wgpu::Texture` stays alive in
+    /// `self.textures` under `textureId` and its raw `GPUTexture` handle
+    /// is returned for Pixi to adopt as an `ExternalSource` on the shared
+    /// GPUDevice (crowd-renderer pattern — no `transferToImageBitmap`
+    /// sync point per page). The caller OWNS the lifetime: it MUST call
+    /// `freeRenderTexture(textureId)` after a 2-tick settle when the
+    /// page's generation retires (`feedback_pixi_wgpu_texture_lifetime`).
+    ///
+    /// Result: `{texture, textureId, width, height, itemX, itemY, itemW,
+    /// itemH, itemFrameW, itemFrameH, itemGridCols, itemFrameCount,
+    /// itemAnchorX, itemAnchorY, itemResMilli, itemValid, itemPlaced}` —
+    /// anchors are per-cell pixel offsets of the SWF (0,0) origin;
+    /// `itemResMilli` is the ACTUAL per-item resolution×1000 after
+    /// clamping.
+    #[wasm_bindgen(js_name = "renderSwfTileAtlasPage")]
+    pub fn render_swf_tile_atlas_page(
+        &mut self,
+        bundle: &str,
+        exports: Vec<String>,
+        kinds: Vec<u32>,
+        params: Vec<u32>,
+        resolution: f32,
+        max_dim: u32,
+    ) -> JsValue {
+        use swf_spike::swf_doc::Symbol;
+        use swf_spike::tile_behavior::resolve_full;
+
+        let n = exports.len();
+        if n == 0 || kinds.len() != n || params.len() != n {
+            return JsValue::NULL;
+        }
+        if self.swf_bundles.get(bundle).is_none() {
+            return JsValue::NULL;
+        }
+        let max_dim = max_dim.clamp(512, 8192);
+        let base_scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+
+        /// Owned measurement of one atlas item — no borrows of `self` so
+        /// the render phase can re-borrow disjoint fields freely.
+        struct AtlasItem {
+            valid: bool,
+            kind: u32,
+            /// Render frame (kind 0/1).
+            frame: u16,
+            /// Frozen-child pins (kind 1).
+            overrides: std::collections::HashMap<u16, u16>,
+            px_min_x: f64,
+            px_min_y: f64,
+            /// Full block dims (strips: whole grid).
+            w: u32,
+            h: u32,
+            /// Per-cell dims (kind 2); == w/h otherwise.
+            frame_w: u32,
+            frame_h: u32,
+            grid_cols: u32,
+            frame_count: u32,
+            /// Actual pixels-per-twip used (post-clamp).
+            scale: f64,
+        }
+
+        /// Fit twip bounds at `base_scale`, shrinking the scale when the
+        /// pixel dims would exceed `max_dim` (map background). Returns
+        /// `(scale, px_min_x, px_min_y, w, h)`.
+        fn fit_dims(
+            bounds: vello::kurbo::Rect,
+            base_scale: f64,
+            pad: f64,
+            max_dim: u32,
+        ) -> Option<(f64, f64, f64, u32, u32)> {
+            if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
+                return None;
+            }
+            let mut scale = base_scale;
+            for _ in 0..3 {
+                let px_min_x = (bounds.x0 * scale).floor() - pad;
+                let px_min_y = (bounds.y0 * scale).floor() - pad;
+                let w = (((bounds.x1 * scale).ceil() + pad - px_min_x) as u32).max(1);
+                let h = (((bounds.y1 * scale).ceil() + pad - px_min_y) as u32).max(1);
+                if w <= max_dim && h <= max_dim {
+                    return Some((scale, px_min_x, px_min_y, w, h));
+                }
+                let over = f64::from(w.max(h));
+                scale *= (f64::from(max_dim) - 2.0 * pad - 2.0) / over * 0.995;
+                if scale <= 0.0 {
+                    return None;
+                }
+            }
+            None
+        }
+
+        // ── Measure phase ─────────────────────────────────────────────
+        // Each arm re-borrows `self` locally (`cache_strip_bounds` needs
+        // `&mut self`); results are fully owned.
+        let mut items: Vec<AtlasItem> = Vec::with_capacity(n);
+        for i in 0..n {
+            let invalid = AtlasItem {
+                valid: false,
+                kind: kinds[i],
+                frame: 0,
+                overrides: std::collections::HashMap::new(),
+                px_min_x: 0.0,
+                px_min_y: 0.0,
+                w: 0,
+                h: 0,
+                frame_w: 0,
+                frame_h: 0,
+                grid_cols: 1,
+                frame_count: 1,
+                scale: base_scale,
+            };
+            let measured: Option<AtlasItem> = match kinds[i] {
+                // Simple-loop strip block: full playable range as grid cells.
+                2 => (|| {
+                    let total = params[i].max(1);
+                    let cached = self.cache_strip_bounds(bundle, &exports[i], total)?;
+                    let chunk_count = cached.anim_end.min(total).max(1);
+                    let scale = base_scale;
+                    let px_min_x = (cached.min_x * scale).floor() - pad;
+                    let px_min_y = (cached.min_y * scale).floor() - pad;
+                    let frame_w =
+                        (((cached.max_x * scale).ceil() + pad - px_min_x) as u32).max(1);
+                    let frame_h =
+                        (((cached.max_y * scale).ceil() + pad - px_min_y) as u32).max(1);
+                    if frame_w > max_dim || frame_h > max_dim {
+                        return None;
+                    }
+                    let max_cols = (max_dim / frame_w).max(1);
+                    let grid_cols = chunk_count.min(max_cols);
+                    let grid_rows = chunk_count.div_ceil(grid_cols);
+                    let w = frame_w * grid_cols;
+                    let h = frame_h * grid_rows;
+                    if w > max_dim || h > max_dim {
+                        // Strip too large for any page at this density —
+                        // caller falls back to per-frame live re-bakes.
+                        return None;
+                    }
+                    Some(AtlasItem {
+                        valid: true,
+                        kind: 2,
+                        frame: 0,
+                        overrides: std::collections::HashMap::new(),
+                        px_min_x,
+                        px_min_y,
+                        w,
+                        h,
+                        frame_w,
+                        frame_h,
+                        grid_cols,
+                        frame_count: chunk_count,
+                        scale,
+                    })
+                })(),
+                // Seeded static variant (executed frame-1 AS2 for the cell).
+                1 => (|| {
+                    let doc = self.swf_bundles.get(bundle)?;
+                    let sym = doc.lookup_export(&exports[i])?;
+                    let (frame, overrides) = match sym {
+                        Symbol::Sprite(sprite) => {
+                            let r = resolve_full(sprite, doc, (params[i] & 0xffff) as u16);
+                            let mut ov = r.child_overrides;
+                            for s in &r.child_scripts {
+                                ov.insert(s.child_id, s.current_frame);
+                            }
+                            (r.behavior.first_frame(), ov)
+                        }
+                        _ => (0, std::collections::HashMap::new()),
+                    };
+                    let bounds = swf_spike::render::symbol_bounds_pinned(
+                        doc,
+                        sym,
+                        frame,
+                        Some(&overrides),
+                    );
+                    let (scale, px_min_x, px_min_y, w, h) =
+                        fit_dims(bounds, base_scale, pad, max_dim)?;
+                    Some(AtlasItem {
+                        valid: true,
+                        kind: 1,
+                        frame,
+                        overrides,
+                        px_min_x,
+                        px_min_y,
+                        w,
+                        h,
+                        frame_w: w,
+                        frame_h: h,
+                        grid_cols: 1,
+                        frame_count: 1,
+                        scale,
+                    })
+                })(),
+                // Fixed-frame render.
+                _ => (|| {
+                    let doc = self.swf_bundles.get(bundle)?;
+                    let sym = doc.lookup_export(&exports[i])?;
+                    let frame = (params[i] & 0xffff) as u16;
+                    let bounds = swf_spike::render::symbol_bounds(doc, sym, frame);
+                    let (scale, px_min_x, px_min_y, w, h) =
+                        fit_dims(bounds, base_scale, pad, max_dim)?;
+                    Some(AtlasItem {
+                        valid: true,
+                        kind: 0,
+                        frame,
+                        overrides: std::collections::HashMap::new(),
+                        px_min_x,
+                        px_min_y,
+                        w,
+                        h,
+                        frame_w: w,
+                        frame_h: h,
+                        grid_cols: 1,
+                        frame_count: 1,
+                        scale,
+                    })
+                })(),
+            };
+            items.push(measured.unwrap_or(invalid));
+        }
+
+        // ── Pack phase: shelf-pack valid items, tallest first. Items
+        // that don't fit the remaining page are DEFERRED (itemPlaced=0)
+        // for the caller's next page request. ─────────────────────────
+        let mut placed: Vec<bool> = vec![false; n];
+        let mut pos: Vec<(u32, u32)> = vec![(0, 0); n];
+        let mut order: Vec<usize> = (0..n).filter(|&i| items[i].valid).collect();
+        order.sort_by(|&a, &b| items[b].h.cmp(&items[a].h));
+
+        let mut shelf_x: u32 = 0;
+        let mut shelf_y: u32 = 0;
+        let mut shelf_h: u32 = 0;
+        let mut total_w: u32 = 0;
+        let mut total_h: u32 = 0;
+        for &idx in &order {
+            let w = items[idx].w;
+            let h = items[idx].h;
+            if shelf_x + w > max_dim && shelf_x > 0 {
+                // Needs a fresh shelf — defer if the page is out of height.
+                if shelf_y + shelf_h + h > max_dim {
+                    continue;
+                }
+                shelf_y += shelf_h;
+                shelf_x = 0;
+                shelf_h = 0;
+            } else if shelf_y + h > max_dim {
+                continue;
+            }
+            pos[idx] = (shelf_x, shelf_y);
+            placed[idx] = true;
+            shelf_x += w;
+            shelf_h = shelf_h.max(h);
+            total_w = total_w.max(shelf_x);
+            total_h = total_h.max(shelf_y + shelf_h);
+        }
+        if total_w == 0 || total_h == 0 {
+            // Nothing measurable — every item is invalid (a lone valid
+            // item always fits an empty page). Caller marks all failed.
+            return JsValue::NULL;
+        }
+
+        // ── Render phase: ONE Vello scene for the whole page. ─────────
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let mut scene = vello::Scene::new();
+        {
+            let Some(doc) = self.swf_bundles.get(bundle) else {
+                return JsValue::NULL;
+            };
+            let cache: &swf_spike::render::cache::RenderCache = self
+                .swf_render_caches
+                .entry(bundle.to_string())
+                .or_default();
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut classification_cache = std::collections::HashMap::new();
+            for (i, item) in items.iter().enumerate() {
+                if !item.valid || !placed[i] {
+                    continue;
+                }
+                let Some(sym) = doc.lookup_export(&exports[i]) else {
+                    continue;
+                };
+                let (px, py) = pos[i];
+                match item.kind {
+                    2 => {
+                        for slot in 0..item.frame_count {
+                            let col = slot % item.grid_cols;
+                            let row = slot / item.grid_cols;
+                            let cell_x = f64::from(px + col * item.frame_w);
+                            let cell_y = f64::from(py + row * item.frame_h);
+                            let xform = vello::kurbo::Affine::scale(item.scale)
+                                .then_translate(vello::kurbo::Vec2::new(
+                                    -item.px_min_x + cell_x,
+                                    -item.px_min_y + cell_y,
+                                ));
+                            swf_spike::render::phased::render_symbol_phased(
+                                doc,
+                                sym,
+                                &mut scene,
+                                xform,
+                                swf_spike::render::phased::RenderPhase::DynamicAt(
+                                    slot as u16,
+                                ),
+                                swf_spike::swf_doc::OwnedColorTransform::IDENTITY,
+                                cache,
+                                &mut classification_cache,
+                            );
+                        }
+                    }
+                    1 => {
+                        let xform = vello::kurbo::Affine::scale(item.scale)
+                            .then_translate(vello::kurbo::Vec2::new(
+                                -item.px_min_x + f64::from(px),
+                                -item.px_min_y + f64::from(py),
+                            ));
+                        swf_spike::render::render_tile_whole(
+                            Some(swf_spike::render::WgpuCtx {
+                                device: &self.device,
+                                queue: &self.queue,
+                                renderer: &mut self.renderer,
+                                filter_pipelines,
+                                output_scale: item.scale,
+                            }),
+                            doc,
+                            sym,
+                            &mut scene,
+                            xform,
+                            item.frame,
+                            &item.overrides,
+                            cache,
+                        );
+                    }
+                    _ => {
+                        let xform = vello::kurbo::Affine::scale(item.scale)
+                            .then_translate(vello::kurbo::Vec2::new(
+                                -item.px_min_x + f64::from(px),
+                                -item.px_min_y + f64::from(py),
+                            ));
+                        let mut ctx = swf_spike::render::WgpuCtx {
+                            device: &self.device,
+                            queue: &self.queue,
+                            renderer: &mut self.renderer,
+                            filter_pipelines,
+                            output_scale: item.scale,
+                        };
+                        swf_spike::render::render_symbol_with_ctx_tinted(
+                            &mut ctx,
+                            doc,
+                            sym,
+                            &mut scene,
+                            xform,
+                            item.frame,
+                            self.swf_player_colors,
+                            None,
+                            1.0,
+                        );
+                    }
+                }
+            }
+        }
+
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("vello_tile_atlas_page"),
+            size: wgpu::Extent3d {
+                width: total_w,
+                height: total_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        // Zero-copy adoption: extract (and `mark_extracted`) BEFORE any
+        // view of this texture exists. `wgpu::TextureView` holds a clone
+        // of its parent texture; dropping the view of a NOT-yet-extracted
+        // texture would enqueue the page into the deferred-destroy GC and
+        // it would be destroyed out from under Pixi two ticks later
+        // (verified live: `drop_in_place<TextureView>` inside the render
+        // helper was the dropper). Extraction flips the shared flag so
+        // every subsequent clone-drop is a no-op; the page's lifetime is
+        // then owned by `self.textures` + the JS-driven
+        // `freeRenderTexture(textureId)` retire at generation drop.
+        let gpu_texture = extract_gpu_texture(&texture);
+        {
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let params = vello::RenderParams {
+                base_color: Color::TRANSPARENT,
+                width: total_w,
+                height: total_h,
+                antialiasing_method: AaConfig::Area,
+            };
+            if let Err(e) =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+            {
+                console_log!("renderSwfTileAtlasPage: render error: {e}");
+                // Never shipped to JS — release the storage explicitly
+                // (extracted textures skip the deferred-destroy queue).
+                texture.destroy();
+                return JsValue::NULL;
+            }
+        }
+        let tex_id = self.next_texture_id;
+        self.next_texture_id += 1;
+        self.textures.insert(tex_id, texture);
+
+        // ── Parallel per-item layout arrays. ──────────────────────────
+        let item_x = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_y = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_w = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_h = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_frame_w = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_frame_h = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_grid_cols = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_frame_count = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_anchor_x = js_sys::Float64Array::new_with_length(n as u32);
+        let item_anchor_y = js_sys::Float64Array::new_with_length(n as u32);
+        let item_res_milli = js_sys::Uint32Array::new_with_length(n as u32);
+        let item_valid = js_sys::Uint8Array::new_with_length(n as u32);
+        let item_placed = js_sys::Uint8Array::new_with_length(n as u32);
+        for (i, item) in items.iter().enumerate() {
+            let (px, py) = pos[i];
+            item_x.set_index(i as u32, px);
+            item_y.set_index(i as u32, py);
+            item_w.set_index(i as u32, item.w);
+            item_h.set_index(i as u32, item.h);
+            item_frame_w.set_index(i as u32, item.frame_w);
+            item_frame_h.set_index(i as u32, item.frame_h);
+            item_grid_cols.set_index(i as u32, item.grid_cols);
+            item_frame_count.set_index(i as u32, item.frame_count);
+            item_anchor_x.set_index(i as u32, -item.px_min_x);
+            item_anchor_y.set_index(i as u32, -item.px_min_y);
+            item_res_milli.set_index(i as u32, (item.scale * 20000.0).round() as u32);
+            item_valid.set_index(i as u32, u8::from(item.valid));
+            item_placed.set_index(i as u32, u8::from(placed[i]));
+        }
+
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"textureId".into(),
+            &JsValue::from(tex_id as f64),
+        );
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(total_w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(total_h));
+        let _ = js_sys::Reflect::set(&result, &"itemX".into(), &item_x.into());
+        let _ = js_sys::Reflect::set(&result, &"itemY".into(), &item_y.into());
+        let _ = js_sys::Reflect::set(&result, &"itemW".into(), &item_w.into());
+        let _ = js_sys::Reflect::set(&result, &"itemH".into(), &item_h.into());
+        let _ = js_sys::Reflect::set(&result, &"itemFrameW".into(), &item_frame_w.into());
+        let _ = js_sys::Reflect::set(&result, &"itemFrameH".into(), &item_frame_h.into());
+        let _ = js_sys::Reflect::set(&result, &"itemGridCols".into(), &item_grid_cols.into());
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"itemFrameCount".into(),
+            &item_frame_count.into(),
+        );
+        let _ = js_sys::Reflect::set(&result, &"itemAnchorX".into(), &item_anchor_x.into());
+        let _ = js_sys::Reflect::set(&result, &"itemAnchorY".into(), &item_anchor_y.into());
+        let _ = js_sys::Reflect::set(&result, &"itemResMilli".into(), &item_res_milli.into());
+        let _ = js_sys::Reflect::set(&result, &"itemValid".into(), &item_valid.into());
+        let _ = js_sys::Reflect::set(&result, &"itemPlaced".into(), &item_placed.into());
+        result.into()
+    }
+
     /// Drop a previously-allocated render output texture by id.
     /// Tile-pass outputs are allocated fresh per dispatch; the caller
     /// holds a Pixi `Texture` referencing the GPUTexture handle, and

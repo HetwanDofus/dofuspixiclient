@@ -1,26 +1,44 @@
 /**
- * TileSpriteRenderer — per-tile Pixi sprites for ground (layer 0) +
- * object1 (layer 1) tiles. Replaces `TileLayerRenderer`'s per-tick
- * Vello surface dispatch.
+ * TileSpriteRenderer — unified-atlas tile pipeline (Step 2,
+ * docs/ARCHITECTURE-UNIFIED-ATLAS.md).
  *
- * Design (mirrors `apps/electrobun/src/window/mainview/stress-worker.ts:974-1003`):
- *   - Per visible tile placement, mount one Pixi `Sprite` in the
- *     destination layer container (groundLayer for layer=0,
- *     object1Layer for layer=1).
- *   - On placement add: `renderSwfFrame(bundle, exportName, frame,
- *     MAP_BG_ZOOM)` → wrap result GPUTexture as `ExternalSource` →
- *     point sprite.texture at it.
- *   - Animated tiles tick a per-tile accumulator; on advance,
- *     re-render the next frame and pair `oldSource.destroy()` with
- *     `freeRenderTexture(oldTextureId)` after a 2-tick settle.
- *   - Static tiles render once at `staticFrame` and never change.
+ * One render contract: Vello rasterizes UNIQUE tile art into shared
+ * ATLAS PAGES — exactly once per unique (art, frame/variant,
+ * resolution) — and every placement is an ordinary Pixi `Sprite`
+ * sampling a cell rect of a page. Pixi batches all sprites sharing a
+ * page into ~1 draw. Pages are ZERO-COPY: the Vello-rendered
+ * GPUTexture is adopted directly as a Pixi `ExternalSource` on the
+ * shared GPUDevice (crowd-renderer pattern — no per-bake
+ * `transferToImageBitmap` sync point) and released via
+ * `freeRenderTexture(textureId)` when its generation retires.
  *
- * Animated-tile cardinality on a Dofus map is small (~10-30 unique
- * animated tiles per map), so per-tile per-frame on-demand keeps GPU
- * load bounded — the same reason the stress test uses this approach.
+ * Lifecycle (the map-revisit fix): pages belong to a MAP GENERATION —
+ * `(mapKey, scale_milli)`. Map change or zoom change builds a NEW
+ * generation (pages baked in one Vello dispatch per bundle per page,
+ * yielding to rAF between dispatches), swaps every sprite onto the new
+ * pages, then retires the old generation WHOLESALE after a 2-tick
+ * settle. There is NO per-tile refcounting and NO per-cell reuse — the
+ * acquire/release race that left layers missing on map A→B→A revisits
+ * is gone by construction. Same-generation placement changes (tactic
+ * toggles) append pages for the missing specs only.
+ *
+ * Animation:
+ *  - simple-loop tiles: their frames are consecutive cells of a page
+ *    block; the per-instance phase/accumulator swaps `sprite.texture`
+ *    between cell rects — zero Vello dispatch (STRIP_MAX_FRAMES
+ *    preserved; longer timelines fall back to live re-bake below).
+ *  - very long timelines (> STRIP_MAX_FRAMES): per-advance live
+ *    re-bake into a sprite-owned volatile texture (same dispatch cost
+ *    as the previous model — these are rare outliers).
+ *  - scripted tiles (per-cell AVM1 playheads, wc3 tile_parts model):
+ *    static runs + dynamic-child strips are baked once per generation
+ *    (shared per (export, part, sig)); whole-scene fallbacks re-bake
+ *    into part-owned volatile textures. Part textures retire with the
+ *    generation.
  */
 import {
   type Container,
+  ExternalSource,
   ImageSource,
   Rectangle,
   type Renderer,
@@ -30,17 +48,19 @@ import {
 
 import { ROT_SCALE_X, ROT_SCALE_Y } from "@/game/constants/battlefield";
 import {
+  freeRenderTexture,
   getPixiRenderer,
   renderSwfFrame,
-  renderSwfTileDynamicStripRange,
+  renderSwfTileAtlasPage,
   renderSwfTileInstancePart,
   renderSwfTileInstancePartStrip,
-  renderSwfTileStaticSeeded,
   tickTileInstances,
   tileInstanceCreate,
   tileInstanceDynFrames,
   tileInstanceFree,
   type TileInstancePartInfo,
+  type VelloSwfStaticBaseResult,
+  type VelloSwfTileStripResult,
   uploadAndCloseBitmap,
 } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
@@ -96,17 +116,16 @@ export interface TilePlacement {
   scripted?: boolean;
   /**
    * Static tiles only: stable hash of the executed script's chosen
-   * variant (frame + frozen-child pins). Cache key so cells whose
-   * random draws matched share one seeded bake.
+   * variant (frame + frozen-child pins). Spec key so cells whose
+   * random draws matched share one atlas cell.
    */
   staticSig?: number;
   /**
    * True for the single map-background placement. The background is
-   * pinned at `BG_RESOLUTION` and never re-rasterized on zoom (its
-   * texture is the widest tile we ever render and re-acquiring it at
-   * higher density risks the WebGPU 8192 limit on a hot path). Set
-   * by `MapHandler.buildPlacements` on the bg pushPlacementByKey
-   * call.
+   * the widest art we render; its atlas item self-clamps its bake
+   * resolution inside `renderSwfTileAtlasPage` so its page never
+   * trips the wgpu texture limit (the sprite scale compensates via
+   * the per-item `itemResMilli`).
    */
   isBackground?: boolean;
 }
@@ -114,90 +133,26 @@ export interface TilePlacement {
 const log = createLogger("TileSpriteRenderer");
 
 /**
- * Resolution pinned for background tiles. Backgrounds are the
- * widest single tile we ever render (a default Dofus map bg is
- * ~742×432 logical → 2968×1728 phys at 4×). At higher densities
- * the texture would creep toward the WebGPU `maxTextureDimension2d`
- * = 8192 limit and `wgpu::Device::create_texture` would panic. The
- * bg gets a single render at boot and is intentionally NOT re-
- * rasterized on subsequent zoom steps — the user's stand-still
- * background never benefits from oversampling enough to justify
- * the limit risk + the GPU memory churn.
+ * Page dimension cap. 4096² BGRA = 64 MB worst case per page — big
+ * enough that a typical map's unique tile set fits in 1-2 pages per
+ * bundle, small enough to stay far from the wgpu 8192 texture limit
+ * and to keep one page's Vello scene under the tile-encoder budget.
  */
-const BG_RESOLUTION = 4;
-/** Starting density for non-background tiles. */
+const PAGE_MAX_DIM = 4096;
+/** Starting density until the host pushes the real zoom. */
 const DEFAULT_TILE_RESOLUTION = 4;
-/**
- * Per-zoom-step rasterization cap for non-bg tiles. Smaller than
- * the bg cap because mid-size object2 tiles (big buildings ~500
- * logical px) stay under 8192 phys px at 8× density (= 4000 px).
- * The user zoom levels top out at 5×, so 8× density at zoom=5 still
- * gives 1.6× oversampling per screen pixel — far past the point
- * where additional density is visually distinguishable.
- */
+/** Upper density clamp (matches the previous pipeline). */
 const MAX_TILE_RESOLUTION = 8;
-/**
- * Per-sprite re-bake dimension cap (logical px x density must stay
- * under this). wgpu maxTextureDimension2d is 8192; leave headroom for
- * the 1-px AA pad + rounding.
- */
-const SAFE_TEXTURE_DIM = 8000;
 const TICK_INTERVAL_MS = 1000 / 60;
+/** Settle delay before destroying retired GPU sources (2 ticks). */
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
 
 /**
- * Cache entry for a tile bake — either:
- *
- * - **Single-frame**: one `ExternalSource` with one `Texture`
- *   covering the whole source. Used for static tiles, AVM1
- *   Random-pick tiles (frozen at load), and slope tiles whose
- *   `gotoAndStop(slopeId)` lands on a fixed frame.
- *
- * - **Strip atlas** (B2): one `ExternalSource` holding ALL frames
- *   of an animated tile in a grid, plus a per-frame array of
- *   `Texture` objects (each pointing at one cell rect). Animation
- *   tick swaps `sprite.texture = frames[idx]` with zero Vello
- *   dispatch — the strip was baked once at first acquire.
- *
- * Cache key: `${bundle}:${export}:${resolution}` (NOT keyed by
- * frame — the strip covers every frame). The first sprite to
- * acquire a tile triggers the strip bake; subsequent sprites
- * (same map, same tile, same density) share the bake.
- */
-interface CachedTileSource {
-  source: ImageSource;
-  /** Per-frame Texture instances; length = frameCount. For
-   *  single-frame tiles, length 1 with `frames[0]` covering the
-   *  whole source. */
-  frames: Texture[];
-  /** Anchor in (texel / cell_size) units. For strip atlases this
-   *  refers to the SWF (0,0) inside ONE cell. Same for every
-   *  frame, by Rust-side bounds-union construction. */
-  anchorFracX: number;
-  anchorFracY: number;
-}
-
-/**
- * Maximum frame count we attempt to fold into a single strip
- * atlas. Beyond this, a tile falls back to per-frame on-demand
- * rendering (see `acquireSingleFrame`) — keeps any one strip
- * texture under wgpu's 16384-pixel limit and bounds the worst-
- * case GPU memory commit per acquire. ~150 frames at 256×256 BGRA
- * fits in 39 MB which is safely below the strip-side cap.
+ * Maximum frame count folded into an atlas strip block. Beyond this a
+ * tile falls back to per-advance live re-bakes — bounds the page area
+ * any single animation can claim.
  */
 const STRIP_MAX_FRAMES = 150;
-
-/**
- * Wall-clock budget for tile re-rasterization per frame. Drain
- * processes at least one tile (guaranteed progress) and then
- * continues until this many ms have elapsed inside the drain call.
- * Adapts to hardware: fast machines burst through many tiles per
- * frame, slow machines stretch the upgrade over more frames — same
- * code, same constant. 16.6ms is the 60fps frame budget; reserving
- * ~3ms for tile upgrades leaves the rest for Pixi render +
- * animation tick + other work.
- */
-const UPGRADE_BUDGET_MS = 3;
 
 /**
  * Layer-tagged variant of `TilePlacement` — caller marks the
@@ -208,68 +163,94 @@ export interface LayeredTilePlacement extends TilePlacement {
   layer: 0 | 1 | 2;
 }
 
+/** One unique bake request (atlas cell / strip block) for a generation. */
+interface TileBakeSpec {
+  key: string;
+  bundle: string;
+  exportName: string;
+  /** 0 = fixed frame, 1 = seeded static, 2 = loop strip. */
+  kind: 0 | 1 | 2;
+  /** kind 0: frame; kind 1: representative cellId; kind 2: frameCount. */
+  param: number;
+}
+
+/** One baked atlas entry: per-frame cell textures over a page source. */
+interface AtlasEntry {
+  /** Per-frame Texture instances (length 1 for single-cell items). */
+  frames: Texture[];
+  /** SWF (0,0) anchor inside ONE cell, as a fraction of cell dims. */
+  anchorFracX: number;
+  anchorFracY: number;
+  /** ACTUAL bake density (post dimension-clamp — see the bg doc). */
+  resolution: number;
+}
+
+/**
+ * One zero-copy atlas page: the Pixi `ExternalSource` adopting the
+ * Vello-rendered GPUTexture (shared GPUDevice) + the wasm-side id that
+ * releases the underlying storage (`freeRenderTexture`).
+ */
+interface AtlasPage {
+  source: ExternalSource;
+  textureId: number;
+  bytes: number;
+}
+
+/**
+ * One map generation: the atlas pages + entry map for a
+ * (mapKey, resolution) pair. Retired WHOLESALE — pages and shared
+ * scripted-part textures are destroyed together after the settle
+ * delay, never per-entry.
+ */
+interface TileGeneration {
+  id: number;
+  resMilli: number;
+  mapKey: string | null;
+  pages: AtlasPage[];
+  pageBytes: number;
+  /** specKey → entry; `null` = known-unbakeable (don't retry). */
+  entries: Map<string, AtlasEntry | null>;
+  /** Scripted-part shared bakes (runs + child strips), lazily added. */
+  scriptedShared: Map<string, { source: ImageSource; entry: AtlasEntry }>;
+}
+
 interface TileSpriteState {
   sprite: Sprite;
   layer: 0 | 1 | 2;
-  // Re-render context — kept so on-demand frame advance reuses bundle/export.
   bundle: string;
   exportName: string;
   frameCount: number;
   fps: number;
   isAnimated: boolean;
-  /**
-   * True for the map background tile. Excluded from zoom-driven
-   * re-rasterization so the widest tile never trips wgpu's
-   * `maxTextureDimension2d` and the bg never visibly flickers on
-   * the zoom path.
-   */
-  isBackground: boolean;
   currentFrame: number;
   accumMs: number;
-  /**
-   * Cache key into `TileSpriteRenderer.tileCache` for the current
-   * frame. Sprites that share the same key reuse one GPU texture.
-   * `removeSprite` decrements the cache's refcount via this key.
-   */
-  cacheKey: string;
-  /**
-   * Resolution this sprite is currently bound to — backgrounds stay
-   * at `BG_RESOLUTION`, everything else tracks the dynamic
-   * `tileResolution`. Used when re-acquiring on zoom + when
-   * computing `sprite.scale = 1/resolution`.
-   */
+  /** Spec key into the live generation's `entries`. */
+  specKey: string;
+  /** Actual bake density of the current textures. */
   resolution: number;
-  // Cell context — for repositioning on map-scale change.
+  /** Current generation entry's frame textures (never destroyed here —
+   *  they belong to the generation). */
+  frames: Texture[];
+  /** Live re-bake ownership for long-timeline outliers. */
+  volatileSource: ImageSource | null;
+  // Cell context — for re-applying the matrix on retexture.
   cellX: number;
   cellY: number;
   rotation: number;
   flip: boolean;
-  /** Anchor in (texture-pixel / texture-size) units, captured at create. */
-  anchorFracX: number;
-  anchorFracY: number;
-  /** Seeded static variant signature (see `TilePlacement.staticSig`). */
-  staticSig?: number;
-  /** Seed cell for seeded static re-bakes on resolution change. */
-  cellId?: number;
 }
 
 /**
- * One paint-ordered slice of a live scripted tile. Runs bake once
- * (shared per `(export, partIdx, sig, resolution)`); dynamic child
- * parts hold a strip of the child's whole frame range so per-tick
- * animation is a texture swap; whole-scene fallbacks (masked
- * wrappers) re-bake on change into a privately-owned volatile source.
+ * One paint-ordered slice of a live scripted tile. Shared parts (runs
+ * + child strips) reference generation-owned textures; whole-scene
+ * fallbacks re-bake into a part-owned volatile source.
  */
 interface ScriptedPartState {
   sprite: Sprite;
   info: TileInstancePartInfo;
-  /** tileCache key for shared entries (runs + child strips). Null for
-   *  volatile (re-baked-per-change) parts. */
-  cacheKey: string | null;
-  /** True when `cacheKey` points at a multi-frame strip entry. */
-  isStrip: boolean;
-  /** Privately-owned source for volatile parts (whole fallback, or a
-   *  child whose strip exceeded GPU limits). Replaced on re-bake. */
+  /** Generation-owned frame textures (null for volatile parts). */
+  frames: Texture[] | null;
+  /** Privately-owned source for volatile parts. Replaced on re-bake. */
   volatileSource: ImageSource | null;
 }
 
@@ -329,6 +310,78 @@ function applyMatrix(
   sprite.rotation = rot * (Math.PI / 2);
 }
 
+/** Initial frame for a placement (loop phase seed / fixed pick). */
+function initialFrameFor(p: LayeredTilePlacement): number {
+  if (p.isAnimated) {
+    return (p.phaseSeed ?? 0) % Math.max(1, p.frameCount);
+  }
+  return p.staticFrame;
+}
+
+/**
+ * The unique bake spec a placement samples, or null for scripted
+ * tiles (their parts bake per-instance at create time).
+ */
+function specForPlacement(p: LayeredTilePlacement): TileBakeSpec | null {
+  if (p.scripted) return null;
+  const useStrip =
+    p.isAnimated && p.frameCount > 1 && p.frameCount <= STRIP_MAX_FRAMES;
+  if (useStrip) {
+    return {
+      key: `strip|${p.bundle}:${p.exportName}:${p.frameCount}`,
+      bundle: p.bundle,
+      exportName: p.exportName,
+      kind: 2,
+      param: p.frameCount,
+    };
+  }
+  const useSeeded =
+    !p.isAnimated && p.staticSig !== undefined && p.cellId !== undefined;
+  if (useSeeded) {
+    return {
+      // Keyed by the variant SIGNATURE (frame + frozen-child pins) so
+      // cells whose random draws matched share one cell; the param is
+      // a representative cellId — any cell with this sig reproduces
+      // the identical bake.
+      key: `seeded|${p.bundle}:${p.exportName}@${p.staticSig}`,
+      bundle: p.bundle,
+      exportName: p.exportName,
+      kind: 1,
+      param: p.cellId!,
+    };
+  }
+  const frame = initialFrameFor(p);
+  return {
+    key: `frame|${p.bundle}:${p.exportName}@${frame}`,
+    bundle: p.bundle,
+    exportName: p.exportName,
+    kind: 0,
+    param: frame,
+  };
+}
+
+/**
+ * Yield until the next animation frame so the deferred-destroy queue
+ * and Pixi upload machinery get their turn between page dispatches
+ * (synchronous multi-bake sweeps have OOM'd hosts before). Raced with
+ * a timeout so a hidden tab can't stall a map build forever.
+ */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(finish);
+    }
+    setTimeout(finish, 50);
+  });
+}
+
 export class TileSpriteRenderer {
   private states = new Map<string, TileSpriteState>();
   /** Scripted tiles (per-instance AVM1 playheads), keyed like `states`. */
@@ -338,39 +391,20 @@ export class TileSpriteRenderer {
   private groundLayer: Container;
   private object1Layer: Container;
   private object2Layer: Container;
-  /**
-   * Shared GPU texture pool keyed by
-   * `${bundle}:${exportName}:${frame}:${resolution}`. Including the
-   * resolution in the cache key lets backgrounds (pinned at
-   * `BG_RESOLUTION`) keep their entry across zoom changes while
-   * non-bg tiles get fresh entries every time the user zooms.
-   */
-  private tileCache = new Map<string, CachedTileSource>();
-  /** Refcount per cache key. When it hits 0 we retire the GPU texture. */
-  private cacheRefs = new Map<string, number>();
-  /**
-   * Current rasterization density for non-bg tiles. Backgrounds
-   * always use `BG_RESOLUTION` regardless of this value — see
-   * `setTileResolution` for the zoom-driven re-render path.
-   */
-  private tileResolution = DEFAULT_TILE_RESOLUTION;
-  /**
-   * In-flight density upgrade triggered by `setTileResolution`. The
-   * queue is drained inside `tick()` at `UPGRADE_BUDGET_PER_FRAME`
-   * sprites per frame so a zoom step never freezes the main thread.
-   * Tiles not yet upgraded keep showing their prior (lower-density)
-   * texture — visually they look slightly softer until their turn
-   * comes up, never blank. A second `setTileResolution` call mid-
-   * upgrade replaces the queue with a fresh one targeting the new
-   * density (no compounding, no orphan upgrades).
-   */
-  private pendingUpgrade: {
-    targetRes: number;
-    queue: TileSpriteState[];
-    idx: number;
-    scriptedQueue: ScriptedTileState[];
-    scriptedIdx: number;
-  } | null = null;
+
+  /** Live atlas generation (null until the first sync completes). */
+  private generation: TileGeneration | null = null;
+  private genSeq = 0;
+
+  // Desired state — the sync loop converges the scene onto this.
+  private desiredPlacements: LayeredTilePlacement[] = [];
+  private desiredMapKey: string | null = null;
+  private desiredResMilli = DEFAULT_TILE_RESOLUTION * 1000;
+  private dirty = false;
+  private syncing = false;
+  private destroyed = false;
+  /** Throttle for missing-entry warnings (one per spec key). */
+  private warnedSpecs = new Set<string>();
 
   constructor(
     _pixiRenderer: Renderer,
@@ -388,289 +422,280 @@ export class TileSpriteRenderer {
   getStats(): {
     states: number;
     scripted: number;
-    tileCache: number;
-    cacheRefs: number;
+    pages: number;
+    pageBytes: number;
+    entries: number;
+    scriptedTextures: number;
   } {
     return {
       states: this.states.size,
       scripted: this.scriptedStates.size,
-      tileCache: this.tileCache.size,
-      cacheRefs: this.cacheRefs.size,
+      pages: this.generation?.pages.length ?? 0,
+      pageBytes: this.generation?.pageBytes ?? 0,
+      entries: this.generation?.entries.size ?? 0,
+      scriptedTextures: this.generation?.scriptedShared.size ?? 0,
     };
   }
 
   /**
-   * Acquire a cache entry covering every frame of an animated tile,
-   * or the single fixed frame of a static / AVM1-frozen tile.
-   *
-   * Animated tile path (frameCount > 1 AND <= STRIP_MAX_FRAMES):
-   * bake ALL frames as one strip atlas via
-   * `renderSwfTileDynamicStripRange`. Slice into N per-frame
-   * `Texture` objects sharing one `TextureSource`. The first
-   * sprite acquire pays the bake cost; subsequent sprites (same
-   * bundle/export/resolution) reuse it. **Zero per-frame Vello
-   * dispatch after warmup.**
-   *
-   * Static + AVM1-frozen + outlier (> STRIP_MAX_FRAMES) path:
-   * single-frame `renderSwfFrame` as before (one cell, one Texture).
-   *
-   * Cache key always omits `frame` for strips so the SAME entry
-   * serves every animation tick. Single-frame tiles append `@F`
-   * so multiple slope variants of the same tile coexist.
+   * Declare the desired placement set. `mapKey` identifies the map —
+   * a DIFFERENT key forces a fresh atlas generation (whole-page
+   * eviction of the previous map's art after the swap); the SAME key
+   * (tactic toggles, incremental rebuilds) appends pages for missing
+   * specs only. The scene converges asynchronously: existing sprites
+   * stay visible until the new generation's pages are baked.
    */
-  private acquireCachedTile(
-    bundle: string,
-    exportName: string,
-    fixedFrame: number,
-    frameCount: number,
-    isAnimated: boolean,
-    resolution: number,
-    staticSig?: number,
-    cellId?: number
-  ): { cacheKey: string; entry: CachedTileSource } | null {
-    const useStrip =
-      isAnimated && frameCount > 1 && frameCount <= STRIP_MAX_FRAMES;
-    // Seeded static variant: the executed `gotoAndStop(random(...))`
-    // result with per-cell frozen-child pins. Keyed by the variant
-    // signature so cells whose draws matched share one bake.
-    const useSeeded = !isAnimated && staticSig !== undefined && cellId !== undefined;
-    const cacheKey = useStrip
-      ? `strip|${bundle}:${exportName}:${resolution}`
-      : useSeeded
-        ? `seeded|${bundle}:${exportName}:${resolution}@${staticSig}`
-        : `frame|${bundle}:${exportName}:${resolution}@${fixedFrame}`;
-    return this.acquireByKey(cacheKey, () =>
-      useStrip
-        ? this.bakeStrip(bundle, exportName, frameCount, resolution)
-        : useSeeded
-          ? this.bakeSeededStatic(bundle, exportName, cellId, resolution)
-          : this.bakeSingleFrame(bundle, exportName, fixedFrame, resolution)
-    );
+  setPlacements(
+    placements: ReadonlyArray<LayeredTilePlacement>,
+    mapKey: string | null = null
+  ): void {
+    this.desiredPlacements = [...placements];
+    this.desiredMapKey = mapKey;
+    this.requestSync();
   }
 
   /**
-   * Look up / bake a shared cache entry and take one refcount on it.
-   * All shared tile GPU textures (strips, frames, seeded statics,
-   * scripted-part runs + strips) flow through here so refcounting
-   * stays uniform.
+   * Declare the desired rasterization density (wc3 parity: bake
+   * density == display zoom, milli-quantized like wc3's `scale_milli`
+   * cache key). A change starts a NEW generation at the new density;
+   * sprites keep their animation state (`currentFrame`, `accumMs`)
+   * and swap onto the new pages when the bake lands.
    */
-  private acquireByKey(
-    cacheKey: string,
-    bake: () => CachedTileSource | null
-  ): { cacheKey: string; entry: CachedTileSource } | null {
-    let entry = this.tileCache.get(cacheKey);
-    if (!entry) {
-      const baked = bake();
-      if (!baked) return null;
-      entry = baked;
-      this.tileCache.set(cacheKey, entry);
-    }
-    this.cacheRefs.set(cacheKey, (this.cacheRefs.get(cacheKey) ?? 0) + 1);
-    return { cacheKey, entry };
-  }
-
-  /**
-   * Bake one frame as a single-cell texture (static tiles, AVM1
-   * Random-pick tiles, slope tiles at a fixed frame, outliers
-   * exceeding `STRIP_MAX_FRAMES`).
-   */
-  private bakeSingleFrame(
-    bundle: string,
-    exportName: string,
-    frame: number,
-    resolution: number
-  ): CachedTileSource | null {
-    const result = renderSwfFrame(bundle, exportName, frame, resolution);
-    if (!result) return null;
-    return this.wrapSingle(
-      result,
-      `tile-${bundle}:${exportName}@${frame}@${resolution}`
+  setTileResolution(res: number): void {
+    const clamped = Math.round(
+      Math.max(0.5, Math.min(MAX_TILE_RESOLUTION, res)) * 1000
     );
-  }
-
-  /**
-   * Bake the canonical STATIC variant chosen by the tile's executed
-   * frame-1 script for this cell (frame + frozen-child pins applied
-   * wasm-side) — canonical replacement for the old `cellId %
-   * frameCount` heuristic.
-   */
-  private bakeSeededStatic(
-    bundle: string,
-    exportName: string,
-    cellId: number,
-    resolution: number
-  ): CachedTileSource | null {
-    const result = renderSwfTileStaticSeeded(
-      bundle,
-      exportName,
-      cellId,
-      resolution
-    );
-    if (!result) return null;
-    return this.wrapSingle(
-      result,
-      `tile-seeded-${bundle}:${exportName}@${resolution}`
-    );
-  }
-
-  /** Wrap a single-cell bake result into a one-frame cache entry. */
-  private wrapSingle(
-    result: {
-      bitmap: ImageBitmap;
-      width: number;
-      height: number;
-      anchorX: number;
-      anchorY: number;
-    },
-    label: string
-  ): CachedTileSource {
-    const source = new ImageSource({
-      resource: result.bitmap,
-      width: result.width,
-      height: result.height,
-      label,
-      alphaMode: "premultiply-alpha-on-upload",
-      scaleMode: "linear",
-      autoGarbageCollect: false,
-    });
-    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
-    const texture = new Texture({ source });
-    const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
-    const anchorFracY = result.height > 0 ? result.anchorY / result.height : 0;
-    return {
-      source,
-      frames: [texture],
-      anchorFracX,
-      anchorFracY,
-    };
-  }
-
-  /** Wrap a strip bake result into a per-frame-sliced cache entry. */
-  private wrapStrip(
-    result: {
-      bitmap: ImageBitmap;
-      width: number;
-      height: number;
-      frameWidth: number;
-      frameHeight: number;
-      gridCols: number;
-      frameCount: number;
-      anchorX: number;
-      anchorY: number;
-    },
-    label: string
-  ): CachedTileSource {
-    const source = new ImageSource({
-      resource: result.bitmap,
-      width: result.width,
-      height: result.height,
-      label,
-      alphaMode: "premultiply-alpha-on-upload",
-      scaleMode: "linear",
-      autoGarbageCollect: false,
-    });
-    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
-    const frames: Texture[] = new Array(result.frameCount);
-    for (let i = 0; i < result.frameCount; i++) {
-      const col = i % result.gridCols;
-      const row = Math.floor(i / result.gridCols);
-      const rect = new Rectangle(
-        col * result.frameWidth,
-        row * result.frameHeight,
-        result.frameWidth,
-        result.frameHeight
-      );
-      frames[i] = new Texture({ source, frame: rect });
-    }
-    const anchorFracX =
-      result.frameWidth > 0 ? result.anchorX / result.frameWidth : 0;
-    const anchorFracY =
-      result.frameHeight > 0 ? result.anchorY / result.frameHeight : 0;
-    return {
-      source,
-      frames,
-      anchorFracX,
-      anchorFracY,
-    };
-  }
-
-  /**
-   * Bake all `frameCount` frames as ONE strip atlas in one Vello
-   * dispatch via `renderSwfTileDynamicStripRange`. Slice into N
-   * Pixi `Texture` objects sharing one `TextureSource`; each
-   * `Texture` has a `frame` rect addressing its cell in the grid.
-   *
-   * **Path B for tiles**: zero per-frame Vello calls thereafter —
-   * animation tick is `sprite.texture = frames[i]`.
-   */
-  private bakeStrip(
-    bundle: string,
-    exportName: string,
-    frameCount: number,
-    resolution: number
-  ): CachedTileSource | null {
-    const result = renderSwfTileDynamicStripRange(
-      bundle,
-      exportName,
-      0,
-      frameCount,
-      frameCount,
-      resolution,
-    );
-    if (!result) return null;
-    // Slice the strip into per-frame Texture objects. Each cell is
-    // (frameWidth × frameHeight); cells stack left-to-right then
-    // wrap by `gridCols`. Anchor inside each cell is the SWF (0,0)
-    // expressed as a fraction of cell dims — uniform across cells
-    // by the Rust-side bounds-union construction.
-    return this.wrapStrip(
-      result,
-      `tile-strip-${bundle}:${exportName}@${resolution}`
-    );
-  }
-
-  /**
-   * Drop a refcount against `cacheKey`. When it falls to 0 schedule
-   * the source for retire after a settle delay so any in-flight
-   * Pixi render pass that still references the source finishes
-   * before its memory disappears.
-   */
-  private releaseCachedTile(cacheKey: string): void {
-    const next = (this.cacheRefs.get(cacheKey) ?? 0) - 1;
-    if (next > 0) {
-      this.cacheRefs.set(cacheKey, next);
+    if (clamped === this.desiredResMilli) {
       return;
     }
-    this.cacheRefs.delete(cacheKey);
-    const entry = this.tileCache.get(cacheKey);
-    if (!entry) return;
-    this.tileCache.delete(cacheKey);
-    const { source } = entry;
-    setTimeout(() => {
-      // Bridge path: destroying the ImageSource cascades to its
-      // uploaded Pixi GPUTexture. The Rust-side `wgpu::Texture`
-      // already dropped at end of the bake and feeds deferred
-      // destroy on its own — no `freeRenderTexture` plumbing.
-      try {
-        source.destroy();
-      } catch {}
-    }, RETIRE_DELAY_MS);
+    this.desiredResMilli = clamped;
+    this.requestSync();
+  }
+
+  private requestSync(): void {
+    if (this.destroyed) return;
+    this.dirty = true;
+    if (!this.syncing) {
+      void this.runSync();
+    }
   }
 
   /**
-   * Diff the live sprite set against the new placement list — create
-   * sprites for new entries, retire the ones that disappeared, leave
-   * unchanged ones alone.
+   * Single-flight convergence loop. Snapshots the desired state,
+   * bakes whatever pages it needs (yielding to rAF between page
+   * dispatches), then reconciles sprites. If the desired state moved
+   * while baking, loops again — a fresh-but-stale generation is
+   * retired immediately (its textures were never displayed).
    */
-  setPlacements(placements: ReadonlyArray<LayeredTilePlacement>): void {
+  private async runSync(): Promise<void> {
+    if (this.syncing) return;
+    this.syncing = true;
+    try {
+      while (this.dirty && !this.destroyed) {
+        this.dirty = false;
+        const placements = this.desiredPlacements;
+        const mapKey = this.desiredMapKey;
+        const resMilli = this.desiredResMilli;
+        const specs = this.collectSpecs(placements);
+        const cur = this.generation;
+        const needFresh =
+          !cur || cur.resMilli !== resMilli || cur.mapKey !== mapKey;
+        if (needFresh) {
+          const next: TileGeneration = {
+            id: ++this.genSeq,
+            resMilli,
+            mapKey,
+            pages: [],
+            pageBytes: 0,
+            entries: new Map(),
+            scriptedShared: new Map(),
+          };
+          await this.bakeSpecs(next, specs);
+          if (this.destroyed || this.dirty) {
+            // Stale before it ever displayed — drop it now.
+            this.retireGeneration(next, 0);
+            continue;
+          }
+          const old = this.generation;
+          this.generation = next;
+          this.reconcile(placements, true);
+          if (old) {
+            this.retireGeneration(old, RETIRE_DELAY_MS);
+          }
+        } else {
+          const missing = specs.filter((s) => !cur.entries.has(s.key));
+          if (missing.length > 0) {
+            await this.bakeSpecs(cur, missing);
+            if (this.destroyed || this.dirty) {
+              // Pages already belong to the live generation — keep
+              // them and re-run with the fresh desired state.
+              continue;
+            }
+          }
+          this.reconcile(placements, false);
+        }
+      }
+    } finally {
+      this.syncing = false;
+    }
+  }
+
+  /** Unique bake specs for a placement list (scripted tiles excluded). */
+  private collectSpecs(
+    placements: ReadonlyArray<LayeredTilePlacement>
+  ): TileBakeSpec[] {
+    const byKey = new Map<string, TileBakeSpec>();
+    for (const p of placements) {
+      const spec = specForPlacement(p);
+      if (spec && !byKey.has(spec.key)) {
+        byKey.set(spec.key, spec);
+      }
+    }
+    return [...byKey.values()];
+  }
+
+  /**
+   * Bake `specs` into `gen`'s pages: group by bundle, then request
+   * pages until every spec is placed or marked unbakeable. ONE Vello
+   * dispatch per page; a rAF yield between dispatches keeps the
+   * deferred-destroy queue draining and the main thread responsive.
+   */
+  private async bakeSpecs(
+    gen: TileGeneration,
+    specs: ReadonlyArray<TileBakeSpec>
+  ): Promise<void> {
+    const byBundle = new Map<string, TileBakeSpec[]>();
+    for (const s of specs) {
+      if (gen.entries.has(s.key)) continue;
+      const list = byBundle.get(s.bundle);
+      if (list) list.push(s);
+      else byBundle.set(s.bundle, [s]);
+    }
+    let firstDispatch = true;
+    for (const [bundle, list] of byBundle) {
+      let remaining = list;
+      while (remaining.length > 0) {
+        if (this.destroyed) return;
+        if (!firstDispatch) {
+          await nextFrame();
+          if (this.destroyed) return;
+        }
+        firstDispatch = false;
+        const kinds = new Uint32Array(remaining.length);
+        const params = new Uint32Array(remaining.length);
+        for (let i = 0; i < remaining.length; i++) {
+          kinds[i] = remaining[i].kind;
+          params[i] = remaining[i].param >>> 0;
+        }
+        const pixiRenderer = getPixiRenderer();
+        const res = pixiRenderer
+          ? renderSwfTileAtlasPage(
+              bundle,
+              remaining.map((s) => s.exportName),
+              kinds,
+              params,
+              gen.resMilli / 1000,
+              PAGE_MAX_DIM
+            )
+          : null;
+        if (!res) {
+          // Bundle missing / renderer halted / all-degenerate — mark
+          // every remaining spec unbakeable so we never spin.
+          for (const s of remaining) gen.entries.set(s.key, null);
+          break;
+        }
+        // Zero-copy adoption of the Vello page texture on the shared
+        // GPUDevice (crowd-renderer pattern) — no bitmap roundtrip.
+        const source = new ExternalSource({
+          resource: res.texture,
+          renderer: pixiRenderer!,
+          width: res.width,
+          height: res.height,
+          label: `tile-page-g${gen.id}-${gen.pages.length}-${bundle}`,
+        });
+        source.alphaMode = "no-premultiply-alpha";
+        source.scaleMode = "linear";
+        source.format = "rgba8unorm";
+        source.autoGarbageCollect = false;
+        gen.pages.push({
+          source,
+          textureId: res.textureId,
+          bytes: res.width * res.height * 4,
+        });
+        gen.pageBytes += res.width * res.height * 4;
+
+        const next: TileBakeSpec[] = [];
+        let progressed = false;
+        for (let i = 0; i < remaining.length; i++) {
+          const s = remaining[i];
+          if (!res.itemValid[i]) {
+            gen.entries.set(s.key, null);
+            progressed = true;
+            continue;
+          }
+          if (!res.itemPlaced[i]) {
+            next.push(s);
+            continue;
+          }
+          progressed = true;
+          const fw = res.itemFrameW[i];
+          const fh = res.itemFrameH[i];
+          const count = Math.max(1, res.itemFrameCount[i]);
+          const cols = Math.max(1, res.itemGridCols[i]);
+          const frames: Texture[] = new Array(count);
+          for (let f = 0; f < count; f++) {
+            const cx = res.itemX[i] + (f % cols) * fw;
+            const cy = res.itemY[i] + Math.floor(f / cols) * fh;
+            frames[f] = new Texture({
+              source,
+              frame: new Rectangle(cx, cy, fw, fh),
+            });
+          }
+          gen.entries.set(s.key, {
+            frames,
+            anchorFracX: fw > 0 ? res.itemAnchorX[i] / fw : 0,
+            anchorFracY: fh > 0 ? res.itemAnchorY[i] / fh : 0,
+            resolution: Math.max(0.001, res.itemResMilli[i] / 1000),
+          });
+        }
+        if (!progressed) {
+          // Defensive: a page that placed nothing new would loop
+          // forever. Mark the stragglers unbakeable and move on.
+          for (const s of next) gen.entries.set(s.key, null);
+          break;
+        }
+        remaining = next;
+      }
+    }
+  }
+
+  /**
+   * Converge live sprites onto `placements` against the CURRENT
+   * generation. `retexture` re-points surviving sprites at the new
+   * generation's textures (zoom / map-revisit swap) while preserving
+   * their animation state.
+   */
+  private reconcile(
+    placements: ReadonlyArray<LayeredTilePlacement>,
+    retexture: boolean
+  ): void {
+    const gen = this.generation;
+    if (!gen) return;
     const nextKeys = new Set<string>();
     for (const p of placements) {
       const key = tileKey(p);
       nextKeys.add(key);
-      if (this.states.has(key) || this.scriptedStates.has(key)) {
+      const existing = this.states.get(key);
+      if (existing) {
+        if (retexture) this.retextureState(existing, gen);
         continue;
       }
-      this.createSprite(key, p);
+      const scripted = this.scriptedStates.get(key);
+      if (scripted) {
+        if (retexture) this.retextureScripted(scripted, gen);
+        continue;
+      }
+      this.createSprite(key, p, gen);
     }
     for (const key of [...this.states.keys()]) {
       if (!nextKeys.has(key)) {
@@ -685,8 +710,9 @@ export class TileSpriteRenderer {
   }
 
   /**
-   * Per-tick frame advance for animated tiles. Static tiles are no-ops
-   * (their sprite was set up once and never changes).
+   * Per-tick frame advance for animated tiles + scripted-instance
+   * fan-out. Static tiles are no-ops (their sprite was set up once
+   * and never changes).
    */
   tick(dtMs: number): void {
     for (const [, state] of this.states) {
@@ -716,259 +742,143 @@ export class TileSpriteRenderer {
         this.applyScriptedFrames(state);
       }
     }
-    // Drain a budgeted slice of the density-upgrade queue. Keeping
-    // this AFTER animation tick means a tile that swapped frame on
-    // this same tick gets upgraded with its current frame index in
-    // sync — animation continuity preserved across the upgrade.
-    this.drainPendingUpgrade();
   }
 
   /**
-   * Point each dynamic part of a scripted tile at its playhead's
-   * current frame. Strip parts are a pure texture swap; volatile
-   * parts (whole fallback / oversized strips) re-bake at the
-   * instance's current composed state.
+   * Advance an animated tile to `state.currentFrame`. Strip entries
+   * collapse to swapping the sprite's `texture` between page cell
+   * rects — **no Vello dispatch**. Long-timeline outliers (single-cell
+   * entries with frameCount > 1) live re-bake the new frame into a
+   * sprite-owned volatile texture, exactly like the previous model.
    */
-  private applyScriptedFrames(state: ScriptedTileState): void {
-    const pairs = tileInstanceDynFrames(state.instId);
-    for (let i = 0; i + 1 < pairs.length; i += 2) {
-      const part = state.parts[pairs[i]];
-      if (!part) continue;
-      const frame = pairs[i + 1];
-      if (part.isStrip && part.cacheKey) {
-        const entry = this.tileCache.get(part.cacheKey);
-        if (entry && entry.frames.length > 0) {
-          part.sprite.texture = entry.frames[frame % entry.frames.length];
-        }
-      } else {
-        this.rebakeScriptedPart(state, pairs[i]);
-      }
+  private swapFrame(state: TileSpriteState): void {
+    if (state.frames.length > 1) {
+      state.sprite.texture =
+        state.frames[state.currentFrame % state.frames.length];
+      return;
     }
-    for (let i = 0; i < state.parts.length; i++) {
-      if (state.parts[i].info.kind === "whole") {
-        this.rebakeScriptedPart(state, i);
-      }
+    // Outlier live re-bake path.
+    const r = renderSwfFrame(
+      state.bundle,
+      state.exportName,
+      state.currentFrame,
+      state.resolution
+    );
+    if (!r) return;
+    const wrapped = this.wrapSingle(
+      r,
+      `tile-vol-${state.bundle}:${state.exportName}@${state.currentFrame}`,
+      state.resolution
+    );
+    const old = state.volatileSource;
+    state.sprite.texture = wrapped.entry.frames[0];
+    state.sprite.anchor.set(
+      wrapped.entry.anchorFracX,
+      wrapped.entry.anchorFracY
+    );
+    state.volatileSource = wrapped.source;
+    if (old) {
+      this.destroySourceLater(old);
     }
   }
 
   destroy(): void {
+    this.destroyed = true;
     for (const key of [...this.states.keys()]) {
       this.removeSprite(key);
     }
     for (const key of [...this.scriptedStates.keys()]) {
       this.removeScripted(key);
     }
+    if (this.generation) {
+      this.retireGeneration(this.generation, RETIRE_DELAY_MS);
+      this.generation = null;
+    }
+    this.desiredPlacements = [];
   }
 
-  /**
-   * Re-rasterize every non-background tile sprite at the new
-   * density. Backgrounds keep their existing texture (pinned at
-   * `BG_RESOLUTION`) — re-rendering them risks the wgpu 8192
-   * texture limit and the bg never visibly benefits from
-   * oversampling enough to justify the per-zoom GPU churn.
-   *
-   * Animation state is preserved across the swap: `currentFrame`
-   * and `accumMs` are NOT reset, so an animated tile mid-cycle
-   * (chimney smoke, water ripples) continues from where it left
-   * off — the only thing that changes is the underlying GPU
-   * texture's pixel density.
-   *
-   * The cache is keyed by `(bundle, export, frame, resolution)`,
-   * so calls into `acquireCachedTile` at the new density hit fresh
-   * entries while the old per-resolution entries naturally retire
-   * via refcount-drop once every sprite has migrated.
-   */
-  setTileResolution(res: number): void {
-    // wc3 parity: bake density == display zoom EXACTLY (continuous
-    // float, no ceil-quantization). Displaying a raster at any ratio
-    // other than 1:1 bilinearly smears the twip-precise vector edges
-    // (docs/WC3-PARITY-GAPS.md A.1). Clamped to MAX_TILE_RESOLUTION
-    // for the wgpu texture-dimension limit; per-tile dimension safety
-    // is applied in `upgradeSpriteResolution`.
-    // Milli-quantized like wc3's `scale_milli` tile-cache key so
-    // float jitter can't mint near-duplicate cache entries.
-    const clamped =
-      Math.round(Math.max(0.5, Math.min(MAX_TILE_RESOLUTION, res)) * 1000) /
-      1000;
-    if (Math.abs(clamped - this.tileResolution) < 1e-3) {
-      return;
-    }
-    this.tileResolution = clamped;
-    // Queue every non-bg sprite that isn't already at the target
-    // density. The drain happens in `tick()` at
-    // `UPGRADE_BUDGET_PER_FRAME` per frame. Filtering out
-    // already-matching sprites lets a second `setTileResolution`
-    // mid-upgrade (zoom-in-then-out) avoid redundant work for
-    // tiles already upgraded to the new target.
-    const queue: TileSpriteState[] = [];
-    for (const state of this.states.values()) {
-      // Backgrounds re-bake too (wc3 parity — a bg pinned at 4x
-      // displays at zoom/4 forever, permanently soft). Their target
-      // is dimension-clamped per sprite in `upgradeSpriteResolution`.
-      if (Math.abs(state.resolution - clamped) < 1e-3) continue;
-      queue.push(state);
-    }
-    const scriptedQueue: ScriptedTileState[] = [];
-    for (const state of this.scriptedStates.values()) {
-      if (Math.abs(state.resolution - clamped) < 1e-3) continue;
-      scriptedQueue.push(state);
-    }
-    this.pendingUpgrade = queue.length > 0 || scriptedQueue.length > 0
-      ? { targetRes: clamped, queue, idx: 0, scriptedQueue, scriptedIdx: 0 }
-      : null;
-  }
-
-  /**
-   * Re-rasterize one tile sprite at the given density. Pulled out of
-   * the old sync sweep so it can be invoked from the per-frame
-   * upgrade drain. Returns true on success, false if the bake was
-   * over-budget / failed (sprite then stays on its previous
-   * texture — never blank).
-   */
-  private upgradeSpriteResolution(
-    state: TileSpriteState,
-    target: number,
-  ): boolean {
-    // Per-sprite dimension safety: the tile's logical size is known
-    // from its current texture (phys / current density). Cap the new
-    // density so the re-bake stays under the wgpu texture limit —
-    // this is what lets backgrounds (widest tiles) re-bake on zoom
-    // instead of being pinned soft at BG_RESOLUTION.
-    const tex = state.sprite.texture;
-    const logicalW = tex.source.pixelWidth / state.resolution;
-    const logicalH = tex.source.pixelHeight / state.resolution;
-    const maxDim = Math.max(1, logicalW, logicalH);
-    const safeTarget = Math.min(target, SAFE_TEXTURE_DIM / maxDim);
-    if (Math.abs(safeTarget - state.resolution) < 1e-3) return true;
-    const acquired = this.acquireCachedTile(
-      state.bundle,
-      state.exportName,
-      state.currentFrame,
-      state.frameCount,
-      state.isAnimated,
-      safeTarget,
-      state.staticSig,
-      state.cellId,
-    );
-    if (!acquired) return false;
-    const { cacheKey, entry } = acquired;
-    const oldCacheKey = state.cacheKey;
-    const frameIdx = state.currentFrame % entry.frames.length;
-    state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-    state.sprite.texture = entry.frames[frameIdx];
-    applyMatrix(
-      state.sprite,
-      state.cellX,
-      state.cellY,
-      state.rotation,
-      state.flip,
-      safeTarget,
-    );
-    state.cacheKey = cacheKey;
-    state.resolution = safeTarget;
-    state.anchorFracX = entry.anchorFracX;
-    state.anchorFracY = entry.anchorFracY;
-    this.releaseCachedTile(oldCacheKey);
-    return true;
-  }
-
-  /**
-   * Drain the pending density-upgrade queue under a wall-clock
-   * budget (`UPGRADE_BUDGET_MS`). Always processes at least one
-   * sprite per call to guarantee forward progress; after that,
-   * continues until the budget is exhausted. Skips sprites that no
-   * longer match (e.g. removed by `setPlacements` mid-upgrade) or
-   * that already reached the target (e.g. a second
-   * `setTileResolution` call landed them on the same density via
-   * a different code path).
-   */
-  private drainPendingUpgrade(): void {
-    const u = this.pendingUpgrade;
-    if (!u) return;
-    const start = performance.now();
-    while (u.idx < u.queue.length) {
-      const state = u.queue[u.idx++];
-      if (Math.abs(state.resolution - u.targetRes) < 1e-3) continue; // already done
-      // Validate sprite still alive (not removed by setPlacements).
-      // `state.sprite.parent` is null after `removeSprite` clears it.
-      if (!state.sprite.parent) continue;
-      this.upgradeSpriteResolution(state, u.targetRes);
-      // Wall-clock budget check is AFTER the upgrade so each call
-      // makes at least one unit of progress, regardless of how
-      // long that one bake took on this hardware. Result: zero
-      // hand-tuning across machines.
-      if (performance.now() - start >= UPGRADE_BUDGET_MS) break;
-    }
-    // Scripted tiles migrate after the plain sprites, same budget.
-    if (u.idx >= u.queue.length) {
-      while (u.scriptedIdx < u.scriptedQueue.length) {
-        const state = u.scriptedQueue[u.scriptedIdx++];
-        if (Math.abs(state.resolution - u.targetRes) < 1e-3) continue;
-        if (!this.scriptedByInst.has(state.instId)) continue; // removed
-        this.upgradeScriptedResolution(state, u.targetRes);
-        if (performance.now() - start >= UPGRADE_BUDGET_MS) break;
+  /** Destroy one retired GPU source after the 2-tick settle. */
+  private destroySourceLater(source: ImageSource): void {
+    setTimeout(() => {
+      try {
+        source.destroy();
+      } catch {
+        // already destroyed
       }
-    }
-    if (u.idx >= u.queue.length && u.scriptedIdx >= u.scriptedQueue.length) {
-      this.pendingUpgrade = null;
+    }, RETIRE_DELAY_MS);
+  }
+
+  /**
+   * Retire a whole generation: destroy every page source (and release
+   * its wasm-side wgpu texture via `freeRenderTexture` — the patched
+   * fork's Drop is a no-op, see `feedback_pixi_wgpu_texture_lifetime`)
+   * plus every shared scripted-part source after `delayMs` (0 for
+   * never-displayed generations). Whole-page eviction ONLY — no
+   * per-cell reuse, per RENDER_AUDIT findings.
+   */
+  private retireGeneration(gen: TileGeneration, delayMs: number): void {
+    const doRetire = () => {
+      for (const page of gen.pages) {
+        try {
+          page.source.destroy();
+        } catch {
+          // already destroyed
+        }
+        freeRenderTexture(page.textureId);
+      }
+      for (const shared of gen.scriptedShared.values()) {
+        try {
+          shared.source.destroy();
+        } catch {
+          // already destroyed
+        }
+      }
+      gen.pages = [];
+      gen.pageBytes = 0;
+      gen.entries.clear();
+      gen.scriptedShared.clear();
+    };
+    if (delayMs <= 0) {
+      doRetire();
+    } else {
+      setTimeout(doRetire, delayMs);
     }
   }
 
-  private createSprite(key: string, p: LayeredTilePlacement): void {
+  private createSprite(
+    key: string,
+    p: LayeredTilePlacement,
+    gen: TileGeneration
+  ): void {
     // Scripted tiles (stop-parked / enterFrame-triggered children) go
     // through the per-instance path; on wasm refusal fall through to
-    // the legacy sprite so the tile is never invisible.
-    if (p.scripted && this.tryCreateScripted(key, p)) {
+    // the plain sprite so the tile is never invisible.
+    if (p.scripted && this.tryCreateScripted(key, p, gen)) {
       return;
     }
-    // Per-cell phase for loops: canonically every placed clip owns its
-    // playhead, so identical gfx must not ripple in lockstep. The seed
-    // offsets both the starting frame and the sub-frame accumulator.
-    const phase = p.isAnimated ? (p.phaseSeed ?? 0) : 0;
-    const initialFrame = p.isAnimated
-      ? phase % Math.max(1, p.frameCount)
-      : p.staticFrame;
-    const isBackground = p.isBackground === true;
-    const resolution = isBackground ? BG_RESOLUTION : this.tileResolution;
-    const acquired = this.acquireCachedTile(
-      p.bundle,
-      p.exportName,
-      initialFrame,
-      p.frameCount,
-      p.isAnimated,
-      resolution,
-      p.staticSig,
-      p.cellId
-    );
-    if (!acquired) {
+    const spec = specForPlacement(p);
+    if (!spec) return;
+    const entry = gen.entries.get(spec.key);
+    if (!entry) {
+      if (!this.warnedSpecs.has(spec.key)) {
+        this.warnedSpecs.add(spec.key);
+        log.warn(`createSprite: no atlas entry for ${spec.key}`);
+      }
       return;
     }
-    const { cacheKey, entry } = acquired;
-    // NOTE: do NOT set `source.resolution`. Pixi interprets it as a
-    // pixel-density multiplier that makes the texture render 1/N
-    // times smaller; combined with our `sprite.scale = 1/resolution`
-    // it produces 1/N² tiles. The native density compensation lives
-    // entirely in `applyMatrix`'s `sprite.scale`.
-
-    const initialTexture = entry.frames[initialFrame % entry.frames.length];
-    const sprite = new Sprite(initialTexture);
+    const initialFrame = initialFrameFor(p);
+    const sprite = new Sprite(entry.frames[initialFrame % entry.frames.length]);
     sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, resolution);
+    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, entry.resolution);
     // Painter's-order zIndex inside the layer: lower-cellY (back rows)
     // render first so higher-cellY (front rows) overlap correctly.
     // Mirrors canonical MapHandler depth convention.
     sprite.zIndex = Math.round(p.cellY * 100) + Math.round(p.cellX);
-
-    const parent =
-      p.layer === 0
-        ? this.groundLayer
-        : p.layer === 1
-          ? this.object1Layer
-          : this.object2Layer;
-    parent.addChild(sprite);
+    this.layerFor(p.layer).addChild(sprite);
 
     // Sub-frame phase: spread the first advance across the period so
     // same-cycle tiles don't all step on the same host tick.
+    const phase = p.isAnimated ? (p.phaseSeed ?? 0) : 0;
     const period = p.fps > 0 ? 1000 / p.fps : 0;
     const accumMs = p.isAnimated
       ? (((phase >>> 8) & 0xffff) / 0x10000) * period
@@ -981,20 +891,63 @@ export class TileSpriteRenderer {
       frameCount: p.frameCount,
       fps: p.fps,
       isAnimated: p.isAnimated,
-      isBackground,
       currentFrame: initialFrame,
       accumMs,
-      cacheKey,
-      resolution,
+      specKey: spec.key,
+      resolution: entry.resolution,
+      frames: entry.frames,
+      volatileSource: null,
       cellX: p.cellX,
       cellY: p.cellY,
       rotation: p.rotation,
       flip: p.flip,
-      anchorFracX: entry.anchorFracX,
-      anchorFracY: entry.anchorFracY,
-      staticSig: p.staticSig,
-      cellId: p.cellId,
     });
+  }
+
+  private layerFor(layer: 0 | 1 | 2): Container {
+    return layer === 0
+      ? this.groundLayer
+      : layer === 1
+        ? this.object1Layer
+        : this.object2Layer;
+  }
+
+  /**
+   * Re-point one surviving sprite at the (new) generation's textures,
+   * preserving its animation playhead. A spec that failed at the new
+   * density blanks the sprite (old texture is retiring) — logged, and
+   * self-heals on the next generation.
+   */
+  private retextureState(state: TileSpriteState, gen: TileGeneration): void {
+    const entry = gen.entries.get(state.specKey);
+    if (!entry) {
+      if (!this.warnedSpecs.has(state.specKey)) {
+        this.warnedSpecs.add(state.specKey);
+        log.warn(`retexture: no atlas entry for ${state.specKey}`);
+      }
+      state.sprite.texture = Texture.EMPTY;
+      state.frames = [];
+      return;
+    }
+    state.frames = entry.frames;
+    state.resolution = entry.resolution;
+    state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
+    state.sprite.texture =
+      entry.frames[state.currentFrame % entry.frames.length];
+    applyMatrix(
+      state.sprite,
+      state.cellX,
+      state.cellY,
+      state.rotation,
+      state.flip,
+      entry.resolution
+    );
+    // The outlier volatile texture (if any) was baked at the old
+    // density; drop it — the next advance re-bakes at the new one.
+    if (state.volatileSource) {
+      this.destroySourceLater(state.volatileSource);
+      state.volatileSource = null;
+    }
   }
 
   private removeSprite(key: string): void {
@@ -1004,65 +957,65 @@ export class TileSpriteRenderer {
     }
     try {
       state.sprite.parent?.removeChild(state.sprite);
-      // Sprite owns no GPU resources — the texture is shared via
-      // tileCache. `destroy({ texture: false })` keeps the shared
-      // resource alive.
+      // The sprite's texture belongs to the generation (or the
+      // volatile source below) — never destroy it here.
       state.sprite.destroy({ texture: false });
     } catch (e) {
       log.warn("removeSprite: destroy failed", e);
     }
-    this.releaseCachedTile(state.cacheKey);
+    if (state.volatileSource) {
+      this.destroySourceLater(state.volatileSource);
+      state.volatileSource = null;
+    }
     this.states.delete(key);
   }
+
+  // ── Scripted tiles (per-instance AVM1 playheads) ──────────────────
 
   /**
    * Create the per-instance scripted-tile presentation: one wasm
    * instance (per-cell seeded AVM1 playheads) + stacked part sprites
-   * (wc3 tile_parts model — static runs baked once, dynamic children
-   * as per-frame strips, whole-scene fallback for masked wrappers).
-   * Returns false when wasm refuses (caller falls back to the legacy
-   * sprite path so the tile is never invisible).
+   * (wc3 tile_parts model — static runs baked once per generation,
+   * dynamic children as per-frame strips, whole-scene fallback for
+   * masked wrappers). Returns false when wasm refuses (caller falls
+   * back to the plain sprite path so the tile is never invisible).
    */
-  private tryCreateScripted(key: string, p: LayeredTilePlacement): boolean {
+  private tryCreateScripted(
+    key: string,
+    p: LayeredTilePlacement,
+    gen: TileGeneration
+  ): boolean {
     if (p.cellId === undefined) return false;
     const created = tileInstanceCreate(p.bundle, p.exportName, p.cellId);
     if (!created || !created.parts || created.parts.length === 0) {
       return false;
     }
-    const resolution = this.tileResolution;
+    const resolution = gen.resMilli / 1000;
     const baseZ = Math.round(p.cellY * 100) + Math.round(p.cellX);
-    const parent =
-      p.layer === 0
-        ? this.groundLayer
-        : p.layer === 1
-          ? this.object1Layer
-          : this.object2Layer;
+    const parent = this.layerFor(p.layer);
     const parts: ScriptedPartState[] = [];
     let anyContent = false;
     for (let i = 0; i < created.parts.length; i++) {
       const info = created.parts[i];
-      let cacheKey: string | null = null;
-      let isStrip = false;
+      let frames: Texture[] | null = null;
       let volatileSource: ImageSource | null = null;
       let texture: Texture = Texture.EMPTY;
       let anchorFracX = 0;
       let anchorFracY = 0;
-      const acq = this.acquireScriptedPart(
+      const shared = this.acquireScriptedPart(
+        gen,
         created.instId,
         i,
         info,
         p.bundle,
         p.exportName,
-        created.sig,
-        resolution
+        created.sig
       );
-      if (acq) {
-        cacheKey = acq.cacheKey;
-        isStrip = acq.entry.frames.length > 1;
-        texture =
-          acq.entry.frames[(info.curFrame ?? 0) % acq.entry.frames.length];
-        anchorFracX = acq.entry.anchorFracX;
-        anchorFracY = acq.entry.anchorFracY;
+      if (shared) {
+        frames = shared.frames;
+        texture = shared.frames[(info.curFrame ?? 0) % shared.frames.length];
+        anchorFracX = shared.anchorFracX;
+        anchorFracY = shared.anchorFracY;
         anyContent = true;
       } else {
         // Volatile path: whole fallback or a part whose shared bake
@@ -1072,12 +1025,13 @@ export class TileSpriteRenderer {
         if (r) {
           const wrapped = this.wrapSingle(
             r,
-            `tile-pvol-${p.bundle}:${p.exportName}:p${i}@${resolution}`
+            `tile-pvol-${p.bundle}:${p.exportName}:p${i}@g${gen.id}`,
+            resolution
           );
           volatileSource = wrapped.source;
-          texture = wrapped.frames[0];
-          anchorFracX = wrapped.anchorFracX;
-          anchorFracY = wrapped.anchorFracY;
+          texture = wrapped.entry.frames[0];
+          anchorFracX = wrapped.entry.anchorFracX;
+          anchorFracY = wrapped.entry.anchorFracY;
           anyContent = true;
         }
       }
@@ -1091,7 +1045,7 @@ export class TileSpriteRenderer {
       parent.addChild(sprite);
       // Index in `parts` MUST match the wasm part index —
       // `tileInstanceDynFrames` pairs address parts positionally.
-      parts.push({ sprite, info, cacheKey, isStrip, volatileSource });
+      parts.push({ sprite, info, frames, volatileSource });
     }
     if (!anyContent) {
       for (const part of parts) {
@@ -1121,51 +1075,78 @@ export class TileSpriteRenderer {
   }
 
   /**
-   * Acquire the SHARED cache entry for one scripted part. Child parts
-   * bake their whole frame range as a strip at the child's own union
-   * bounds (per-tick animation = texture swap); run parts bake once
-   * per `(export, partIdx, sig, resolution)` — instances whose random
-   * draws matched share the texture. Whole parts return null (they're
-   * volatile by design).
+   * Acquire the generation-shared bake for one scripted part. Child
+   * parts bake their whole frame range as a strip at the child's own
+   * union bounds (per-tick animation = texture swap); run parts bake
+   * once per `(export, partIdx, sig)` — instances whose random draws
+   * matched share the texture. Whole parts return null (volatile by
+   * design). Shared sources retire WITH the generation.
    */
   private acquireScriptedPart(
+    gen: TileGeneration,
     instId: number,
     partIdx: number,
     info: TileInstancePartInfo,
     bundle: string,
     exportName: string,
-    sig: number,
-    resolution: number
-  ): { cacheKey: string; entry: CachedTileSource } | null {
+    sig: number
+  ): AtlasEntry | null {
+    if (info.kind === "whole") return null;
+    const key =
+      info.kind === "child"
+        ? `tpstrip|${bundle}:${exportName}:p${partIdx}`
+        : `tprun|${bundle}:${exportName}:p${partIdx}@${sig}`;
+    const hit = gen.scriptedShared.get(key);
+    if (hit) return hit.entry;
+    const resolution = gen.resMilli / 1000;
+    let wrapped: { source: ImageSource; entry: AtlasEntry } | null = null;
     if (info.kind === "child") {
-      return this.acquireByKey(
-        `tpstrip|${bundle}:${exportName}:p${partIdx}:${resolution}`,
-        () => {
-          const r = renderSwfTileInstancePartStrip(instId, partIdx, resolution);
-          return r
-            ? this.wrapStrip(
-                r,
-                `tile-pstrip-${bundle}:${exportName}:p${partIdx}@${resolution}`
-              )
-            : null;
-        }
-      );
+      const r = renderSwfTileInstancePartStrip(instId, partIdx, resolution);
+      if (r) {
+        wrapped = this.wrapStrip(
+          r,
+          `tile-pstrip-${bundle}:${exportName}:p${partIdx}@g${gen.id}`,
+          resolution
+        );
+      }
+    } else {
+      const r = renderSwfTileInstancePart(instId, partIdx, resolution);
+      if (r) {
+        wrapped = this.wrapSingle(
+          r,
+          `tile-prun-${bundle}:${exportName}:p${partIdx}@g${gen.id}`,
+          resolution
+        );
+      }
     }
-    if (info.kind === "run") {
-      return this.acquireByKey(
-        `tprun|${bundle}:${exportName}:p${partIdx}:${resolution}@${sig}`,
-        () => {
-          const r = renderSwfTileInstancePart(instId, partIdx, resolution);
-          return r
-            ? this.wrapSingle(
-                r,
-                `tile-prun-${bundle}:${exportName}:p${partIdx}@${resolution}`
-              )
-            : null;
-        }
-      );
+    if (!wrapped) return null;
+    gen.scriptedShared.set(key, wrapped);
+    return wrapped.entry;
+  }
+
+  /**
+   * Point each dynamic part of a scripted tile at its playhead's
+   * current frame. Strip parts are a pure texture swap; volatile
+   * parts (whole fallback / oversized strips) re-bake at the
+   * instance's current composed state.
+   */
+  private applyScriptedFrames(state: ScriptedTileState): void {
+    const pairs = tileInstanceDynFrames(state.instId);
+    for (let i = 0; i + 1 < pairs.length; i += 2) {
+      const part = state.parts[pairs[i]];
+      if (!part) continue;
+      const frame = pairs[i + 1];
+      if (part.frames && part.frames.length > 0) {
+        part.sprite.texture = part.frames[frame % part.frames.length];
+      } else {
+        this.rebakeScriptedPart(state, pairs[i]);
+      }
     }
-    return null;
+    for (let i = 0; i < state.parts.length; i++) {
+      if (state.parts[i].info.kind === "whole") {
+        this.rebakeScriptedPart(state, i);
+      }
+    }
   }
 
   /**
@@ -1181,59 +1162,28 @@ export class TileSpriteRenderer {
     if (!r) return;
     const wrapped = this.wrapSingle(
       r,
-      `tile-pvol-${state.bundle}:${state.exportName}:p${partIdx}@${state.resolution}`
+      `tile-pvol-${state.bundle}:${state.exportName}:p${partIdx}`,
+      state.resolution
     );
     const old = part.volatileSource;
-    part.sprite.texture = wrapped.frames[0];
-    part.sprite.anchor.set(wrapped.anchorFracX, wrapped.anchorFracY);
+    part.sprite.texture = wrapped.entry.frames[0];
+    part.sprite.anchor.set(wrapped.entry.anchorFracX, wrapped.entry.anchorFracY);
     part.volatileSource = wrapped.source;
     if (old) {
-      setTimeout(() => {
-        try {
-          old.destroy();
-        } catch {}
-      }, RETIRE_DELAY_MS);
+      this.destroySourceLater(old);
     }
-  }
-
-  /** Tear down one scripted tile: sprites, cache refs, wasm instance. */
-  private removeScripted(key: string): void {
-    const state = this.scriptedStates.get(key);
-    if (!state) return;
-    for (const part of state.parts) {
-      try {
-        part.sprite.parent?.removeChild(part.sprite);
-        part.sprite.destroy({ texture: false });
-      } catch (e) {
-        log.warn("removeScripted: destroy failed", e);
-      }
-      if (part.cacheKey) {
-        this.releaseCachedTile(part.cacheKey);
-      }
-      if (part.volatileSource) {
-        const src = part.volatileSource;
-        setTimeout(() => {
-          try {
-            src.destroy();
-          } catch {}
-        }, RETIRE_DELAY_MS);
-      }
-    }
-    tileInstanceFree(state.instId);
-    this.scriptedByInst.delete(state.instId);
-    this.scriptedStates.delete(key);
   }
 
   /**
-   * Re-rasterize every part of one scripted tile at the new density
-   * (zoom-settle path). Shared entries migrate to fresh per-resolution
-   * cache keys; volatile parts re-bake directly.
+   * Re-acquire every part of one surviving scripted tile from the new
+   * generation (zoom / revisit swap). The wasm instance — and with it
+   * every child playhead — persists; only the textures migrate.
    */
-  private upgradeScriptedResolution(
+  private retextureScripted(
     state: ScriptedTileState,
-    target: number
+    gen: TileGeneration
   ): void {
-    if (Math.abs(state.resolution - target) < 1e-3) return;
+    const target = gen.resMilli / 1000;
     state.resolution = target;
     // Current playhead per dynamic part so strip swaps land on the
     // right frame after the migration.
@@ -1244,27 +1194,31 @@ export class TileSpriteRenderer {
     }
     for (let i = 0; i < state.parts.length; i++) {
       const part = state.parts[i];
-      if (part.cacheKey) {
-        const acq = this.acquireScriptedPart(
+      if (part.info.kind === "whole") {
+        this.rebakeScriptedPart(state, i);
+      } else {
+        const shared = this.acquireScriptedPart(
+          gen,
           state.instId,
           i,
           part.info,
           state.bundle,
           state.exportName,
-          state.sig,
-          target
+          state.sig
         );
-        if (!acq) continue;
-        const oldKey = part.cacheKey;
-        part.cacheKey = acq.cacheKey;
-        part.isStrip = acq.entry.frames.length > 1;
-        const frame = dynFrame.get(i) ?? part.info.curFrame ?? 0;
-        part.sprite.texture =
-          acq.entry.frames[frame % acq.entry.frames.length];
-        part.sprite.anchor.set(acq.entry.anchorFracX, acq.entry.anchorFracY);
-        this.releaseCachedTile(oldKey);
-      } else {
-        this.rebakeScriptedPart(state, i);
+        if (shared) {
+          part.frames = shared.frames;
+          const frame = dynFrame.get(i) ?? part.info.curFrame ?? 0;
+          part.sprite.texture = shared.frames[frame % shared.frames.length];
+          part.sprite.anchor.set(shared.anchorFracX, shared.anchorFracY);
+          if (part.volatileSource) {
+            this.destroySourceLater(part.volatileSource);
+            part.volatileSource = null;
+          }
+        } else {
+          part.frames = null;
+          this.rebakeScriptedPart(state, i);
+        }
       }
       applyMatrix(
         part.sprite,
@@ -1277,50 +1231,99 @@ export class TileSpriteRenderer {
     }
   }
 
-  /**
-   * Advance an animated tile to `state.currentFrame`. Under B2, the
-   * cache entry is a strip atlas covering every frame so this
-   * collapses to swapping the sprite's `texture` reference — **no
-   * Vello dispatch**. For outliers and oddly-keyed legacy entries
-   * that turned out to be single-frame, we fall back to the old
-   * "re-acquire per frame" path so behavior degrades gracefully
-   * (a tile with >`STRIP_MAX_FRAMES` will still animate, just
-   * through per-frame on-demand bakes like before).
-   */
-  private swapFrame(state: TileSpriteState): void {
-    const entry = this.tileCache.get(state.cacheKey);
-    if (entry && entry.frames.length > 1) {
-      // Strip path: zero-dispatch UV swap.
-      const idx = state.currentFrame % entry.frames.length;
-      state.sprite.texture = entry.frames[idx];
-      return;
+  /** Tear down one scripted tile: sprites, volatile sources, wasm instance. */
+  private removeScripted(key: string): void {
+    const state = this.scriptedStates.get(key);
+    if (!state) return;
+    for (const part of state.parts) {
+      try {
+        part.sprite.parent?.removeChild(part.sprite);
+        part.sprite.destroy({ texture: false });
+      } catch (e) {
+        log.warn("removeScripted: destroy failed", e);
+      }
+      if (part.volatileSource) {
+        this.destroySourceLater(part.volatileSource);
+        part.volatileSource = null;
+      }
+      // Shared part textures belong to the generation — retired
+      // wholesale with it, never here.
     }
-    // Outlier / fallback: re-acquire a single-frame texture for the
-    // new frame index. Same lifecycle as pre-B2.
-    const acquired = this.acquireCachedTile(
-      state.bundle,
-      state.exportName,
-      state.currentFrame,
-      state.frameCount,
-      state.isAnimated,
-      state.resolution
-    );
-    if (!acquired) {
-      return;
+    tileInstanceFree(state.instId);
+    this.scriptedByInst.delete(state.instId);
+    this.scriptedStates.delete(key);
+  }
+
+  // ── Bitmap wrapping helpers (volatile / scripted-part bakes) ──────
+
+  /** Wrap a single-cell bake result into a one-frame entry. */
+  private wrapSingle(
+    result: VelloSwfStaticBaseResult,
+    label: string,
+    resolution: number
+  ): { source: ImageSource; entry: AtlasEntry } {
+    const source = new ImageSource({
+      resource: result.bitmap,
+      width: result.width,
+      height: result.height,
+      label,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
+    });
+    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
+    const texture = new Texture({ source });
+    return {
+      source,
+      entry: {
+        frames: [texture],
+        anchorFracX: result.width > 0 ? result.anchorX / result.width : 0,
+        anchorFracY: result.height > 0 ? result.anchorY / result.height : 0,
+        resolution,
+      },
+    };
+  }
+
+  /** Wrap a strip bake result into a per-frame-sliced entry. */
+  private wrapStrip(
+    result: VelloSwfTileStripResult,
+    label: string,
+    resolution: number
+  ): { source: ImageSource; entry: AtlasEntry } {
+    const source = new ImageSource({
+      resource: result.bitmap,
+      width: result.width,
+      height: result.height,
+      label,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
+    });
+    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
+    const frames: Texture[] = new Array(result.frameCount);
+    for (let i = 0; i < result.frameCount; i++) {
+      const col = i % result.gridCols;
+      const row = Math.floor(i / result.gridCols);
+      frames[i] = new Texture({
+        source,
+        frame: new Rectangle(
+          col * result.frameWidth,
+          row * result.frameHeight,
+          result.frameWidth,
+          result.frameHeight
+        ),
+      });
     }
-    const { cacheKey, entry: nextEntry } = acquired;
-    const oldCacheKey = state.cacheKey;
-    state.sprite.anchor.set(nextEntry.anchorFracX, nextEntry.anchorFracY);
-    state.sprite.texture = nextEntry.frames[0];
-    state.cacheKey = cacheKey;
-    state.anchorFracX = nextEntry.anchorFracX;
-    state.anchorFracY = nextEntry.anchorFracY;
-    if (oldCacheKey !== cacheKey) {
-      this.releaseCachedTile(oldCacheKey);
-    } else {
-      // Same key → acquire bumped refcount even though the previous
-      // ref still applies. Drop the spurious increment.
-      this.releaseCachedTile(cacheKey);
-    }
+    return {
+      source,
+      entry: {
+        frames,
+        anchorFracX:
+          result.frameWidth > 0 ? result.anchorX / result.frameWidth : 0,
+        anchorFracY:
+          result.frameHeight > 0 ? result.anchorY / result.frameHeight : 0,
+        resolution,
+      },
+    };
   }
 }

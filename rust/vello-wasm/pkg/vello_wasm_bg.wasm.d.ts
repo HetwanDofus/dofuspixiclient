@@ -79,6 +79,7 @@ export const vellorenderer_renderSwfStrip: (a: number, b: number, c: number, d: 
 export const vellorenderer_renderSwfStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_renderSwfStripRangeAccessorized: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
 export const vellorenderer_renderSwfStripRangeAccessorizedBitmap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
+export const vellorenderer_renderSwfTileAtlasPage: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
 export const vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
 export const vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;

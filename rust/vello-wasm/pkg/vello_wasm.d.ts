@@ -803,6 +803,49 @@ export class VelloRenderer {
      */
     renderSwfStripRangeAccessorizedBitmap(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number, acc_slots: Uint32Array, acc_bundles: string[], acc_exports: string[], acc_anim_types: Uint32Array, char_dir_suffix: string, apply_b_fix: boolean): any;
     /**
+     * Bake ONE tile-atlas PAGE: shelf-pack a heterogeneous list of tile
+     * bakes from ONE bundle into a single composite texture and render
+     * them all in ONE Vello dispatch (unified-atlas Step 2,
+     * docs/ARCHITECTURE-UNIFIED-ATLAS.md). Per item `kinds[i]` selects
+     * the bake mode; `params[i]` its argument:
+     *
+     * - `0` — fixed frame render (`params[i]` = frame index). Same scene
+     *   path as `renderSwfBundleBatch`.
+     * - `1` — seeded static variant (`params[i]` = cell id): executes
+     *   the wrapper's frame-1 AS2 with the per-cell seed and renders the
+     *   chosen frame with frozen-child pins. Same scene path as
+     *   `renderSwfTileStaticSeeded`.
+     * - `2` — simple-loop strip block (`params[i]` = total frame count):
+     *   every playable frame rendered as consecutive grid cells inside
+     *   one packed block. Same scene path as
+     *   `renderSwfTileDynamicStripRange(0, total, total)`.
+     *
+     * Items whose block would exceed `max_dim` at the requested
+     * resolution are re-fit at a lower per-item resolution (kinds 0/1 —
+     * this is how the map background self-clamps under the wgpu texture
+     * limit) or refused (kind 2 — the JS caller falls back to per-frame
+     * live re-bakes). Items that measure fine but don't fit on THIS page
+     * are returned with `itemPlaced = 0`; the caller re-requests them on
+     * the next page. Returns `null` only when nothing could be measured
+     * (bundle missing / every item degenerate).
+     *
+     * The page texture is ZERO-COPY: the `wgpu::Texture` stays alive in
+     * `self.textures` under `textureId` and its raw `GPUTexture` handle
+     * is returned for Pixi to adopt as an `ExternalSource` on the shared
+     * GPUDevice (crowd-renderer pattern — no `transferToImageBitmap`
+     * sync point per page). The caller OWNS the lifetime: it MUST call
+     * `freeRenderTexture(textureId)` after a 2-tick settle when the
+     * page's generation retires (`feedback_pixi_wgpu_texture_lifetime`).
+     *
+     * Result: `{texture, textureId, width, height, itemX, itemY, itemW,
+     * itemH, itemFrameW, itemFrameH, itemGridCols, itemFrameCount,
+     * itemAnchorX, itemAnchorY, itemResMilli, itemValid, itemPlaced}` —
+     * anchors are per-cell pixel offsets of the SWF (0,0) origin;
+     * `itemResMilli` is the ACTUAL per-item resolution×1000 after
+     * clamping.
+     */
+    renderSwfTileAtlasPage(bundle: string, exports: string[], kinds: Uint32Array, params: Uint32Array, resolution: number, max_dim: number): any;
+    /**
      * Render the DYNAMIC parts of a multi-frame tile across a contiguous
      * frame range `[start, start+count)`. Output is a strip of
      * per-frame textures at the FULL animation's union bounds — same
@@ -1397,6 +1440,7 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_renderSwfStripRangeAccessorized: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
     readonly vellorenderer_renderSwfStripRangeAccessorizedBitmap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
+    readonly vellorenderer_renderSwfTileAtlasPage: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
     readonly vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
     readonly vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;

@@ -1423,10 +1423,9 @@ export function getSwfLoadStats(): {
 /**
  * Internal helper: ensure first-time observation of a textureId is
  * counted. Bridge migration: most renderSwf* paths no longer return
- * a textureId, so this is currently unused — kept for the spell-
- * instance and cool paths that still emit textureIds.
+ * a textureId — the remaining users are the spell-instance path and
+ * the zero-copy tile atlas pages (`renderSwfTileAtlasPage`).
  */
-// @ts-expect-error currently unused under bridge migration; kept for future re-wiring.
 function trackRenderTexture(textureId: number, label: string): void {
   if (textureId === 0 || textureId === -1) return;
   if (!liveRenderTextureIds.has(textureId)) {
@@ -3003,6 +3002,97 @@ export function renderSwfBundleBatch(
     resolution
   );
   return (result as VelloSwfBundleBatchResult | null) ?? null;
+}
+
+/**
+ * One baked tile-atlas PAGE (unified-atlas Step 2). All requested items
+ * come from ONE bundle and land shelf-packed in ONE composite texture
+ * rendered in ONE Vello dispatch. The page is ZERO-COPY: `texture` is
+ * the live GPUTexture on the shared device (adopt as `ExternalSource`,
+ * crowd-renderer pattern — no `transferToImageBitmap` sync point) and
+ * the caller MUST retire it via `freeRenderTexture(textureId)` after a
+ * 2-tick settle when the page's generation drops
+ * (`feedback_pixi_wgpu_texture_lifetime`). Parallel arrays are indexed
+ * by the item's position in the request:
+ *
+ * - `itemValid[i] = 0` — the item can never bake (missing export,
+ *   degenerate bounds, oversized strip). Don't re-request.
+ * - `itemPlaced[i] = 0` (and valid) — the item didn't fit THIS page;
+ *   re-request it on the next page.
+ * - strips occupy a grid block: `itemFrameCount` cells of
+ *   `itemFrameW × itemFrameH`, `itemGridCols` per row, starting at
+ *   `(itemX, itemY)`.
+ * - `itemResMilli[i]` — ACTUAL per-item resolution ×1000 after the
+ *   dimension clamp (the map background self-clamps under the wgpu
+ *   texture limit); sprite scale must use this, not the request value.
+ */
+export interface VelloTileAtlasPageResult {
+  texture: GPUTexture;
+  textureId: number;
+  width: number;
+  height: number;
+  itemX: Uint32Array;
+  itemY: Uint32Array;
+  itemW: Uint32Array;
+  itemH: Uint32Array;
+  itemFrameW: Uint32Array;
+  itemFrameH: Uint32Array;
+  itemGridCols: Uint32Array;
+  itemFrameCount: Uint32Array;
+  itemAnchorX: Float64Array;
+  itemAnchorY: Float64Array;
+  itemResMilli: Uint32Array;
+  itemValid: Uint8Array;
+  itemPlaced: Uint8Array;
+}
+
+/**
+ * Render one tile-atlas page. `kinds[i]`: 0 = fixed frame
+ * (`params[i]` = frame), 1 = seeded static (`params[i]` = cellId),
+ * 2 = simple-loop strip (`params[i]` = total frame count). Returns
+ * null when the bundle is missing or every item is unbakeable.
+ */
+export function renderSwfTileAtlasPage(
+  bundle: string,
+  exports: string[],
+  kinds: Uint32Array,
+  params: Uint32Array,
+  resolution: number,
+  maxDim: number
+): VelloTileAtlasPageResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const r = renderer as unknown as {
+    renderSwfTileAtlasPage(
+      bundle: string,
+      exports: string[],
+      kinds: Uint32Array,
+      params: Uint32Array,
+      resolution: number,
+      maxDim: number
+    ): unknown;
+  };
+  if (typeof r.renderSwfTileAtlasPage !== "function") {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[vello-loader] renderSwfTileAtlasPage missing from the wasm bundle. " +
+        "Rebuild with `cd rust/vello-wasm && wasm-pack build --target web --release`."
+    );
+    return null;
+  }
+  const result = r.renderSwfTileAtlasPage(
+    bundle,
+    exports,
+    kinds,
+    params,
+    resolution,
+    maxDim
+  ) as VelloTileAtlasPageResult | null;
+  if (result) {
+    trackRenderTexture(result.textureId, "tileAtlasPage");
+  }
+  return result ?? null;
 }
 
 
