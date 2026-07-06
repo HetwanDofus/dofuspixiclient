@@ -14,11 +14,18 @@
 //!     when scaled and translated to each cycle's column.
 //!
 //! All three caches store `vello::Scene` values at **twip identity**
-//! (no scale baked in) — every entry is reusable across every render
-//! resolution. The runtime applies `Affine::scale(...)` at composition
-//! time via `scene.append(sub, Some(xform))`, so the only per-frame
-//! cost on a cache hit is the cheap GPU rasterization step (no AS2
-//! walking, no scene build).
+//! (no scale baked into the transforms). The runtime applies
+//! `Affine::scale(...)` at composition time via
+//! `scene.append(sub, Some(xform))`, so the only per-frame cost on a
+//! cache hit is the cheap GPU rasterization step (no AS2 walking, no
+//! scene build).
+//!
+//! NOT fully resolution-independent, though: stroke WIDTHS inside the
+//! encodings carry the canonical Flash floor (`device_width =
+//! max(natural_width × total_scale, 1 device px)` — see
+//! `swf_spike::render::emit`), which depends on the replay scale.
+//! Every key therefore carries `scale_milli`/`scale_q` =
+//! `round(replay_scale × 1000)`; entries are reusable per zoom level.
 //!
 //! Wire format `VSC2` (little-endian throughout):
 //! ```text
@@ -65,7 +72,11 @@ use vello::peniko::{ColorStop, Extend, color::ColorSpaceTag};
 use vello_encoding::{DrawTag, Encoding, Patch, PathTag, Resources, Style, Transform};
 
 const MAGIC: &[u8; 4] = b"VSC2";
-const FORMAT_VERSION: u16 = 1;
+// v2: Body/Tile/Accessory keys gained `scale_milli`/`scale_q` (the
+// canonical stroke floor makes sub-scenes resolution-dependent). v1
+// blobs decode as `UnsupportedVersion` and callers fall back to fresh
+// bakes.
+const FORMAT_VERSION: u16 = 2;
 
 /// Cache type discriminator. Stable u8 values: rows persisted under
 /// one variant must not decode as another even if we re-order this
@@ -109,6 +120,8 @@ pub struct BodySubsceneKey {
     pub frame_idx: u16,
     pub band_lo: Option<u16>,
     pub band_hi: Option<u16>,
+    /// `round(replay_scale × 1000)` — see the module doc.
+    pub scale_q: u32,
 }
 
 /// Tile sub-scene key — flat triple matching `tile_subscenes`'s
@@ -119,6 +132,8 @@ pub struct TileSubsceneKey {
     pub bundle: String,
     pub export: String,
     pub frame: u32,
+    /// `round(replay_scale × 1000)` — see the module doc.
+    pub scale_milli: u32,
 }
 
 /// Accessory sub-scene key — drives the per-cycle xform composition
@@ -133,6 +148,8 @@ pub struct AccessorySubsceneKey {
     pub anim_type: u8,
     pub side: String,
     pub cycle: u8,
+    /// `round(replay_scale × 1000)` — see the module doc.
+    pub scale_milli: u32,
 }
 
 /// Composed per-variant body atlas key — mirror of `lib.rs`'s private
@@ -601,6 +618,7 @@ fn write_body_key(w: &mut Writer, key: &BodySubsceneKey) {
     w.write_u16(key.frame_idx);
     w.write_opt_u16(key.band_lo);
     w.write_opt_u16(key.band_hi);
+    w.write_u32(key.scale_q);
 }
 
 fn read_body_key(r: &mut Reader) -> Result<BodySubsceneKey, SceneCacheError> {
@@ -613,6 +631,7 @@ fn read_body_key(r: &mut Reader) -> Result<BodySubsceneKey, SceneCacheError> {
         frame_idx: r.read_u16("body.frame_idx")?,
         band_lo: r.read_opt_u16("body.band_lo")?,
         band_hi: r.read_opt_u16("body.band_hi")?,
+        scale_q: r.read_u32("body.scale_q")?,
     })
 }
 
@@ -620,6 +639,7 @@ fn write_tile_key(w: &mut Writer, key: &TileSubsceneKey) {
     w.write_str(&key.bundle);
     w.write_str(&key.export);
     w.write_u32(key.frame);
+    w.write_u32(key.scale_milli);
 }
 
 fn read_tile_key(r: &mut Reader) -> Result<TileSubsceneKey, SceneCacheError> {
@@ -627,6 +647,7 @@ fn read_tile_key(r: &mut Reader) -> Result<TileSubsceneKey, SceneCacheError> {
         bundle: r.read_string("tile.bundle")?,
         export: r.read_string("tile.export")?,
         frame: r.read_u32("tile.frame")?,
+        scale_milli: r.read_u32("tile.scale_milli")?,
     })
 }
 
@@ -637,6 +658,7 @@ fn write_accessory_key(w: &mut Writer, key: &AccessorySubsceneKey) {
     w.write_u8(key.anim_type);
     w.write_str(&key.side);
     w.write_u8(key.cycle);
+    w.write_u32(key.scale_milli);
 }
 
 fn read_accessory_key(r: &mut Reader) -> Result<AccessorySubsceneKey, SceneCacheError> {
@@ -647,6 +669,7 @@ fn read_accessory_key(r: &mut Reader) -> Result<AccessorySubsceneKey, SceneCache
         anim_type: r.read_u8("acc.anim_type")?,
         side: r.read_string("acc.side")?,
         cycle: r.read_u8("acc.cycle")?,
+        scale_milli: r.read_u32("acc.scale_milli")?,
     })
 }
 

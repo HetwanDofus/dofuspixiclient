@@ -80,7 +80,7 @@ async fn run() -> Result<()> {
             let settled = swf_spike::tile_behavior::settled_static_overrides(&doc, sym);
             let ov = (!settled.is_empty() && export.starts_with("static"))
                 .then_some(&settled);
-            render_symbol_with_ctx_tinted(&mut ctx, &doc, sym, &mut scene, xform, 0, pc, ov);
+            render_symbol_with_ctx_tinted(&mut ctx, &doc, sym, &mut scene, xform, 0, pc, ov, 1.0);
         }
         let pixels = headless.render_to_pixels(&scene, cw, ch, Color::WHITE)?;
         for y in 0..ch {

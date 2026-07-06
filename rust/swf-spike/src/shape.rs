@@ -40,15 +40,14 @@ pub enum DrawKind {
     Stroke {
         brush: Brush,
         /// Stroke width in twips (path-local units), as stored by SWF.
+        /// The renderer applies the canonical Flash floor at emit time
+        /// (`emit::emit_cmd`): `device_width = max(width × total_scale,
+        /// 1 device px)` — for ALL strokes, since the floor is a no-op
+        /// for widths already ≥ 1 device px.
         width: f64,
         cap: vello::kurbo::Cap,
         join: vello::kurbo::Join,
         miter_limit: f64,
-        /// True for SWF widths < 20 twips (< 1 px). Renderer applies the
-        /// dofasset NonScaling formula `max(width, 1/world_scale)` so the
-        /// device-pixel result is `max(value_px × resolution, 1)` — exactly
-        /// what `scene_builder.rs::resolve_stroke_width(NonScaling)` returns.
-        non_scaling: bool,
     },
 }
 
@@ -115,7 +114,6 @@ enum StyleKind {
         cap: vello::kurbo::Cap,
         join: vello::kurbo::Join,
         miter_limit: f64,
-        non_scaling: bool,
     },
 }
 
@@ -344,7 +342,6 @@ fn emit_paths(closed: &mut Vec<OpenPath>) -> Vec<DrawCmd> {
                 cap,
                 join,
                 miter_limit,
-                non_scaling,
             } => {
                 // Strokes: do NOT close — Vello would visibly draw the
                 // closing line, which produces "random lines" cutting
@@ -358,7 +355,6 @@ fn emit_paths(closed: &mut Vec<OpenPath>) -> Vec<DrawCmd> {
                         cap,
                         join,
                         miter_limit,
-                        non_scaling,
                     },
                 });
             }
@@ -559,16 +555,17 @@ fn resolve_fill_style(
 
 fn resolve_line_style(idx: u32, ls: &swf::LineStyle, doc: &SwfDoc) -> ResolvedStyle {
     // SWF stroke widths are in twips (1 px = 20 twips). Most Dofus 1.29 art uses
-    // 1-twip hairlines (0.05 px) and 5-twip (0.25 px) sub-pixel widths. We
-    // mirror Arakne+dofasset behavior:
-    //   * raw_twips < 20 (< 1 px in Flash): mark `non_scaling`. The renderer
-    //     clamps via `max(width, 1/world_scale)` so device width is at least
-    //     1 device pixel — same as `StrokeWidthMode::NonScaling` in
-    //     dofasset-renderer/src/scene_builder.rs:357-366.
-    //   * raw_twips >= 20: pass through. Vello multiplies by world_scale to
-    //     give `value_px × resolution` device pixels — same as Fixed mode.
+    // 1-twip hairlines (0.05 px) and 5-twip (0.25 px) sub-pixel widths.
+    //
+    // CANONICAL RULE (ground truth = Flash player behaviour, user-confirmed):
+    //   device_width = max(natural_width × total_scale, 1 device pixel)
+    // Widths pass through here unclassified; `emit::emit_cmd` applies the
+    // floor to EVERY stroke at emit time using the true total scale
+    // (transform scale × downstream replay scale). The floor is a no-op for
+    // strokes that naturally scale above 1 device px, so no `non_scaling`
+    // pre-classification is needed (the old `raw_twips < 20` gating was
+    // redundant with the max()).
     let raw_twips = f64::from(ls.width().get());
-    let non_scaling = raw_twips < 20.0;
     let width = raw_twips;
     let cap = match ls.start_cap() {
         swf::LineCapStyle::Round => vello::kurbo::Cap::Round,
@@ -627,14 +624,13 @@ fn resolve_line_style(idx: u32, ls: &swf::LineStyle, doc: &SwfDoc) -> ResolvedSt
         }
     };
     ResolvedStyle {
-        key: format!("line:{}:w{}:n{}", idx, width as i64, non_scaling as u8),
+        key: format!("line:{}:w{}", idx, width as i64),
         kind: StyleKind::Stroke {
             brush,
             width,
             cap,
             join,
             miter_limit,
-            non_scaling,
         },
         reverse: false,
     }

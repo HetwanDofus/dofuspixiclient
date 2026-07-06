@@ -100,6 +100,7 @@ async fn run() -> Result<()> {
             0,
             palette.unwrap_or_default(),
             ov,
+            1.0,
         );
         let pixels = headless.render_to_pixels(&scene, cw, ch, Color::WHITE)?;
         for y in 0..ch {

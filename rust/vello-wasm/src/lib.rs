@@ -727,6 +727,8 @@ fn emit_player_look(
             flipped,
             has_hat,
             settled.as_deref(),
+            // Direct render — `body_xform` carries the pixel scale.
+            1.0,
         );
         if i < n {
             let sd = &slots[i];
@@ -1057,6 +1059,8 @@ fn emit_player_look_split(
                 flipped,
                 has_hat,
                 settled.as_deref(),
+                // Direct render — `bx` carries the pixel scale.
+                1.0,
             );
             let patches = zone_patch::take_capture();
             let body_hit = hit_geometry::take_capture();
@@ -1372,15 +1376,20 @@ pub struct VelloRenderer {
     /// Set via `setClassAtlasBakeMode(mode)`; the legacy
     /// `setClassAtlasForcePerVariant(bool)` maps true→1, false→2.
     class_atlas_bake_mode: u8,
-    /// Phase 1c: scale-invariant per-(frame, band) sub-scene cache for
-    /// the class atlas bake. Each entry is a `vello::Scene` produced
-    /// by `render_body_band` with `transform = effective_xform`, so
-    /// path coords are in twip space and `output_scale` is unused
-    /// (the compute filter path is `cfg`-off on wasm32 — see
+    /// Phase 1c: per-(frame, band, scale_q) sub-scene cache for the
+    /// class atlas bake. Each entry is a `vello::Scene` produced by
+    /// `render_body_band` with `transform = effective_xform`, so path
+    /// coords are in twip space and `output_scale` is unused (the
+    /// compute filter path is `cfg`-off on wasm32 — see
     /// `swf-spike/src/render/filter.rs:31-37`). Variant assembly
-    /// composes the atlas via `scene.append(sub, scale.then_translate(target))`,
-    /// which means a zoom change skips the entire scene-build phase
-    /// and only pays the per-call append memcpy.
+    /// composes the atlas via `scene.append(sub, scale.then_translate(target))`.
+    ///
+    /// NOT scale-invariant: the canonical stroke floor (`device_width
+    /// = max(natural_width × total_scale, 1 device px)` — see
+    /// `swf_spike::render::emit`) bakes hairline widths for the replay
+    /// scale, so the key carries `scale_q`. A REPEATED zoom level
+    /// still skips the scene-build phase; a NEW zoom level pays one
+    /// re-walk per (frame, band).
     ///
     /// Why per (frame, band) rather than per variant: per-variant
     /// caching at twip identity would need an internal twip-grid cell
@@ -1389,13 +1398,20 @@ pub struct VelloRenderer {
     /// translate to a pixel-snapped target.
     body_subscene_cache: HashMap<BodySubsceneKey, vello::Scene>,
     /// Per-tile sub-scenes encoded at twip-identity. Keyed by
-    /// `(bundle, export, frame)`. Built once per unique tile and
-    /// re-used across cells (multiple cells share the same tile) AND
-    /// across zoom levels (zoom only changes the per-cell matrix at
-    /// composition time, NOT the sub-scene contents). This is what
-    /// makes zoom re-render fast: we don't re-walk symbol trees, we
-    /// just `scene.append(subscene, matrix)` for each placement.
-    tile_subscenes: HashMap<(String, String, u32), vello::Scene>,
+    /// `(bundle, export, frame, scale_milli)`. Built once per unique
+    /// tile and re-used across cells (multiple cells share the same
+    /// tile). Zoom re-render stays cheap — we don't re-walk symbol
+    /// trees on a hit, we just `scene.append(subscene, matrix)` for
+    /// each placement.
+    ///
+    /// `scale_milli` = `round(replay_scale × 1000)`: sub-scenes are
+    /// NOT fully resolution-independent — the canonical stroke floor
+    /// (`device_width = max(natural_width × total_scale, 1 device
+    /// px)`, see `swf_spike::render::emit`) bakes hairline widths that
+    /// depend on the scale the sub-scene is appended at. Entries for
+    /// stale zoom levels stay resident until `clearPathCache` /
+    /// renderer drop — same lifecycle as before, no new eviction.
+    tile_subscenes: HashMap<(String, String, u32, u32), vello::Scene>,
     /// Per-accessory sub-scenes encoded at twip-identity. Keyed by
     /// `(bundle, export, slot, anim_type, side, cycle)`. Built once
     /// per unique accessory cycle and re-used across zoom levels —
@@ -1470,13 +1486,22 @@ struct BodySceneCacheKey {
     mode: u8,
 }
 
-/// Phase 1c sub-scene cache key — see `body_subscene_cache`. Crucially
-/// NO `scale_q`: sub-scenes are at twip-identity and are reused across
-/// every zoom level. `band_lo` + `band_hi` are the `BandRange` fields
-/// inlined to participate in `Hash` (the upstream `BandRange` doesn't
-/// derive it). `compute_band_presence` is independent of `apply_b_fix`
-/// and `hat_equipped`, so two variants of the same `(bundle, export)`
+/// Phase 1c sub-scene cache key — see `body_subscene_cache`.
+/// `band_lo` + `band_hi` are the `BandRange` fields inlined to
+/// participate in `Hash` (the upstream `BandRange` doesn't derive it).
+/// `compute_band_presence` is independent of `apply_b_fix` and
+/// `hat_equipped`, so two variants of the same `(bundle, export)`
 /// share band ranges and thus share cache entries on shared bands.
+///
+/// `scale_q` (= `round(replay_scale × 1000)`) IS part of the key:
+/// sub-scenes are at twip identity but NOT fully resolution-
+/// independent — the canonical stroke floor (`device_width =
+/// max(natural_width × total_scale, 1 device px)`, see
+/// `swf_spike::render::emit`) bakes hairline widths that depend on the
+/// scale the sub-scene is later appended at. Fills remain scale-
+/// invariant; a repeated zoom level still hits the cache. Stale-scale
+/// entries follow the existing lifecycle (`clearPathCache`), no new
+/// eviction.
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct BodySubsceneKey {
     bundle: String,
@@ -1487,6 +1512,7 @@ struct BodySubsceneKey {
     frame_idx: u16,
     band_lo: Option<u16>,
     band_hi: Option<u16>,
+    scale_q: u32,
 }
 
 /// Memoised result of the strip pre-pass: bounds union over a frame
@@ -2056,17 +2082,18 @@ impl VelloRenderer {
         }
 
         // Twip-identity sub-scene cache: a tile's scene at
-        // `xform = Affine::IDENTITY` is reusable across every zoom
-        // level. The final scene is assembled by appending the cached
-        // sub-scene under `xform = scale.then_translate(-px_min)` —
-        // identical output to building inline because `scene.append`
+        // `xform = Affine::IDENTITY` is assembled by appending the
+        // cached sub-scene under `xform = scale.then_translate(-px_min)`
+        // — identical output to building inline because `scene.append`
         // pre-multiplies its xform over every transform in the child
-        // encoding. This makes a zoom change zero-CPU on the second
-        // tile call (only the cheap GPU rasterize remains).
+        // encoding.
         //
-        // Tiles ignore `swf_player_colors` (no zoned sprites), so
-        // the key is just `(bundle, export, frame)`.
-        let sub_key = (bundle.to_string(), export.to_string(), frame);
+        // Tiles ignore `swf_player_colors` (no zoned sprites). The key
+        // carries `scale_milli` because the canonical stroke floor
+        // bakes scale-dependent hairline widths (see the field doc);
+        // a repeated zoom level still hits the cache.
+        let scale_milli = (scale * 1000.0).round() as u32;
+        let sub_key = (bundle.to_string(), export.to_string(), frame, scale_milli);
         let sub_was_hit = self.tile_subscenes.contains_key(&sub_key);
         if sub_was_hit {
             bake_telemetry::subscene_hit();
@@ -2104,6 +2131,9 @@ impl VelloRenderer {
                     frame as u16,
                     self.swf_player_colors,
                     settled.as_deref(),
+                    // Twip-identity bake replayed at `xform` — the
+                    // canonical stroke floor needs the replay scale.
+                    scale,
                 );
             }
             self.tile_subscenes.insert(sub_key.clone(), sub_scene);
@@ -2928,6 +2958,8 @@ impl VelloRenderer {
             // Root-timeline renders (artwork/portrait stages) have no
             // named `static*` export — no settled pins apply.
             None,
+            // Direct render — `xform` carries the pixel scale.
+            1.0,
         );
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -3266,6 +3298,8 @@ impl VelloRenderer {
                 frame_idx as u16,
                 self.swf_player_colors,
                 settled.as_deref(),
+                // Direct render — `xform` carries the pixel scale.
+                1.0,
             );
         }
         let valid_frames = chunk_count;
@@ -3811,6 +3845,8 @@ impl VelloRenderer {
                         eff_apply_b_fix,
                         hat_equipped,
                         settled.as_deref(),
+                        // Direct render — `xform` carries the pixel scale.
+                        1.0,
                     );
                 }
             }
@@ -4282,6 +4318,8 @@ impl VelloRenderer {
                         false,
                         // Bench-only walk cycle — no settled static pins.
                         None,
+                        // Direct render — `place` carries the pixel scale.
+                        1.0,
                     );
                 }
             }
@@ -4505,6 +4543,8 @@ impl VelloRenderer {
                                     false,
                                     false,
                                     settled.as_deref(),
+                                    // Direct render — `base` carries the pixel scale.
+                                    1.0,
                                 );
                             }
                         }
@@ -4538,6 +4578,8 @@ impl VelloRenderer {
                                         false,
                                         false,
                                         acache.settled_overrides(adoc, ae).as_deref(),
+                                        // Direct render — `aplace` carries the pixel scale.
+                                        1.0,
                                     );
                                 }
                             }
@@ -4600,8 +4642,8 @@ impl VelloRenderer {
     }
 
     /// DIAG: the DECIDING test for the 60fps question. Pre-renders each
-    /// (frame, band) sub-scene ONCE at twip-identity (scale-invariant,
-    /// uncolored — like body_subscene_cache), then builds the N-char
+    /// (frame, band) sub-scene ONCE at twip-identity (uncolored, floored
+    /// for this replay scale — like body_subscene_cache), then builds the N-char
     /// crowd PER ITER by `scene.append`-ing those cached sub-scenes with
     /// per-char world transforms (the real per-frame cost). Measures the
     /// PER-FRAME build (append) cost vs the naive re-emit (19ms). If this
@@ -4664,8 +4706,8 @@ impl VelloRenderer {
         }
 
         // ── ONE-TIME: render each (frame, band) sub-scene at twip-identity
-        // (uncolored, scale-invariant). This is what body_subscene_cache
-        // holds; appended per char with a world transform.
+        // (uncolored, stroke-floored for this replay scale). This is what
+        // body_subscene_cache holds; appended per char with a world transform.
         let t_pre = perf_now();
         let mut subscenes: Vec<Vec<vello::Scene>> = Vec::new();
         {
@@ -4699,6 +4741,9 @@ impl VelloRenderer {
                         false,
                         false,
                         settled.as_deref(),
+                        // Twip-identity sub-scene replayed at `place`
+                        // (scale) — the stroke floor needs it.
+                        scale,
                     );
                     row.push(sub);
                 }
@@ -5024,6 +5069,8 @@ impl VelloRenderer {
                         s.flipped,
                         has_hat,
                         settled.as_deref(),
+                        // Direct render — `body_xform` carries the pixel scale.
+                        1.0,
                     );
                     if i < n {
                         let sd = &slots[i];
@@ -9408,8 +9455,9 @@ impl VelloRenderer {
         // band) tuple we'll need. Sub-scenes are built with
         // `transform = effective_xform`; path coords land in twip
         // space, no `output_scale` dependency (compute filter path is
-        // `cfg`-off on wasm32). The cache key omits `scale`, so a
-        // zoom change reuses every entry.
+        // `cfg`-off on wasm32). The cache key carries `scale_q` (the
+        // canonical stroke floor bakes per-scale hairline widths), so
+        // a REPEATED zoom level reuses every entry.
         //
         // Loop order matches the legacy Opt-3 invariant — frame outer,
         // band inner — so the per-bundle `RenderCache.frame_state`
@@ -9441,6 +9489,7 @@ impl VelloRenderer {
                     frame_idx,
                     band_lo: band.lo_exclusive,
                     band_hi: band.hi_inclusive,
+                    scale_q: (scale * 1000.0).round() as u32,
                 };
                 if self.body_subscene_cache.contains_key(&colour_key) {
                     bake_telemetry::subscene_hit();
@@ -9504,6 +9553,10 @@ impl VelloRenderer {
                         eff_b_fix,
                         hat_equipped,
                         settled.as_deref(),
+                        // Twip-identity bake replayed at `cell_xform`
+                        // (Pass 2) — the canonical stroke floor needs
+                        // the replay scale.
+                        scale,
                     );
                 }
                 if eff_b_fix && swf_spike::render::probe::bfix_flips_peek() == 0 {
@@ -9552,6 +9605,7 @@ impl VelloRenderer {
                     frame_idx,
                     band_lo: band.lo_exclusive,
                     band_hi: band.hi_inclusive,
+                    scale_q: (scale * 1000.0).round() as u32,
                 };
                 let sub_scene = self
                     .body_subscene_cache
@@ -9698,6 +9752,10 @@ impl VelloRenderer {
                 anim_type: anim_type_u8,
                 side: side_str.clone(),
                 cycle: cycle as u8,
+                // Sub-scenes bake the canonical stroke floor for THIS
+                // replay scale (see `tile_subscenes` field doc) — a
+                // repeated zoom level still hits the cache.
+                scale_milli: (scale * 1000.0).round() as u32,
             });
         }
 
@@ -9743,6 +9801,10 @@ impl VelloRenderer {
                     frame_indices[cycle_idx],
                     cache,
                     settled.as_deref(),
+                    // Twip-identity bake replayed at `xform` (Pass 2)
+                    // — the canonical stroke floor needs the replay
+                    // scale.
+                    scale,
                 );
             }
             self.acc_subscenes.insert(key.clone(), sub_scene);
@@ -10927,6 +10989,8 @@ impl VelloRenderer {
                 // Tile-batch path: exports are numeric tile ids, never
                 // `static*` character wrappers — no settled pins.
                 None,
+                // Direct render — `xform` carries the pixel scale.
+                1.0,
             );
         }
 
@@ -13047,8 +13111,9 @@ impl VelloRenderer {
     ///     accessorized). Per-bundle keying side-steps shape-id
     ///     collisions across bundles (g1/shape 5 ≠ player10/shape 5).
     ///   - `tile_subscenes`: pre-encoded `vello::Scene` per
-    ///     `(bundle, export, frame)` used by `setStaticTilePlacements`
-    ///     + `renderTilePass` to memcpy-append cached tile geometry.
+    ///     `(bundle, export, frame, scale_milli)` used by
+    ///     `setStaticTilePlacements` + `renderTilePass` to
+    ///     memcpy-append cached tile geometry.
     ///
     /// Memory bytes are estimates — Vello scenes don't expose encoded
     /// size, so we count entries × heuristic constant (~8 KB per
@@ -13091,9 +13156,10 @@ impl VelloRenderer {
             &"bodySceneCacheCount".into(),
             &JsValue::from(body_scene_count as u32),
         );
-        // Phase 1c sub-scene cache size — scale-invariant per (frame,
-        // band, mode) sub-scenes. Steady-state ceiling is bounded by
-        // visible variants × frames × bands × modes, not by zoom level.
+        // Phase 1c sub-scene cache size — per (frame, band, mode,
+        // scale_q) sub-scenes. Steady-state ceiling is bounded by
+        // visible variants × frames × bands × modes × visited zoom
+        // levels (stroke floor makes sub-scenes scale-keyed).
         let _ = js_sys::Reflect::set(
             &result,
             &"bodySubsceneCacheCount".into(),
@@ -13129,9 +13195,10 @@ impl VelloRenderer {
     /// callers persist one blob per bundle so each entry's content hash
     /// invalidates independently when its SWF changes.
     ///
-    /// The cache is resolution-independent (twip identity), so the same
-    /// bytes work at any render scale. Format: see `scene_cache.rs`
-    /// (magic "VSC1" + length-prefixed entries).
+    /// Entries are twip-identity but scale-KEYED (`scale_q`): the
+    /// canonical stroke floor bakes per-scale hairline widths, so a
+    /// blob warms exactly the resolutions it was captured at. Format:
+    /// see `scene_cache.rs` (magic "VSC2", version 2).
     ///
     /// Returns `null` on serialization error (unsupported scene content
     /// — Glyph/Image patches don't appear in SWF char bakes, so this
@@ -13162,6 +13229,7 @@ impl VelloRenderer {
                         frame_idx: k.frame_idx,
                         band_lo: k.band_lo,
                         band_hi: k.band_hi,
+                        scale_q: k.scale_q,
                     },
                     v.clone(),
                 )
@@ -13209,6 +13277,7 @@ impl VelloRenderer {
                 frame_idx: k.frame_idx,
                 band_lo: k.band_lo,
                 band_hi: k.band_hi,
+                scale_q: k.scale_q,
             };
             self.body_subscene_cache.insert(key, scene);
             count += 1;
@@ -13329,16 +13398,17 @@ impl VelloRenderer {
         let entries: Vec<(scene_cache::TileSubsceneKey, vello::Scene)> = self
             .tile_subscenes
             .iter()
-            .filter(|((b, _, _), _)| match &bundle_filter {
+            .filter(|((b, _, _, _), _)| match &bundle_filter {
                 Some(f) => b == f,
                 None => true,
             })
-            .map(|((bundle, export, frame), scene)| {
+            .map(|((bundle, export, frame, scale_milli), scene)| {
                 (
                     scene_cache::TileSubsceneKey {
                         bundle: bundle.clone(),
                         export: export.clone(),
                         frame: *frame,
+                        scale_milli: *scale_milli,
                     },
                     scene.clone(),
                 )
@@ -13370,7 +13440,7 @@ impl VelloRenderer {
         let mut count = 0u32;
         for (k, scene) in parsed {
             self.tile_subscenes
-                .insert((k.bundle, k.export, k.frame), scene);
+                .insert((k.bundle, k.export, k.frame, k.scale_milli), scene);
             count += 1;
         }
         count
@@ -13384,7 +13454,7 @@ impl VelloRenderer {
             Some(b) => self
                 .tile_subscenes
                 .keys()
-                .filter(|(bundle, _, _)| bundle == &b)
+                .filter(|(bundle, _, _, _)| bundle == &b)
                 .count() as u32,
             None => self.tile_subscenes.len() as u32,
         }

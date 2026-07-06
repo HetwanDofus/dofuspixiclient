@@ -52,6 +52,10 @@ pub fn render_body_band(
     // Settled `static*` child pins (canonical AS2 `stop()` — see
     // `RenderCache::settled_overrides`). `None` for cycling anims.
     child_frame_overrides: Option<&HashMap<u16, u16>>,
+    // Replay scale for twip-identity sub-scene bakes
+    // (`body_subscene_cache` et al — see `RenderCtx::downstream_scale`);
+    // 1.0 when `transform` already carries the pixel scale.
+    downstream_scale: f64,
 ) {
     let inner = WgpuCtx {
         device: wgpu.device,
@@ -63,6 +67,7 @@ pub fn render_body_band(
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_wgpu(inner)
         .with_transform(transform)
+        .with_downstream_scale(downstream_scale)
         .with_frame(frame)
         .with_player_colors(player_colors)
         .with_b_fix(apply_b_fix)
@@ -99,6 +104,9 @@ pub fn render_body_band_dual(
     apply_b_fix: bool,
     hat_equipped: bool,
     child_frame_overrides: Option<&HashMap<u16, u16>>,
+    // Replay scale for twip-identity sub-scene bakes (see
+    // `RenderCtx::downstream_scale`); 1.0 for direct renders.
+    downstream_scale: f64,
 ) {
     let inner = WgpuCtx {
         device: wgpu.device,
@@ -110,6 +118,7 @@ pub fn render_body_band_dual(
     let mut ctx = RenderCtx::new(doc, colour_scene, cache)
         .with_wgpu(inner)
         .with_transform(transform)
+        .with_downstream_scale(downstream_scale)
         .with_frame(frame)
         .with_player_colors(player_colors)
         .with_b_fix(apply_b_fix)
@@ -140,9 +149,13 @@ pub fn render_body_band_nogpu(
     apply_b_fix: bool,
     hat_equipped: bool,
     child_frame_overrides: Option<&HashMap<u16, u16>>,
+    // Replay scale for twip-identity sub-scene bakes (see
+    // `RenderCtx::downstream_scale`); 1.0 for direct renders.
+    downstream_scale: f64,
 ) {
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_transform(transform)
+        .with_downstream_scale(downstream_scale)
         .with_frame(frame)
         .with_player_colors(player_colors)
         .with_b_fix(apply_b_fix)

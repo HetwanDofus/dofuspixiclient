@@ -89,9 +89,10 @@ impl<'a> DocPool<'a> {
 
 // ---------------------------------------------------------------
 // Public entry points. All build a `RenderCtx` and dispatch to the
-// internal workhorse `render_symbol_into`. Their parameter lists are
-// kept byte-stable so vello-wasm and the debug bins compile
-// unchanged.
+// internal workhorse `render_symbol_into`. Entries used for
+// twip-identity sub-scene bakes additionally take `downstream_scale`
+// (the replay scale — see `RenderCtx::downstream_scale`); direct
+// renders pass 1.0.
 // ---------------------------------------------------------------
 
 pub fn render_export(
@@ -157,11 +158,15 @@ pub fn render_symbol_with_ctx_cached(
     // Settled `static*` child pins — pet accessory strips render full
     // character `static*` exports (see `RenderCache::settled_overrides`).
     child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
+    // Replay scale for twip-identity sub-scene bakes (see
+    // `RenderCtx::downstream_scale`); 1.0 for direct renders.
+    downstream_scale: f64,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let mut ctx = RenderCtx::new(doc, scene, cache)
         .with_wgpu(inner)
         .with_transform(transform)
+        .with_downstream_scale(downstream_scale)
         .with_frame(frame)
         .with_child_frame_overrides(child_frame_overrides);
     render_symbol_into(&mut ctx, sym);
@@ -187,12 +192,17 @@ pub fn render_symbol_with_ctx_tinted(
     frame: u16,
     player_colors: crate::recolor::PlayerColors,
     child_frame_overrides: Option<&std::collections::HashMap<u16, u16>>,
+    // Replay scale for twip-identity sub-scene bakes (tile_subscenes
+    // et al — see `RenderCtx::downstream_scale`); 1.0 for direct
+    // renders whose `transform` already carries the pixel scale.
+    downstream_scale: f64,
 ) {
     let inner = reborrow_wgpu(wgpu);
     let cache = RenderCache::new();
     let mut ctx = RenderCtx::new(doc, scene, &cache)
         .with_wgpu(inner)
         .with_transform(transform)
+        .with_downstream_scale(downstream_scale)
         .with_frame(frame)
         .with_player_colors(player_colors)
         .with_child_frame_overrides(child_frame_overrides);
@@ -432,6 +442,9 @@ pub(crate) fn render_accessory_at(
     });
     let mut acc_ctx = RenderCtx::new(entry.doc, scene, cache)
         .with_transform(transform)
+        // Accessories emit into the SAME output scene as the body —
+        // inherit its downstream replay scale.
+        .with_downstream_scale(parent.downstream_scale)
         .with_frame(frame)
         .with_child_frame_overrides(pet_settled.as_deref());
     if let Some(w) = inner {
@@ -721,6 +734,7 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
             transform,
             color_xform,
             cmds: out,
+            downstream_scale: ctx.downstream_scale,
         });
         return;
     }
@@ -770,8 +784,18 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
     // streams + rebase draw_data/patch offsets) instead of re-serializing every
     // path on every bake. Recolored (tiles) and SWF-tinted (cx≠identity) cmds
     // still need a fresh `emit_cmd`. Fragment[idx] lines up 1:1 with cmds[idx].
+    //
+    // Fragments are emitted at IDENTITY and appended at `transform`,
+    // so their TRUE render scale is `transform`'s scale × the ctx's
+    // downstream replay scale — thread it through so the canonical
+    // stroke floor (see `emit::emit_cmd`) is computed against device
+    // pixels, not twips. `shape_frags` keys by this scale (milli-
+    // quantized), so different placements/zoom levels get correctly
+    // floored fragments while equal scales share one encoding.
     let frags = if recolor_target.is_none() && color_xform.is_identity() {
-        Some(ctx.cache.shape_frags(shape, ctx.doc))
+        let frag_scale =
+            transform.determinant().abs().sqrt() * ctx.downstream_scale;
+        Some(ctx.cache.shape_frags(shape, ctx.doc, frag_scale))
     } else {
         None
     };
@@ -817,12 +841,12 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
             // internally Arc-shared so the clone is cheap.
             let mut cmd = cmd.clone();
             emit::recolor_cmd_in_place(&mut cmd, target);
-            emit::emit_cmd(ctx.scene, &cmd, transform, color_xform);
+            emit::emit_cmd(ctx.scene, &cmd, transform, color_xform, ctx.downstream_scale);
         } else if let Some(frags) = frags.as_ref() {
             // Splice the pre-encoded fragment at the per-frame transform.
             ctx.scene.append(&frags[idx], Some(transform));
         } else {
-            emit::emit_cmd(ctx.scene, cmd, transform, color_xform);
+            emit::emit_cmd(ctx.scene, cmd, transform, color_xform, ctx.downstream_scale);
         }
     }
 

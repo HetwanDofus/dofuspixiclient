@@ -36,11 +36,20 @@ pub(super) fn recolor_cmd_in_place(cmd: &mut DrawCmd, target: u32) {
     }
 }
 
+/// Emit one `DrawCmd` into `scene` at `transform`.
+///
+/// `downstream_scale` is the scale the ENCLOSING scene will later be
+/// appended/rendered at, on top of `transform`. Direct render paths —
+/// where `transform` already carries the final twip→device-pixel scale
+/// — pass `1.0`. Twip-identity encode-once paths (fragment cache,
+/// tile/body/accessory sub-scene caches) pass the replay scale so the
+/// stroke floor below sees the TRUE device scale instead of 1 twip.
 pub(super) fn emit_cmd(
     scene: &mut Scene,
     cmd: &DrawCmd,
     transform: Affine,
     cx: OwnedColorTransform,
+    downstream_scale: f64,
 ) {
     match &cmd.kind {
         DrawKind::Fill {
@@ -61,24 +70,33 @@ pub(super) fn emit_cmd(
             cap,
             join,
             miter_limit,
-            non_scaling,
         } => {
             let tinted = if cx.is_identity() {
                 brush.clone()
             } else {
                 tint_brush(brush, cx)
             };
-            // dofasset NonScaling port (scene_builder.rs:357-366): for SWF
-            // widths < 1 px, take `max(natural_width, one_device_px)` in
-            // path-local units. After Vello multiplies by world_scale this
-            // yields `max(value_px × resolution, 1)` device pixels — exactly
-            // the floor that gives us 1 device pixel for hairlines instead of
-            // `1 logical pixel × resolution`. Normal widths pass through and
-            // scale naturally with the world transform (Fixed mode).
-            let final_width = if *non_scaling {
-                let s = transform.determinant().abs().sqrt().max(f64::EPSILON);
-                let one_device_px = 1.0 / s;
-                (*width).max(one_device_px)
+            // CANONICAL RULE (ground truth = Flash player behaviour,
+            // user-confirmed):
+            //
+            //   device_width = max(natural_width × total_scale, 1 device px)
+            //
+            // The floor only LIFTS a stroke to 1 device pixel; anything
+            // naturally scaling above 1 px renders at its true scaled
+            // size — so applying it to ALL strokes is a mathematical
+            // no-op for widths already ≥ 1 device px (no `non_scaling`
+            // pre-classification needed). `total_scale` is the local
+            // `transform`'s scale × `downstream_scale` (the scale the
+            // enclosing scene is replayed at). Dofus 1.29 art is full of
+            // 1-twip (0.05 px) hairline outlines; without the correct
+            // total scale they rasterize at ~0.05–0.25 device px and
+            // AA-dim to near-invisible.
+            let s = transform.determinant().abs().sqrt() * downstream_scale;
+            // Guard degenerate scale-0 placements (canonical `_xscale = 0`
+            // renders nothing): flooring against an ~infinite one_device_px
+            // would explode geometry / feed NaN into Vello.
+            let final_width = if s > 1e-6 {
+                (*width).max(1.0 / s)
             } else {
                 *width
             };

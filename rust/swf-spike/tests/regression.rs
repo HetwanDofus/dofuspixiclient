@@ -187,6 +187,8 @@ fn player_static_r_tinted_warm() {
         0,
         pc,
         Some(&settled),
+        // Direct render — `xform` carries the pixel scale.
+        1.0,
     );
     drop(wgpu_ctx);
     drop(pipelines);

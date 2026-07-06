@@ -73,6 +73,14 @@ path = "src/bin/render_spell_icon.rs"
 # Render a spell icon (back + up trio) to PNG via the same logic as
 # the WASM bridge — diagnostic for layer alignment.
 
+[[bin]]
+name = "verify-stroke-floor"
+path = "src/bin/verify_stroke_floor.rs"
+# Pixel-diff the direct emit path vs the fragment-cache and
+# twip-identity sub-scene paths — verifies the canonical stroke
+# floor (max(natural_width × total_scale, 1 device px)) lands
+# identically through every cache.
+
 [dependencies]
 swf = "0.2"
 vello = "0.8"

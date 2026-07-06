@@ -112,8 +112,8 @@ export class VelloRenderer {
     }
     /**
      * DIAG: the DECIDING test for the 60fps question. Pre-renders each
-     * (frame, band) sub-scene ONCE at twip-identity (scale-invariant,
-     * uncolored — like body_subscene_cache), then builds the N-char
+     * (frame, band) sub-scene ONCE at twip-identity (uncolored, floored
+     * for this replay scale — like body_subscene_cache), then builds the N-char
      * crowd PER ITER by `scene.append`-ing those cached sub-scenes with
      * per-char world transforms (the real per-frame cost). Measures the
      * PER-FRAME build (append) cost vs the naive re-emit (19ms). If this
@@ -801,8 +801,9 @@ export class VelloRenderer {
      *     accessorized). Per-bundle keying side-steps shape-id
      *     collisions across bundles (g1/shape 5 ≠ player10/shape 5).
      *   - `tile_subscenes`: pre-encoded `vello::Scene` per
-     *     `(bundle, export, frame)` used by `setStaticTilePlacements`
-     *     + `renderTilePass` to memcpy-append cached tile geometry.
+     *     `(bundle, export, frame, scale_milli)` used by
+     *     `setStaticTilePlacements` + `renderTilePass` to
+     *     memcpy-append cached tile geometry.
      *
      * Memory bytes are estimates — Vello scenes don't expose encoded
      * size, so we count entries × heuristic constant (~8 KB per
@@ -1700,9 +1701,10 @@ export class VelloRenderer {
      * callers persist one blob per bundle so each entry's content hash
      * invalidates independently when its SWF changes.
      *
-     * The cache is resolution-independent (twip identity), so the same
-     * bytes work at any render scale. Format: see `scene_cache.rs`
-     * (magic "VSC1" + length-prefixed entries).
+     * Entries are twip-identity but scale-KEYED (`scale_q`): the
+     * canonical stroke floor bakes per-scale hairline widths, so a
+     * blob warms exactly the resolutions it was captured at. Format:
+     * see `scene_cache.rs` (magic "VSC2", version 2).
      *
      * Returns `null` on serialization error (unsupported scene content
      * — Glyph/Image patches don't appear in SWF char bakes, so this

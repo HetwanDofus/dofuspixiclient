@@ -33,6 +33,11 @@ pub struct CapturedLeaf {
     pub transform: Affine,
     pub color_xform: OwnedColorTransform,
     pub cmds: Vec<DrawCmd>,
+    /// Downstream replay scale of the capturing ctx (see
+    /// `RenderCtx::downstream_scale`) — re-emitted with the leaf so the
+    /// canonical stroke floor in `emit_cmd` stays correct through the
+    /// union bake. 1.0 for the crowd paths (scale lives in `transform`).
+    pub downstream_scale: f64,
 }
 
 thread_local! {
@@ -72,6 +77,8 @@ struct Slot {
     /// Geometry/color used on frames where this leaf is absent (emitted at HIDE).
     rep_cmds: Vec<DrawCmd>,
     rep_cx: OwnedColorTransform,
+    /// Downstream replay scale for the stroke floor (constant per walk).
+    downstream_scale: f64,
     /// Per-frame `(transform, cmds, color)`; `None` = absent at that frame.
     per_frame: Vec<Option<(Affine, Vec<DrawCmd>, OwnedColorTransform)>>,
 }
@@ -102,6 +109,7 @@ pub fn build_union(per_frame: &[Vec<CapturedLeaf>]) -> UnionPlan {
             let slot = slots.entry(leaf.depth_path.clone()).or_insert_with(|| Slot {
                 rep_cmds: leaf.cmds.clone(),
                 rep_cx: leaf.color_xform,
+                downstream_scale: leaf.downstream_scale,
                 per_frame: vec![None; fc],
             });
             slot.per_frame[f] = Some((leaf.transform, leaf.cmds.clone(), leaf.color_xform));
@@ -125,7 +133,7 @@ pub fn emit_union_frame(plan: &UnionPlan, f: u16, out: &mut Scene) {
                 None => (HIDE, slot.rep_cmds.as_slice(), slot.rep_cx),
             };
         for cmd in cmds {
-            super::emit::emit_cmd(out, cmd, transform, cx);
+            super::emit::emit_cmd(out, cmd, transform, cx, slot.downstream_scale);
         }
     }
 }

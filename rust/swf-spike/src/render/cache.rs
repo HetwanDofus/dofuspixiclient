@@ -58,7 +58,19 @@ pub struct RenderCache {
     /// transform. The crowd bake appends these with the per-frame transform
     /// (`Scene::append` = memcpy streams + rebase offsets) instead of
     /// re-serializing every path on every bake.
-    shape_frags: RefCell<HashMap<u16, Arc<Vec<vello::Scene>>>>,
+    ///
+    /// Keyed by `(shape_id, scale_milli)` where `scale_milli =
+    /// round(downstream_scale × 1000)` — the wc3 `tile_cache` pattern.
+    /// Fragments are NOT scale-independent: the canonical stroke floor
+    /// (`device_width = max(natural_width × total_scale, 1 device px)`,
+    /// see `emit::emit_cmd`) bakes a width that depends on the scale
+    /// the fragment is later appended at. Entries for stale scales
+    /// (old zoom levels) simply stay resident until the existing cache
+    /// lifecycle clears them (`clear()` / bundle drop /
+    /// `clearPathCache` on the wasm side) — deliberately NO new
+    /// eviction system; the per-scale growth is bounded by the small
+    /// set of zoom levels a session actually visits.
+    shape_frags: RefCell<HashMap<(u16, u32), Arc<Vec<vello::Scene>>>>,
     morph_frames: RefCell<HashMap<(u16, u8), Arc<swf::Shape>>>,
     /// Keyed by `(sprite as *const _ as usize, frame)`. The pointer
     /// is stable for the doc's lifetime; using it instead of the
@@ -98,9 +110,22 @@ impl RenderCache {
     /// field). Built from [`shape_cmds`] so indices line up 1:1. Each fragment
     /// is the cmd emitted at IDENTITY with no colour transform; the caller
     /// `Scene::append`s it with the real per-frame transform.
-    pub fn shape_frags(&self, shape: &swf::Shape, doc: &SwfDoc) -> Arc<Vec<vello::Scene>> {
-        let id = shape.id;
-        if let Some(cached) = self.shape_frags.borrow().get(&id) {
+    ///
+    /// `downstream_scale` is the TOTAL scale the fragment will be
+    /// rendered at (the append transform's scale × any further replay
+    /// scale of the enclosing scene). It feeds the canonical stroke
+    /// floor in `emit_cmd` and keys the cache at milli precision —
+    /// two callers within 0.001 of each other share an entry (the
+    /// floor difference is far below one AA step).
+    pub fn shape_frags(
+        &self,
+        shape: &swf::Shape,
+        doc: &SwfDoc,
+        downstream_scale: f64,
+    ) -> Arc<Vec<vello::Scene>> {
+        let scale_milli = (downstream_scale.clamp(0.0, 4_000_000.0) * 1000.0).round() as u32;
+        let key = (shape.id, scale_milli);
+        if let Some(cached) = self.shape_frags.borrow().get(&key) {
             return Arc::clone(cached);
         }
         let cmds = self.shape_cmds(shape, doc);
@@ -118,12 +143,15 @@ impl RenderCache {
                     cmd,
                     vello::kurbo::Affine::IDENTITY,
                     crate::swf_doc::OwnedColorTransform::IDENTITY,
+                    // Quantized so a cache hit and a rebuild at a
+                    // near-identical scale bake the same bytes.
+                    f64::from(scale_milli) / 1000.0,
                 );
                 s
             })
             .collect();
         let arc = Arc::new(frags);
-        self.shape_frags.borrow_mut().insert(id, Arc::clone(&arc));
+        self.shape_frags.borrow_mut().insert(key, Arc::clone(&arc));
         arc
     }
 
@@ -200,6 +228,7 @@ impl RenderCache {
     /// mutated (it shouldn't be, but defensive).
     pub fn clear(&self) {
         self.shape_cmds.borrow_mut().clear();
+        self.shape_frags.borrow_mut().clear();
         self.morph_frames.borrow_mut().clear();
         self.frame_states.borrow_mut().clear();
         self.settled_static.borrow_mut().clear();

@@ -319,6 +319,10 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
             zone_scene: None,
             wgpu: None,
             transform: sub_world,
+            // `sub_world` already carries the device-pixel scale
+            // (`wgpu.output_scale`); the filter texture is composited
+            // 1:1, so no further downstream scale applies here.
+            downstream_scale: 1.0,
             frame: ctx.frame,
             ratio: ctx.ratio,
             color_xform: ctx.color_xform,

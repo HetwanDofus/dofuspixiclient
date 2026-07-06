@@ -99,6 +99,16 @@ pub struct RenderCtx<'a> {
     /// World-space transform from twip coordinates to scene units.
     /// Composes with each placement's matrix as we recurse.
     pub transform: Affine,
+    /// Scale the OUTPUT scene will later be appended/rendered at, on
+    /// top of `transform`. `1.0` for direct renders (transform already
+    /// carries the twip→device-pixel scale). Twip-identity encode-once
+    /// bakes (tile/body/accessory sub-scene caches) set the replay
+    /// scale here so the canonical stroke floor
+    /// (`device_width = max(natural_width × total_scale, 1 device px)`,
+    /// ground truth = Flash player, user-confirmed) is computed against
+    /// the TRUE device scale instead of 1 twip. Constant across the
+    /// walk — placement matrices compose into `transform`, not here.
+    pub downstream_scale: f64,
     /// Current sprite frame (0-based). Multi-frame sprite children
     /// inherit this from the parent; single-frame children always
     /// see frame 0.
@@ -217,6 +227,7 @@ impl<'a> RenderCtx<'a> {
             zone_scene: None,
             wgpu: None,
             transform: Affine::IDENTITY,
+            downstream_scale: 1.0,
             frame: 0,
             ratio: 0,
             color_xform: OwnedColorTransform::IDENTITY,
@@ -314,6 +325,16 @@ impl<'a> RenderCtx<'a> {
     /// position the symbol within the output texture.
     pub fn with_transform(mut self, transform: Affine) -> Self {
         self.transform = transform;
+        self
+    }
+
+    /// Set the downstream replay scale (see the `downstream_scale`
+    /// field doc). Pass the twip→device-pixel scale when this render
+    /// encodes a twip-identity sub-scene that is later
+    /// `Scene::append`ed at that scale; leave at 1.0 for direct
+    /// renders.
+    pub fn with_downstream_scale(mut self, scale: f64) -> Self {
+        self.downstream_scale = scale;
         self
     }
 
@@ -441,6 +462,7 @@ impl<'a> RenderCtx<'a> {
                 output_scale: w.output_scale,
             }),
             transform,
+            downstream_scale: self.downstream_scale,
             frame,
             ratio,
             color_xform,
