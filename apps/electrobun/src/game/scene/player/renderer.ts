@@ -709,7 +709,12 @@ export class PlayerRenderer {
   }
 
   onResize(event: { zoom: number }): void {
-    const res = Math.max(2, Math.ceil(event.zoom));
+    // wc3 parity: bake density == display zoom EXACTLY (continuous
+    // float — no ceil quantization). Any other ratio bilinearly
+    // smears the twip-precise vector edges at composite time
+    // (docs/WC3-PARITY-GAPS.md A.1). Milli-quantized against float
+    // jitter in cache keys, floored at 0.5 for degenerate windows.
+    const res = Math.round(Math.max(0.5, event.zoom) * 1000) / 1000;
 
     for (const player of this.players.values()) {
       player.overhead.setResolution(res);
@@ -722,6 +727,10 @@ export class PlayerRenderer {
     // bumping density on demand is the canonical "infinite zoom"
     // path). Skipped automatically when res didn't actually change.
     this.stripRenderer.setResolutionAndRerender(res);
+    // The crowd bakes at its own density — keep it locked to the
+    // display zoom too (it was pinned at 3 regardless of zoom, the
+    // blurriest layer on screen).
+    this.crowd?.setResolution(res);
     this.pickingSystem?.markDirty();
     this.flushVisibleNameplates();
   }

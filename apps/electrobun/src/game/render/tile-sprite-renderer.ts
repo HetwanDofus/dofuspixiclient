@@ -102,6 +102,12 @@ const DEFAULT_TILE_RESOLUTION = 4;
  * where additional density is visually distinguishable.
  */
 const MAX_TILE_RESOLUTION = 8;
+/**
+ * Per-sprite re-bake dimension cap (logical px x density must stay
+ * under this). wgpu maxTextureDimension2d is 8192; leave headroom for
+ * the 1-px AA pad + rounding.
+ */
+const SAFE_TEXTURE_DIM = 8000;
 const TICK_INTERVAL_MS = 1000 / 60;
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
 
@@ -549,11 +555,18 @@ export class TileSpriteRenderer {
    * via refcount-drop once every sprite has migrated.
    */
   setTileResolution(res: number): void {
-    const clamped = Math.max(
-      DEFAULT_TILE_RESOLUTION,
-      Math.min(MAX_TILE_RESOLUTION, Math.ceil(res))
-    );
-    if (clamped === this.tileResolution) {
+    // wc3 parity: bake density == display zoom EXACTLY (continuous
+    // float, no ceil-quantization). Displaying a raster at any ratio
+    // other than 1:1 bilinearly smears the twip-precise vector edges
+    // (docs/WC3-PARITY-GAPS.md A.1). Clamped to MAX_TILE_RESOLUTION
+    // for the wgpu texture-dimension limit; per-tile dimension safety
+    // is applied in `upgradeSpriteResolution`.
+    // Milli-quantized like wc3's `scale_milli` tile-cache key so
+    // float jitter can't mint near-duplicate cache entries.
+    const clamped =
+      Math.round(Math.max(0.5, Math.min(MAX_TILE_RESOLUTION, res)) * 1000) /
+      1000;
+    if (Math.abs(clamped - this.tileResolution) < 1e-3) {
       return;
     }
     this.tileResolution = clamped;
@@ -565,8 +578,10 @@ export class TileSpriteRenderer {
     // tiles already upgraded to the new target.
     const queue: TileSpriteState[] = [];
     for (const state of this.states.values()) {
-      if (state.isBackground) continue;
-      if (state.resolution === clamped) continue;
+      // Backgrounds re-bake too (wc3 parity — a bg pinned at 4x
+      // displays at zoom/4 forever, permanently soft). Their target
+      // is dimension-clamped per sprite in `upgradeSpriteResolution`.
+      if (Math.abs(state.resolution - clamped) < 1e-3) continue;
       queue.push(state);
     }
     this.pendingUpgrade = queue.length > 0
@@ -585,13 +600,24 @@ export class TileSpriteRenderer {
     state: TileSpriteState,
     target: number,
   ): boolean {
+    // Per-sprite dimension safety: the tile's logical size is known
+    // from its current texture (phys / current density). Cap the new
+    // density so the re-bake stays under the wgpu texture limit —
+    // this is what lets backgrounds (widest tiles) re-bake on zoom
+    // instead of being pinned soft at BG_RESOLUTION.
+    const tex = state.sprite.texture;
+    const logicalW = tex.source.pixelWidth / state.resolution;
+    const logicalH = tex.source.pixelHeight / state.resolution;
+    const maxDim = Math.max(1, logicalW, logicalH);
+    const safeTarget = Math.min(target, SAFE_TEXTURE_DIM / maxDim);
+    if (Math.abs(safeTarget - state.resolution) < 1e-3) return true;
     const acquired = this.acquireCachedTile(
       state.bundle,
       state.exportName,
       state.currentFrame,
       state.frameCount,
       state.isAnimated,
-      target,
+      safeTarget,
     );
     if (!acquired) return false;
     const { cacheKey, entry } = acquired;
@@ -605,10 +631,10 @@ export class TileSpriteRenderer {
       state.cellY,
       state.rotation,
       state.flip,
-      target,
+      safeTarget,
     );
     state.cacheKey = cacheKey;
-    state.resolution = target;
+    state.resolution = safeTarget;
     state.anchorFracX = entry.anchorFracX;
     state.anchorFracY = entry.anchorFracY;
     this.releaseCachedTile(oldCacheKey);
@@ -631,7 +657,7 @@ export class TileSpriteRenderer {
     const start = performance.now();
     while (u.idx < u.queue.length) {
       const state = u.queue[u.idx++];
-      if (state.resolution === u.targetRes) continue; // already done elsewhere
+      if (Math.abs(state.resolution - u.targetRes) < 1e-3) continue; // already done
       // Validate sprite still alive (not removed by setPlacements).
       // `state.sprite.parent` is null after `removeSprite` clears it.
       if (!state.sprite.parent) continue;
