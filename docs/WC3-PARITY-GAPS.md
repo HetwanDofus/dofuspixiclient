@@ -182,3 +182,24 @@ wc3: `cd ../dofuswebclient3/apps/game && bun run dev` (:5173),
 scene in both at identical window size; compare NPC pose, actor size,
 tile animation motion (video/successive frames), edge crispness at
 matched zoom. Automatable via the chrome-devtools MCP.
+
+## Live QA round 1 (user side-by-side, 2026-07-06 evening)
+
+1. **Tile misclassification** — some tiles ANIMATE in wc2 that are
+   random-frozen in wc3. Suspects: AvmEngine missing an opcode in the
+   frame-1 sim → classification falls through to loop; placements.ts
+   legacy fallback engaging silently; top-level multi-frame wrapper
+   with random+stop not resolved like wc3 resolve.rs:73-77. Regression
+   oracle: every export the LEGACY scan called `random` must not
+   animate under the new router.
+2. **Actors pop in after map reveal** — wc3 shows map+actors together.
+   wc2 reveals terrain, then GI→GM→async bakes trickle actors in. Fix:
+   gate the reveal on the initial roster's first committed renders
+   (bounded), canonical loading-screen semantics.
+3. **Map A→B→A: some layer elements missing** until zoom forces
+   re-acquire — tile cache/refcount lifecycle bug in the placements
+   rebuild (retire/race with new sig-keyed caches?).
+4. **Player strip resolution wrong** — blurry at boot (initial bake at
+   default res, not currentZoom) and zoom/dezoom doesn't re-render at
+   the right density (early-out compare or an int-quantized key inside
+   character-cache/class-atlas path defeating the float densities).
