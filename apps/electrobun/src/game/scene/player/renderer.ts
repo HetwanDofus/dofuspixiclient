@@ -359,6 +359,22 @@ export class PlayerRenderer {
       }
     }
 
+    // Per-actor gfx scale change (e.g. duplicate GM add routed through
+    // updatePlayer). The scale rides the slot-root transform — the same
+    // site as flip — so re-applying the flip refreshes it. Crowd-managed
+    // bodies pick the new value up from the next `crowdSnapshot()` tick.
+    if (
+      (data.scaleX !== undefined && data.scaleX !== player.scaleX) ||
+      (data.scaleY !== undefined && data.scaleY !== player.scaleY)
+    ) {
+      player.scaleX = data.scaleX ?? player.scaleX;
+      player.scaleY = data.scaleY ?? player.scaleY;
+      this.stripRenderer.updateFlip(
+        player,
+        isDirectionFlipped(player.direction)
+      );
+    }
+
     if (data.hp !== undefined || data.maxHp !== undefined) {
       player.hp = data.hp ?? player.hp;
       player.maxHp = data.maxHp ?? player.maxHp;
@@ -780,6 +796,8 @@ export class PlayerRenderer {
       hp: data.hp,
       maxHp: data.maxHp,
       gfxId: parseGfxId(data.look),
+      scaleX: data.scaleX ?? 100,
+      scaleY: data.scaleY ?? 100,
       animation: PlayerAnimation.IDLE,
       currentAnimName: "",
       currentAnimData: null,
@@ -1205,6 +1223,8 @@ export class PlayerRenderer {
           c1: 0,
           c2: 0,
           c3: 0,
+          scaleX: 100,
+          scaleY: 100,
           x: 0,
           y: 0,
           cellId: 0,
@@ -1226,6 +1246,8 @@ export class PlayerRenderer {
       row.c1 = cached.c1;
       row.c2 = cached.c2;
       row.c3 = cached.c3;
+      row.scaleX = p.scaleX;
+      row.scaleY = p.scaleY;
       row.x = (p.container as { x: number }).x;
       row.y = (p.container as { y: number }).y;
       row.cellId = p.cellId;

@@ -509,6 +509,11 @@ export class GameSession {
       cellId: row.cell,
       direction: row.direction,
       look,
+      // Server `^scaleX[xScaleY]` percent (100 = default; canonical
+      // Number() pass-through, GameIn.as:152-166). Rides the per-actor
+      // display transform only — never baked into shared geometry.
+      scaleX: row.scaleX,
+      scaleY: row.scaleY,
       isCurrentPlayer: row.spriteId === this.currentCharacter?.spriteId,
     });
   }

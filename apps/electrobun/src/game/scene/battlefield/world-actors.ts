@@ -21,6 +21,13 @@ export interface WorldActorData {
   cellId: number;
   direction: number;
   look: string;
+  /**
+   * Per-actor gfx scale in percent (server `^scaleX[xScaleY]`, 100 =
+   * default). Applied at draw time as a per-actor affine — never baked
+   * into shared geometry / cache keys. Absent → 100.
+   */
+  scaleX?: number;
+  scaleY?: number;
   isCurrentPlayer: boolean;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
   mount?: MountDisplay;
@@ -135,6 +142,8 @@ export class BattlefieldWorldActors {
       cellId: data.cellId,
       direction: data.direction,
       look: data.look,
+      scaleX: data.scaleX ?? 100,
+      scaleY: data.scaleY ?? 100,
       hp,
       maxHp,
       isPlayer: data.isCurrentPlayer,

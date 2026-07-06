@@ -130,6 +130,12 @@ interface LookState {
   c1: number;
   c2: number;
   c3: number;
+  /** Per-actor gfx scale, percent (100 = default). Part of the sparse
+   *  look-update diff so a wire scale change reaches the wasm crowd —
+   *  the wasm keeps it OUT of its layout/bake signatures (it only rides
+   *  the per-actor place transform). */
+  scaleX: number;
+  scaleY: number;
   accB: string[];
   accE: string[];
   accS: number[];
@@ -368,6 +374,8 @@ export class CrowdRenderer {
       prev.c1 !== p.c1 ||
       prev.c2 !== p.c2 ||
       prev.c3 !== p.c3 ||
+      prev.scaleX !== p.scaleX ||
+      prev.scaleY !== p.scaleY ||
       prev.accB.length !== p.acc.length
     ) {
       return true;
@@ -396,6 +404,8 @@ export class CrowdRenderer {
       c1: 0,
       c2: 0,
       c3: 0,
+      scaleX: 100,
+      scaleY: 100,
       accB: [] as string[],
       accE: [] as string[],
       accS: [] as number[],
@@ -406,6 +416,8 @@ export class CrowdRenderer {
     state.c1 = p.c1;
     state.c2 = p.c2;
     state.c3 = p.c3;
+    state.scaleX = p.scaleX;
+    state.scaleY = p.scaleY;
     state.accB.length = p.acc.length;
     state.accE.length = p.acc.length;
     state.accS.length = p.acc.length;
@@ -457,6 +469,8 @@ export class CrowdRenderer {
         c1: p.c1,
         c2: p.c2,
         c3: p.c3,
+        scaleX: p.scaleX,
+        scaleY: p.scaleY,
         x: p.x,
         y: p.y,
         acc: p.acc,
@@ -659,6 +673,8 @@ export class CrowdRenderer {
           c1: p.c1,
           c2: p.c2,
           c3: p.c3,
+          scaleX: p.scaleX,
+          scaleY: p.scaleY,
           acc: p.acc,
         });
       }

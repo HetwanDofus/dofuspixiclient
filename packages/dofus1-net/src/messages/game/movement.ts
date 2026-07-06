@@ -58,7 +58,9 @@ export interface GMSpriteAdd {
   name: string;
   /** Stripped gfx id (the post-`^`-split, post-`*`-trim form). */
   gfxId: number;
-  /** Per-axis scale (percent — server sends 100 for "default size"). */
+  /** Per-axis scale (percent — server sends 100 for "default size").
+   *  Canonical `Number()` pass-through, fractional values allowed, no
+   *  clamp (GameIn.as:152-166); NaN normalizes to 100. */
   scaleX: number;
   scaleY: number;
   /** AS2 `_loc18_` — "do not flip horizontally" flag. */
@@ -164,19 +166,26 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
       if (caretIdx >= 0) {
         gfxIdStr = gfxBase.slice(0, caretIdx);
 
+        // Canonical GameIn.as:152-166 — try `Number(raw)` first (the
+        // uniform `^V` form; floats pass through, NO clamp). Only when
+        // that is NaN, split on "x" and `Number()` each axis (exactly 2
+        // parts, otherwise the 100 defaults stand). A NaN axis
+        // normalizes to 100: canonical guards with isNaN before
+        // setSpriteScale (GameIn.as:258) / lets the NaN `_xscale` write
+        // no-op, so "NaN scale" == "scale never applied" == default.
         const scaleRaw = gfxBase.slice(caretIdx + 1);
-        const xSplit = scaleRaw.split("x");
+        const uniform = Number(scaleRaw);
 
-        if (xSplit.length === 2) {
-          scaleX = Number.parseInt(xSplit[0] ?? "", 10) || 100;
-          scaleY = Number.parseInt(xSplit[1] ?? "", 10) || 100;
-        } else {
-          const v = Number.parseInt(scaleRaw, 10);
+        if (Number.isNaN(uniform)) {
+          const xSplit = scaleRaw.split("x");
 
-          if (!Number.isNaN(v)) {
-            scaleX = v;
-            scaleY = v;
+          if (xSplit.length === 2) {
+            scaleX = numberOr100(xSplit[0]);
+            scaleY = numberOr100(xSplit[1]);
           }
+        } else {
+          scaleX = uniform;
+          scaleY = uniform;
         }
       }
 
@@ -264,6 +273,16 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
 })
 export class GM {
   rows: GMRow[] = [];
+}
+
+/** Canonical `^scale` axis conversion (GameIn.as:160-161) — AS2
+ *  `Number()` semantics (floats pass through, no clamp), with NaN
+ *  normalized to the 100 default (canonical never applies a NaN
+ *  scale — GameIn.as:258 isNaN guard). */
+function numberOr100(s: string | undefined): number {
+  const v = Number(s);
+
+  return Number.isNaN(v) ? 100 : v;
 }
 
 function parseHexOr(s: string | undefined, fallback: number): number {

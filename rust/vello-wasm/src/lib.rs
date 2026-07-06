@@ -212,6 +212,58 @@ struct AnimPlayer {
     /// `crowdUpdateFrames`). Lets the crowd track each player's real animation
     /// frame instead of free-running on a shared clock.
     frame: u16,
+    /// Per-actor gfx scale in PERCENT (server `^scaleX[xScaleY]`, 100 =
+    /// default; canonical `Number()` pass-through, no clamp —
+    /// GameIn.as:152-166). Canonical `_xscale`/`_yscale` display
+    /// transform: composed into the per-actor place affine at emit
+    /// time. Deliberately NOT part of `sig`/`layout_sig` — the
+    /// baked/interned geometry stays shared across differently-scaled
+    /// actors of the same look.
+    scale_x: f32,
+    scale_y: f32,
+}
+
+impl AnimPlayer {
+    /// Per-actor scale affine (around the actor/SWF origin), or `None`
+    /// at the default 100% so the common case composes nothing extra.
+    /// Composed AFTER flip / BEFORE the world-or-cell translate, i.e.
+    /// `place = translate * flip * scale` (wc3 model — scale is applied
+    /// to points first, around the actor origin).
+    fn scale_affine(&self) -> Option<vello::kurbo::Affine> {
+        if self.scale_x == 100.0 && self.scale_y == 100.0 {
+            return None;
+        }
+        Some(vello::kurbo::Affine::scale_non_uniform(
+            f64::from(self.scale_x) / 100.0,
+            f64::from(self.scale_y) / 100.0,
+        ))
+    }
+}
+
+/// Compose the optional per-actor scale onto a place affine (rightmost —
+/// scale around the actor origin, before flip/translate take effect).
+fn with_actor_scale(
+    place: vello::kurbo::Affine,
+    scale: Option<vello::kurbo::Affine>,
+) -> vello::kurbo::Affine {
+    match scale {
+        Some(s) => place * s,
+        None => place,
+    }
+}
+
+/// Parse a percent scale field (`scaleX`/`scaleY`) off a JS player/look
+/// object. Canonical pass-through (no clamp, fractional values kept —
+/// GameIn.as:152-166): absent / NaN → 100 default; a PRESENT 0 is a
+/// real value (canonical `_xscale = 0` renders nothing).
+fn get_scale_percent(o: &JsValue, k: &str) -> f32 {
+    match js_sys::Reflect::get(o, &JsValue::from_str(k))
+        .ok()
+        .and_then(|v| v.as_f64())
+    {
+        Some(v) if v.is_finite() => v as f32,
+        _ => 100.0,
+    }
 }
 
 /// Stateful animated Vello-direct crowd. Two render modes:
@@ -5142,6 +5194,10 @@ impl VelloRenderer {
                 sig,
                 layout_sig,
                 frame: 0,
+                // Per-actor `^scale` percent — rides the place transform
+                // only, NEVER `sig`/`layout_sig` (geometry stays shared).
+                scale_x: get_scale_percent(&o, "scaleX"),
+                scale_y: get_scale_percent(&o, "scaleY"),
             });
         }
         if players_vec.is_empty() {
@@ -5179,17 +5235,27 @@ impl VelloRenderer {
         for p in &players_vec {
             let wx = p.x * pos_scale;
             let wy = p.y * pos_scale;
+            // Per-actor gfx scale grows the actor's extents (a `^200x200`
+            // actor covers 2× the symbol bounds). Folding it in here sizes
+            // the shared atlas cell for the largest SCALED actor. NOTE:
+            // cells are uniform across the roster, and looks that join
+            // later via `crowdUpdateLooks` can't re-fit them — an actor
+            // scaled up after setup may overflow its fixed cell (clipped
+            // at the cell edge). Accepted: cells already carry 1.5×
+            // padding, and wc3 has no atlas to overflow.
+            let sxf = f64::from(p.scale_x) / 100.0;
+            let syf = f64::from(p.scale_y) / 100.0;
             if let Some(doc) = self.swf_bundles.get(&p.bundle) {
                 if let Some(sym) = doc.lookup_export(&p.export) {
                     let b = swf_spike::render::symbol_bounds(doc, sym, 0);
-                    let xext = b.x0.abs().max(b.x1.abs());
+                    let xext = b.x0.abs().max(b.x1.abs()) * sxf;
                     min_x = min_x.min(wx - xext * scale);
                     max_x = max_x.max(wx + xext * scale);
-                    min_y = min_y.min(wy + b.y0 * scale);
-                    max_y = max_y.max(wy + b.y1 * scale);
+                    min_y = min_y.min(wy + b.y0 * syf * scale);
+                    max_y = max_y.max(wy + b.y1 * syf * scale);
                     max_half_w = max_half_w.max(xext);
-                    max_up = max_up.max(-b.y0);
-                    max_down = max_down.max(b.y1.max(0.0));
+                    max_up = max_up.max(-b.y0 * syf);
+                    max_down = max_down.max((b.y1 * syf).max(0.0));
                 }
             }
         }
@@ -5817,11 +5883,11 @@ impl VelloRenderer {
                             p.x * pos_scale + off_x,
                             p.y * pos_scale + off_y,
                         ));
-                        let place = if p.flipped {
-                            translate * flip_x
-                        } else {
-                            translate
-                        };
+                        // place = translate * flip * actor-scale (wc3).
+                        let place = with_actor_scale(
+                            if p.flipped { translate * flip_x } else { translate },
+                            p.scale_affine(),
+                        );
                         scene.append(sub, Some(place));
                     }
                 }
@@ -5836,11 +5902,12 @@ impl VelloRenderer {
                         p.x * pos_scale + crowd.off_x,
                         p.y * pos_scale + crowd.off_y,
                     ));
-                    let base = if p.flipped {
-                        translate * flip_x * scale_aff
-                    } else {
-                        translate * scale_aff
-                    };
+                    // Actor scale slots between flip and the twip bake
+                    // scale: translate * flip * actor-scale * scale_aff.
+                    let base = with_actor_scale(
+                        if p.flipped { translate * flip_x } else { translate },
+                        p.scale_affine(),
+                    ) * scale_aff;
                     acc_drawn += emit_player_look(
                         &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped, p.colors,
                         &p.acc, base, &mut scene,
@@ -5936,11 +6003,11 @@ impl VelloRenderer {
                             p.x * pos_scale + off_x,
                             p.y * pos_scale + off_y,
                         ));
-                        let place = if p.flipped {
-                            translate * flip_x
-                        } else {
-                            translate
-                        };
+                        // place = translate * flip * actor-scale (wc3).
+                        let place = with_actor_scale(
+                            if p.flipped { translate * flip_x } else { translate },
+                            p.scale_affine(),
+                        );
                         scene.append(sub, Some(place));
                     }
                 }
@@ -6129,6 +6196,13 @@ impl VelloRenderer {
                         (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                     };
                     let sig_key = format!("{}|{}", p.layout_sig, tf);
+                    // Per-actor `^scale` — composed BEFORE flip/translate
+                    // (around the actor origin, wc3 model: place =
+                    // translate * flip * scale). Applied to BOTH the
+                    // world hit-test transform and the atlas place so
+                    // picking matches what's rendered. Never part of
+                    // `sig_key`/`layout_sig` — geometry stays shared.
+                    let actor_scale = p.scale_affine();
                     // WORLD transform — used ONLY for the picking hit-test
                     // (point-in-path in world space, independent of how the
                     // crowd is laid out in the texture).
@@ -6136,18 +6210,27 @@ impl VelloRenderer {
                         p.x * pos_scale + off_x,
                         p.y * pos_scale + off_y,
                     ));
-                    let place_world = if p.flipped { world_t * flip_x } else { world_t };
+                    let place_world = with_actor_scale(
+                        if p.flipped { world_t * flip_x } else { world_t },
+                        actor_scale,
+                    );
                     // ATLAS transform — where the actor is RENDERED: its static
                     // cell, feet at the cell anchor. Constant per actor index,
                     // so the slab's per-instance transforms never change frame-
                     // to-frame; the Pixi sprite applies world movement + zIndex.
+                    // A >100% actor can exceed the fit computed at setup for a
+                    // 100% roster (sparse look updates can't re-fit cells) and
+                    // clip at its cell edge — accepted, see `real_crowd_setup`.
                     let col = (idx as u32) % atlas_cols.max(1);
                     let row = (idx as u32) / atlas_cols.max(1);
                     let cell = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
                         f64::from(col * atlas_cell_w) + atlas_anchor_x,
                         f64::from(row * atlas_cell_h) + atlas_anchor_y,
                     ));
-                    let place = if p.flipped { cell * flip_x } else { cell };
+                    let place = with_actor_scale(
+                        if p.flipped { cell * flip_x } else { cell },
+                        actor_scale,
+                    );
                     let overlay = player_color_overlay(p.colors);
                     // LIVE (wc3 model): every actor renders its EXACT current
                     // (look|frame) EVERY frame. On first sight the look is encoded
@@ -6490,11 +6573,11 @@ impl VelloRenderer {
                                     p.x * pos_scale + off_x,
                                     p.y * pos_scale + off_y,
                                 ));
-                            let place = if p.flipped {
-                                translate * flip_x
-                            } else {
-                                translate
-                            };
+                            // place = translate * flip * actor-scale (wc3).
+                            let place = with_actor_scale(
+                                if p.flipped { translate * flip_x } else { translate },
+                                p.scale_affine(),
+                            );
                             scene.append(sub, Some(place));
                         }
                     }
@@ -7835,6 +7918,12 @@ impl VelloRenderer {
             p.acc = acc;
             p.sig = sig;
             p.layout_sig = layout_sig;
+            // Per-actor `^scale` percent — place-transform only, never a
+            // cache signature. NOTE: the atlas cell grid was fitted at
+            // setup; a scale-up arriving here may overflow its fixed cell
+            // (accepted, see `real_crowd_setup`).
+            p.scale_x = get_scale_percent(&o, "scaleX");
+            p.scale_y = get_scale_percent(&o, "scaleY");
             if p.frame >= fc {
                 p.frame = fc - 1;
             }

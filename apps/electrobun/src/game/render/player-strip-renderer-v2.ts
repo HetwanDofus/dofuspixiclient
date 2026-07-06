@@ -87,6 +87,11 @@ export interface CrowdPlayerSnapshot {
   c1: number;
   c2: number;
   c3: number;
+  /** Per-actor gfx scale, percent (100 = default). Composed into the
+   *  per-actor place transform on the wasm side — never part of the
+   *  crowd's layout/bake signatures. */
+  scaleX: number;
+  scaleY: number;
   x: number;
   y: number;
   /** Current cell id — drives the per-actor crowd sprite's zIndex
@@ -1725,8 +1730,11 @@ export class PlayerStripRendererV2 {
         c1: st.zone1 | 0,
         c2: st.zone2 | 0,
         c3: st.zone3 | 0,
+        scaleX: p.scaleX ?? 100,
+        scaleY: p.scaleY ?? 100,
         x: c?.x ?? 0,
         y: c?.y ?? 0,
+        cellId: p.cellId,
         acc: a.accessories.map((ac) => ({
           bundle: ac.bundle,
           export: ac.exportName,
@@ -2205,7 +2213,12 @@ export class PlayerStripRendererV2 {
   ): SlotStateV2 {
     this.ensureComposeTickerInstalled();
     const root = new Container();
-    root.scale.set(1 / this.resolution);
+    // Initial transform includes the per-actor gfx scale (percent, 100 =
+    // default); `applyFlipToSlot` re-derives it on every flip/update.
+    root.scale.set(
+      ((player.scaleX ?? 100) / 100) / this.resolution,
+      ((player.scaleY ?? 100) / 100) / this.resolution,
+    );
     root.sortableChildren = true;
     root.zIndex = SLOT_Z_INDEX[slot];
     player.container.addChild(root);
@@ -2311,8 +2324,15 @@ export class PlayerStripRendererV2 {
   }
 
   private applyFlipToSlot(st: SlotStateV2, flipped: boolean): void {
+    // Per-actor gfx scale (server `^scaleX[xScaleY]`, percent). Canonical
+    // `_xscale`/`_yscale` display transform: composed into the slot-root
+    // affine at draw time so the baked strips / atlases stay shared
+    // across every actor of the class (scale is NEVER in a bake key).
+    // Reads the live ActivePlayer so wire updates apply without re-bake.
+    const sx = (st.player?.scaleX ?? 100) / 100;
+    const sy = (st.player?.scaleY ?? 100) / 100;
     const s = 1 / this.resolution;
-    st.root.scale.set(flipped ? -s : s, s);
+    st.root.scale.set((flipped ? -s : s) * sx, s * sy);
   }
 
   /** Kick off a body-atlas acquire for `pending`. The cache dispatches

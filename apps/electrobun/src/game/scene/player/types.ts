@@ -23,6 +23,17 @@ export interface PlayerSpriteData {
   cellId: number;
   direction: number;
   look: string;
+  /**
+   * Per-actor gfx scale in percent (server `^scaleX[xScaleY]`, 100 =
+   * default; canonical Number() pass-through, no clamp —
+   * GameIn.as:152-166). Canonical `_xscale`/`_yscale` display
+   * transform: applied at draw time as a per-actor affine composed
+   * with the world placement — NEVER part of bake cache keys, the
+   * rendered geometry stays shared across actors of the same class.
+   * Absent → 100.
+   */
+  scaleX?: number;
+  scaleY?: number;
   hp: number;
   maxHp: number;
   isPlayer: boolean;
@@ -115,6 +126,13 @@ export interface ActivePlayer {
   hp: number;
   maxHp: number;
   gfxId: number;
+  /**
+   * Per-actor gfx scale in percent (100 = default). Read at draw time
+   * by the strip renderer's slot-root transform and the crowd snapshot;
+   * deliberately absent from every bake/cache key.
+   */
+  scaleX: number;
+  scaleY: number;
   animation: PlayerAnimationValue;
   currentAnimName: string;
   currentAnimData: CharacterAnimation | null;

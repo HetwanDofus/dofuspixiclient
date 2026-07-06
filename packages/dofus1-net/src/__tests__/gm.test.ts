@@ -124,4 +124,51 @@ describe("GM — sprite stream", () => {
     expect(row.defaultRig).toBe(false); // leading `*`
     expect(row.noFlip).toBe(true); // trailing `*`
   });
+
+  test("`^scale` uses canonical Number() pass-through (GameIn.as:152-166)", () => {
+    // No clamp — large uniform values pass through untouched.
+    const high = "GM*+10;1;0;42;Bob;5;5678^2000;0;-1;-1;-1;";
+    const rowHigh = (dispatch(high).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowHigh.scaleX).toBe(2000);
+    expect(rowHigh.scaleY).toBe(2000);
+
+    // Fractional uniform scale (AS2 Number(), not parseInt).
+    const frac = "GM*+10;1;0;42;Bob;5;5678^87.5;0;-1;-1;-1;";
+    const rowFrac = (dispatch(frac).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowFrac.scaleX).toBe(87.5);
+    expect(rowFrac.scaleY).toBe(87.5);
+
+    // Per-axis passes each value through unclamped. (An axis value of
+    // literal `0` before the `x` is untestable in the two-axis form:
+    // `Number("0x…")` parses as a HEX literal in AS2 and JS alike, so
+    // canonical treats `^0x5000` as the UNIFORM form.)
+    const mixed = "GM*+10;1;0;42;Bob;5;5678^50x5000;0;-1;-1;-1;";
+    const rowMixed = (dispatch(mixed).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowMixed.scaleX).toBe(50);
+    expect(rowMixed.scaleY).toBe(5000);
+
+    // Uniform zero passes through (canonical `_xscale = 0` → invisible).
+    const zero = "GM*+10;1;0;42;Bob;5;5678^0;0;-1;-1;-1;";
+    const rowZero = (dispatch(zero).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowZero.scaleX).toBe(0);
+    expect(rowZero.scaleY).toBe(0);
+
+    // Garbage → NaN → the 100 default (never-applied scale).
+    const junk = "GM*+10;1;0;42;Bob;5;5678^abc;0;-1;-1;-1;";
+    const rowJunk = (dispatch(junk).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowJunk.scaleX).toBe(100);
+    expect(rowJunk.scaleY).toBe(100);
+
+    // NaN axis in the two-axis form → that axis defaults to 100.
+    const nanAxis = "GM*+10;1;0;42;Bob;5;5678^140xabc;0;-1;-1;-1;";
+    const rowNan = (dispatch(nanAxis).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowNan.scaleX).toBe(140);
+    expect(rowNan.scaleY).toBe(100);
+
+    // Plain in-range value passes through.
+    const ok = "GM*+10;1;0;42;Bob;5;5678^140;0;-1;-1;-1;";
+    const rowOk = (dispatch(ok).payload as GM).rows[0] as GMSpriteAdd;
+    expect(rowOk.scaleX).toBe(140);
+    expect(rowOk.scaleY).toBe(140);
+  });
 });
