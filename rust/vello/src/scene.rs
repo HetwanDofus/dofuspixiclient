@@ -43,6 +43,9 @@ use vello_encoding::{
 #[derive(Clone, Default)]
 pub struct Scene {
     encoding: Encoding,
+    /// DOFUS: opt-in display-list mirror of every encoded command. See
+    /// [`crate::record`]. `None` (the default) records nothing.
+    record: Option<Box<crate::record::Recording>>,
     #[cfg(feature = "bump_estimate")]
     estimator: vello_encoding::BumpEstimator,
 }
@@ -57,8 +60,35 @@ impl Scene {
     /// Removes all content from the scene.
     pub fn reset(&mut self) {
         self.encoding.reset();
+
+        if let Some(rec) = &mut self.record {
+            rec.ops.clear();
+            rec.lossy = 0;
+        }
+
         #[cfg(feature = "bump_estimate")]
         self.estimator.reset();
+    }
+
+    /// DOFUS: start mirroring every drawing command into a
+    /// [`Recording`](crate::record::Recording). Idempotent; an existing
+    /// recording is kept.
+    pub fn enable_recording(&mut self) {
+        if self.record.is_none() {
+            self.record = Some(Box::default());
+        }
+    }
+
+    /// DOFUS: the display list recorded so far, if recording is enabled.
+    pub fn recording(&self) -> Option<&crate::record::Recording> {
+        self.record.as_deref()
+    }
+
+    /// DOFUS: take the recording out of the scene, leaving recording
+    /// enabled with a fresh, empty list. `None` if recording was never
+    /// enabled.
+    pub fn take_recording(&mut self) -> Option<crate::record::Recording> {
+        self.record.replace(Box::default()).map(|b| *b)
     }
 
     /// Tally up the bump allocator estimate for the current state of the encoding,
@@ -93,6 +123,10 @@ impl Scene {
     /// [`append_instanced_encoding`](Self::append_instanced_encoding) so it
     /// can hand the same `Arc<Encoding>` to every block without re-cloning.
     pub fn append_instanced(&mut self, sub: &Self, instances: &[InstanceParams]) {
+        if let Some(rec) = &mut self.record {
+            rec.lossy += 1;
+        }
+
         if instances.len() == 1 && instances[0].singleton_threshold_hint {
             let t = Transform::from_kurbo(&instances[0].affine);
             self.encoding.append(&sub.encoding, &Some(t));
@@ -106,6 +140,10 @@ impl Scene {
     /// `Arc<Encoding>` per look so it can hand the same Arc to every block
     /// without re-cloning bytes.
     pub fn append_instanced_encoding(&mut self, sub: Arc<Encoding>, instances: &[InstanceParams]) {
+        if let Some(rec) = &mut self.record {
+            rec.lossy += 1;
+        }
+
         self.encoding.append_instanced(sub, instances);
     }
 
@@ -142,6 +180,10 @@ impl Scene {
     /// segment emit), and so the instance arrays still describe a
     /// coherent scene for the accessory-side shader logic.
     pub fn append_with_instance_transform(&mut self, sub: &Self, instance_idx: u32) {
+        if let Some(rec) = &mut self.record {
+            rec.lossy += 1;
+        }
+
         let world = self.encoding.instance_transforms[instance_idx as usize];
         self.encoding.append(&sub.encoding, &Some(world));
     }
@@ -175,9 +217,29 @@ impl Scene {
         clip: &impl Shape,
     ) {
         let blend = blend.into();
+        let clip_style = clip_style.into();
+
+        if let Some(rec) = &mut self.record {
+            let recorded_style = match clip_style {
+                StyleRef::Fill(f) => f,
+                StyleRef::Stroke(_) => {
+                    rec.lossy += 1;
+
+                    Fill::NonZero
+                }
+            };
+            rec.ops.push(crate::record::DisplayOp::PushLayer {
+                clip_style: recorded_style,
+                blend,
+                alpha: alpha.clamp(0.0, 1.0),
+                transform,
+                clip: clip.path_elements(crate::record::RECORD_TOLERANCE).collect(),
+            });
+        }
+
         self.push_layer_inner(
             DrawBeginClip::new(blend, alpha.clamp(0.0, 1.0)),
-            clip_style.into(),
+            clip_style,
             transform,
             clip,
         );
@@ -313,6 +375,10 @@ impl Scene {
 
     /// Pops the current layer.
     pub fn pop_layer(&mut self) {
+        if let Some(rec) = &mut self.record {
+            rec.ops.push(crate::record::DisplayOp::PopLayer);
+        }
+
         self.encoding.encode_end_clip();
     }
 
@@ -385,6 +451,18 @@ impl Scene {
         brush_transform: Option<Affine>,
         shape: &impl Shape,
     ) {
+        let brush = brush.into();
+
+        if let Some(rec) = &mut self.record {
+            rec.ops.push(crate::record::DisplayOp::Fill {
+                style,
+                transform,
+                brush: brush.to_owned(),
+                brush_transform,
+                path: shape.path_elements(crate::record::RECORD_TOLERANCE).collect(),
+            });
+        }
+
         let t = Transform::from_kurbo(&transform);
         self.encoding.encode_transform(t);
         self.encoding.encode_fill_style(style);
@@ -433,6 +511,33 @@ impl Scene {
         const GPU_STROKES: bool = true; // Set this to `true` to enable GPU-side stroking
         if GPU_STROKES {
             if style.width == 0. {
+                return;
+            }
+
+            // DOFUS record hook: only on this branch — the CPU-stroke
+            // fallback below funnels through `self.fill`, which records
+            // the pre-stroked path itself.
+            if self.record.is_some() {
+                let brush = brush.into();
+                let op = crate::record::DisplayOp::Stroke {
+                    style: style.clone(),
+                    transform,
+                    brush: brush.to_owned(),
+                    brush_transform,
+                    path: shape.path_elements(crate::record::RECORD_TOLERANCE).collect(),
+                };
+                self.record.as_mut().unwrap().ops.push(op);
+                let encode_result = self.stroke_gpu_inner(style, transform, shape);
+                if encode_result {
+                    if let Some(brush_transform) = brush_transform
+                        && self
+                            .encoding
+                            .encode_transform(Transform::from_kurbo(&(transform * brush_transform)))
+                    {
+                        self.encoding.swap_last_path_tags();
+                    }
+                    self.encoding.encode_brush(brush, 1.0);
+                }
                 return;
             }
             let encode_result = self.stroke_gpu_inner(style, transform, shape);
@@ -517,6 +622,10 @@ impl Scene {
 
     /// Returns a builder for encoding a glyph run.
     pub fn draw_glyphs(&mut self, font: &FontData) -> DrawGlyphs<'_> {
+        if let Some(rec) = &mut self.record {
+            rec.lossy += 1;
+        }
+
         // TODO: Integrate `BumpEstimator` with the glyph cache.
         DrawGlyphs::new(self, font)
     }
@@ -526,6 +635,20 @@ impl Scene {
     /// The given transform is applied to every transform in the child.
     /// This is an O(N) operation.
     pub fn append(&mut self, other: &Self, transform: Option<Affine>) {
+        if let Some(rec) = &mut self.record {
+            match &other.record {
+                Some(child) => {
+                    rec.ops.push(crate::record::DisplayOp::Append {
+                        rec: Arc::new((**child).clone()),
+                        transform,
+                    });
+                }
+                None => {
+                    rec.lossy += 1;
+                }
+            }
+        }
+
         let t = transform.as_ref().map(Transform::from_kurbo);
         self.encoding.append(&other.encoding, &t);
         #[cfg(feature = "bump_estimate")]
@@ -539,6 +662,7 @@ impl From<Encoding> for Scene {
         // removed at some point - see https://github.com/linebender/vello/issues/541
         Self {
             encoding,
+            record: None,
             #[cfg(feature = "bump_estimate")]
             estimator: vello_encoding::BumpEstimator::default(),
         }

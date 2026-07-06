@@ -107,6 +107,7 @@
 )]
 
 mod debug;
+pub mod record;
 mod recording;
 mod render;
 mod scene;

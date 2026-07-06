@@ -31,11 +31,24 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::shape::{flatten_shape, DrawCmd};
 use crate::swf_doc::{OwnedPlace, OwnedSprite, SwfDoc};
 
 use super::build_frame_state;
+
+/// cpu-bench support: when set, [`RenderCache::shape_frags`] builds its
+/// fragment scenes with display-list recording enabled so a recording
+/// parent scene captures fragment appends instead of marking them lossy.
+/// Off by default — production bakes pay zero recording overhead. Set it
+/// BEFORE the first walk; already-cached fragments are not rebuilt.
+static RECORD_FRAGMENTS: AtomicBool = AtomicBool::new(false);
+
+/// See [`RECORD_FRAGMENTS`].
+pub fn set_record_fragments(on: bool) {
+    RECORD_FRAGMENTS.store(on, Ordering::Relaxed);
+}
 
 #[derive(Default)]
 pub struct RenderCache {
@@ -88,6 +101,11 @@ impl RenderCache {
             .iter()
             .map(|cmd| {
                 let mut s = vello::Scene::new();
+
+                if RECORD_FRAGMENTS.load(Ordering::Relaxed) {
+                    s.enable_recording();
+                }
+
                 super::emit::emit_cmd(
                     &mut s,
                     cmd,

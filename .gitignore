@@ -39,3 +39,7 @@ assets/dist
 
 # Docker
 pgdata/
+# CPU-bench wasm build outputs
+rust/cpu-bench-wasm/pkg*/
+# experimental build dirs
+rust/target-*/

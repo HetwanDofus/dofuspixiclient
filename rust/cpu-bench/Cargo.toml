@@ -1,0 +1,22 @@
+[package]
+name = "cpu-bench"
+version = "0.1.0"
+edition = "2024"
+
+# Measures vello_cpu (the sparse-strips CPU renderer) on real Dofus class
+# sprite bakes, via the display-list recorder added to the vello fork
+# (`vello::record`). This is the feasibility probe for the no-WebGPU
+# fallback path on older machines. Native first; the wasm harness reuses
+# the same replay module.
+
+[features]
+default = ["multithreading", "png"]
+multithreading = ["vello_cpu/multithreading"]
+png = ["vello_cpu/png"]
+
+[dependencies]
+swf-spike = { path = "../swf-spike" }
+vello = "0.8"
+vello_cpu = "0.0.9"
+web-time = "1"
+anyhow = "1"

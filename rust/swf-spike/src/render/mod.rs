@@ -31,9 +31,9 @@ pub mod sprite;
 pub mod union;
 pub mod zone_patch;
 
-pub use band::{render_body_band, render_body_band_dual};
+pub use band::{render_body_band, render_body_band_dual, render_body_band_nogpu};
 pub use bounds::{band_bounds, build_frame_state, symbol_bounds};
-pub use cache::RenderCache;
+pub use cache::{RenderCache, set_record_fragments};
 pub use clip::collect_mask_path;
 pub use ctx::{RenderCtx, RenderMode};
 pub use slot_depths::{
@@ -182,6 +182,49 @@ pub fn render_symbol_with_ctx_tinted(
         .with_transform(transform)
         .with_frame(frame)
         .with_player_colors(player_colors);
+    render_symbol_into(&mut ctx, sym);
+}
+
+/// Same as `render_symbol_with_ctx_tinted` but without a wgpu context —
+/// filtered placements take the CPU multi-sample halo fallback in
+/// `filter::apply_halo` instead of the compute-shader path. Used by the
+/// `cpu-bench` harness, which measures `vello_cpu` rasterization of real
+/// look walks on a machine profile with no usable GPU at all.
+pub fn render_symbol_tinted_nogpu(
+    doc: &SwfDoc,
+    sym: &Symbol,
+    scene: &mut Scene,
+    transform: Affine,
+    frame: u16,
+    player_colors: crate::recolor::PlayerColors,
+    cache: &crate::render::cache::RenderCache,
+) {
+    let mut ctx = RenderCtx::new(doc, scene, cache)
+        .with_transform(transform)
+        .with_frame(frame)
+        .with_player_colors(player_colors);
+    render_symbol_into(&mut ctx, sym);
+}
+
+/// Same as `render_symbol_with_ctx_tinted_accessorized` but without a
+/// wgpu context — filtered placements take the CPU halo fallback. The
+/// cpu-bench "full composed actor" workload: body + mounted accessories
+/// + player palette, all through the standard walk.
+pub fn render_symbol_tinted_accessorized_nogpu(
+    doc: &SwfDoc,
+    sym: &Symbol,
+    scene: &mut Scene,
+    transform: Affine,
+    frame: u16,
+    player_colors: crate::recolor::PlayerColors,
+    cache: &crate::render::cache::RenderCache,
+    accessories: &crate::render::ctx::AccessoryDict<'_>,
+) {
+    let mut ctx = RenderCtx::new(doc, scene, cache)
+        .with_transform(transform)
+        .with_frame(frame)
+        .with_player_colors(player_colors)
+        .with_accessories(accessories);
     render_symbol_into(&mut ctx, sym);
 }
 

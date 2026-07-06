@@ -1,0 +1,131 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>vello_cpu wasm bench</title>
+<pre id="out">loading…</pre>
+<script type="module">
+  // vello_cpu bench on real class SWFs: (1) per-variant/per-frame table,
+  // body-only and full composed actor (hat+cape+shield, tinted); (2)
+  // worker-shard scaling — K web workers, each its own wasm instance,
+  // splitting a fixed batch of composed bakes. The workspace
+  // .cargo/config.toml forces +simd128 for every wasm32 build
+  // (simdLevel() confirms at runtime).
+  // Serve from the repo root so ../../assets/... resolves, e.g.:
+  //   python3 -m http.server 8791  (from dofuswebclient2/)
+  // then open http://localhost:8791/rust/cpu-bench-wasm/index.html
+  const CLASSES = [10, 50, 100, 121];
+  const ZOOMS = [1, 3, 5];
+  const REPS = 3;
+  const WORKER_COUNTS = [1, 2, 4, 8];
+  const ACC_FILES = [
+    "a1.swf", "a2.swf", "a3.swf", "a4.swf", "a5.swf", "a6.swf", "a7.swf", "a8.swf",
+    "accessories.swf", "accessories_autres.swf",
+  ];
+
+  const out = document.getElementById("out");
+  const log = (s) => { out.textContent += s + "\n"; };
+  out.textContent = "";
+
+  const fetchBuf = async (url) => (await fetch(url)).arrayBuffer();
+  const classBufs = new Map();
+  for (const c of CLASSES) {
+    classBufs.set(c, await fetchBuf(`../../assets/sources/clips/sprites/${c}.swf`));
+  }
+  const accBufs = [];
+  for (const f of ACC_FILES) {
+    accBufs.push(await fetchBuf(`../../assets/sources/clips/sprites/accessories/${f}`));
+  }
+
+  // ---- 1. main-thread table -------------------------------------------
+  const mod = await import(`./pkg/cpu_bench_wasm.js`);
+  await mod.default();
+  log(`level: ${mod.simdLevel()}`);
+
+  const pool = new mod.BenchPool();
+  for (const b of accBufs) pool.loadAccBundle(new Uint8Array(b));
+  for (const [id, b] of classBufs) pool.loadClass(id, new Uint8Array(b));
+
+  window.__results = [];
+  for (const c of CLASSES) {
+    for (const z of ZOOMS) {
+      for (const composed of [false, true]) {
+        const r = JSON.parse(pool.benchOne(c, z, composed, REPS));
+        window.__results.push(r);
+        log(
+          `class ${c} ${r.export} acc[${r.acc}] f${r.frames} z${z} ${r.w}x${r.h}` +
+          ` ops ${r.ops} | walk ${r.walkColdMs.toFixed(2)}/${r.walkWarmMs.toFixed(2)}` +
+          ` | replay ${r.replayMs.toFixed(2)} raster ${r.rasterMs.toFixed(2)}` +
+          ` | per-frame ${r.perFrameMs.toFixed(3)} ms`,
+        );
+      }
+    }
+  }
+
+  // ---- 2. worker-shard scaling ----------------------------------------
+  const workerSrc = `
+    import init, { BenchPool } from "${location.origin}/rust/cpu-bench-wasm/pkg/cpu_bench_wasm.js";
+    let pool;
+    onmessage = async (e) => {
+      const m = e.data;
+      if (m.type === "init") {
+        await init();
+        pool = new BenchPool();
+        for (const b of m.acc) pool.loadAccBundle(new Uint8Array(b));
+        for (const [id, b] of m.classes) pool.loadClass(id, new Uint8Array(b));
+        postMessage({ type: "ready" });
+        return;
+      }
+      postMessage({ type: "done", id: m.id, row: pool.benchOne(m.class, m.zoom, true, m.reps) });
+    };
+  `;
+  const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" }));
+
+  // Fixed batch: every (class, zoom) composed variant, twice over — 24
+  // independent bakes, the shape of a roster warmup.
+  const batch = [];
+  for (let rep = 0; rep < 2; rep++) {
+    for (const c of CLASSES) for (const z of ZOOMS) batch.push({ class: c, zoom: z });
+  }
+
+  window.__scaling = [];
+  for (const K of WORKER_COUNTS) {
+    const workers = [];
+    await Promise.all(Array.from({ length: K }, async () => {
+      const w = new Worker(workerUrl, { type: "module" });
+      const ready = new Promise((res) => {
+        w.onmessage = (e) => { if (e.data.type === "ready") res(); };
+      });
+      w.postMessage({ type: "init", acc: accBufs, classes: [...classBufs] });
+      await ready;
+      workers.push(w);
+    }));
+
+    const t0 = performance.now();
+    let next = 0;
+    let doneCount = 0;
+    await new Promise((resolve) => {
+      const feed = (w) => {
+        if (next >= batch.length) return;
+        const task = batch[next];
+        w.postMessage({ type: "task", id: next, class: task.class, zoom: task.zoom, reps: 1 });
+        next++;
+      };
+      for (const w of workers) {
+        w.onmessage = (e) => {
+          if (e.data.type !== "done") return;
+          doneCount++;
+          if (doneCount === batch.length) { resolve(); return; }
+          feed(w);
+        };
+        feed(w);
+      }
+    });
+    const wall = performance.now() - t0;
+    window.__scaling.push({ workers: K, tasks: batch.length, wallMs: wall });
+    log(`workers=${K}: ${batch.length} composed bakes in ${wall.toFixed(0)} ms` +
+        ` (${(wall / batch.length).toFixed(1)} ms/bake effective)`);
+    for (const w of workers) w.terminate();
+  }
+
+  window.__done = true;
+  log("DONE");
+</script>

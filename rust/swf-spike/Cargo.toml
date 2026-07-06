@@ -55,6 +55,12 @@ path = "src/bin/dump_root.rs"
 # Dump root timeline of a SWF.
 
 [[bin]]
+name = "bench-gpu-strip"
+path = "src/bin/bench_gpu_strip.rs"
+# Native GPU reference for CPU_RENDER_FEASIBILITY.md — composed-actor
+# strip bake timed as submit + poll-wait.
+
+[[bin]]
 name = "render-spell-icon"
 path = "src/bin/render_spell_icon.rs"
 # Render a spell icon (back + up trio) to PNG via the same logic as

@@ -113,3 +113,33 @@ pub fn render_body_band_dual(
         .with_hat_equipped(hat_equipped);
     render_symbol_into(&mut ctx, sym);
 }
+
+/// Same walk as `render_body_band` but without a wgpu context — filtered
+/// placements take the CPU halo fallback. Used by the `cpu-bench` harness
+/// to measure `vello_cpu` on the exact per-band unit the class-atlas bake
+/// renders, on a machine profile with no usable GPU.
+#[allow(clippy::too_many_arguments)]
+pub fn render_body_band_nogpu(
+    doc: &SwfDoc,
+    sym: &Symbol,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    frame: u16,
+    band: BandRange,
+    output_mode: RenderMode,
+    player_colors: PlayerColors,
+    cache: &RenderCache,
+    apply_b_fix: bool,
+    hat_equipped: bool,
+) {
+    let mut ctx = RenderCtx::new(doc, scene, cache)
+        .with_transform(transform)
+        .with_frame(frame)
+        .with_player_colors(player_colors)
+        .with_b_fix(apply_b_fix)
+        .with_band_filter(band)
+        .with_disable_accessories(true)
+        .with_output_mode(output_mode)
+        .with_hat_equipped(hat_equipped);
+    render_symbol_into(&mut ctx, sym);
+}

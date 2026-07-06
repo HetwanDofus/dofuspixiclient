@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["swf-spike", "vello-wasm", "renderer"]
+members = ["swf-spike", "vello-wasm", "renderer", "cpu-bench", "cpu-bench-wasm"]
 
 [patch.crates-io]
 wgpu = { path = "wgpu" }

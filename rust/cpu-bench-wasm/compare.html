@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>vello_cpu wasm build compare</title>
+<pre id="out">loading…</pre>
+<script type="module">
+  // Head-to-head of wasm build variants on the composed-actor bake:
+  //   pkg          = simd128 (workspace default), no wasm-opt   [baseline]
+  //   pkg-opt      = simd128 + wasm-opt -O4
+  //   pkg-relaxed  = simd128 + relaxed-simd, no wasm-opt
+  //   pkg-relaxopt = simd128 + relaxed-simd + wasm-opt -O4
+  // Chrome supports relaxed-simd; Safari does not (would need feature
+  // detection + fallback build if shipped).
+  const BUILDS = ["pkg", "pkg-opt", "pkg-relaxed", "pkg-relaxopt"];
+  const CLASSES = [10, 100];
+  const ZOOMS = [3, 5];
+  const REPS = 3;
+  const ACC_FILES = [
+    "a1.swf", "a2.swf", "a3.swf", "a4.swf", "a5.swf", "a6.swf", "a7.swf", "a8.swf",
+    "accessories.swf", "accessories_autres.swf",
+  ];
+
+  const out = document.getElementById("out");
+  const log = (s) => { out.textContent += s + "\n"; };
+  out.textContent = "";
+
+  const fetchBuf = async (url) => (await fetch(url)).arrayBuffer();
+  const classBufs = new Map();
+  for (const c of CLASSES) {
+    classBufs.set(c, await fetchBuf(`../../assets/sources/clips/sprites/${c}.swf`));
+  }
+  const accBufs = [];
+  for (const f of ACC_FILES) {
+    accBufs.push(await fetchBuf(`../../assets/sources/clips/sprites/accessories/${f}`));
+  }
+
+  window.__compare = {};
+  for (const build of BUILDS) {
+    const mod = await import(`./${build}/cpu_bench_wasm.js`);
+    await mod.default();
+    const pool = new mod.BenchPool();
+    for (const b of accBufs) pool.loadAccBundle(new Uint8Array(b));
+    for (const [id, b] of classBufs) pool.loadClass(id, new Uint8Array(b));
+
+    // JIT warmup so tier-up doesn't bias the first build measured.
+    pool.benchOne(CLASSES[0], ZOOMS[0], true, 2);
+
+    const rows = [];
+    for (const c of CLASSES) {
+      for (const z of ZOOMS) {
+        rows.push(JSON.parse(pool.benchOne(c, z, true, REPS)));
+      }
+    }
+    window.__compare[build] = rows;
+    const summary = rows
+      .map((r) => `c${r.class}/z${r.zoom}: replay ${r.replayMs.toFixed(1)} raster ${r.rasterMs.toFixed(1)} pf ${r.perFrameMs.toFixed(3)}`)
+      .join(" | ");
+    log(`${build.padEnd(13)} ${summary}`);
+  }
+  window.__done = true;
+  log("DONE");
+</script>

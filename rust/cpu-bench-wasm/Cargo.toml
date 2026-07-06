@@ -1,0 +1,25 @@
+[package]
+name = "cpu-bench-wasm"
+version = "0.1.0"
+edition = "2024"
+
+# Browser harness for the vello_cpu bench — same workload as the native
+# `cpu-bench` CLI, wrapped in wasm-bindgen. The workspace .cargo/config.toml
+# already forces +simd128 for wasm32; plain `wasm-pack build --target web
+# --release` is the canonical build. wasm-opt -O4 below is a measured ~10%
+# runtime win (safe here: this crate has no atomics/threads).
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cpu-bench = { path = "../cpu-bench", default-features = false }
+swf-spike = { path = "../swf-spike" }
+vello = "0.8"
+vello_cpu = "0.0.9"
+wasm-bindgen = "0.2.117"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O4", "--enable-simd", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
