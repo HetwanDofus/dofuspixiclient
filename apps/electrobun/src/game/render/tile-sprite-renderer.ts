@@ -403,6 +403,9 @@ export class TileSpriteRenderer {
   private dirty = false;
   private syncing = false;
   private destroyed = false;
+  /** Resolvers parked by `whenConverged()` — flushed every time the
+   *  convergence loop drains (and on destroy, so callers never hang). */
+  private convergedWaiters: Array<() => void> = [];
   /** Throttle for missing-entry warnings (one per spec key). */
   private warnedSpecs = new Set<string>();
 
@@ -481,6 +484,30 @@ export class TileSpriteRenderer {
   }
 
   /**
+   * Resolves once the convergence loop has fully applied the LATEST
+   * desired state — every atlas page baked and every sprite
+   * reconciled onto the live generation. Resolves immediately when
+   * already converged (or destroyed). Never rejects. Used by the
+   * map-reveal gate (unified-atlas Step 4) as the "tiles ready" half
+   * of the reveal condition — the wc3 analogue is
+   * `gate_map_reveal`'s tiles_ready check
+   * (dofuswebclient3/rust/client render_tiles/reveal.rs:90-94).
+   */
+  whenConverged(): Promise<void> {
+    if (this.destroyed || (!this.dirty && !this.syncing)) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => this.convergedWaiters.push(resolve));
+  }
+
+  private flushConvergedWaiters(): void {
+    if (this.convergedWaiters.length === 0) return;
+    const waiters = this.convergedWaiters;
+    this.convergedWaiters = [];
+    for (const w of waiters) w();
+  }
+
+  /**
    * Single-flight convergence loop. Snapshots the desired state,
    * bakes whatever pages it needs (yielding to rAF between page
    * dispatches), then reconciles sprites. If the desired state moved
@@ -537,6 +564,10 @@ export class TileSpriteRenderer {
       }
     } finally {
       this.syncing = false;
+      // The loop only exits with `dirty === false` (or destroyed) —
+      // either way the latest desired state is as-applied-as-it-will-
+      // ever-be, so parked reveal-gate waiters can proceed.
+      this.flushConvergedWaiters();
     }
   }
 
@@ -784,6 +815,7 @@ export class TileSpriteRenderer {
 
   destroy(): void {
     this.destroyed = true;
+    this.flushConvergedWaiters();
     for (const key of [...this.states.keys()]) {
       this.removeSprite(key);
     }

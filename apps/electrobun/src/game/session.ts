@@ -55,6 +55,24 @@ import { createLogger } from "@/utils/logger";
 
 const log = createLogger("GameSession");
 
+// ── Reveal-gate bounds (unified-atlas Step 4) ────────────────────────
+// Modeled on wc3's map-reveal gate (dofuswebclient3/rust/client
+// render_tiles/reveal.rs: MAX_GM_WAIT_MS / MAX_BAKE_GRACE_MS) — every
+// wait is bounded, the cover can never stay up unboundedly.
+/** Total budget from GI ack to forced reveal (~2 s per Step 4 spec). */
+const REVEAL_GATE_TIMEOUT_MS = 2000;
+/** How long to wait for the FIRST GM roster row before revealing the
+ *  terrain alone (wc3 MAX_GM_WAIT_MS = 800). */
+const REVEAL_GM_WAIT_MS = 800;
+/** Quiet window after the last GM mutation before the roster is
+ *  considered complete — guards multi-frame GM streams. */
+const REVEAL_ROSTER_QUIET_MS = 150;
+/** Gate poll cadence. */
+const REVEAL_POLL_MS = 50;
+/** Absolute cover watchdog from cover-up — catches a stalled map FETCH
+ *  (the gate poll only starts after the GI ack). */
+const REVEAL_COVER_HARD_TIMEOUT_MS = 8000;
+
 export interface GameSessionConfig {
   authHost: string;
   authPort: number;
@@ -440,6 +458,14 @@ export class GameSession {
    *  is created. */
   private lastPlacementCells: { team0: number[]; team1: number[] } | null =
     null;
+  /** Reveal gate (unified-atlas Step 4) — monotonically increasing
+   *  token; each GDA bumps it, so a stale gate (superseded by a faster
+   *  follow-up map change) exits without revealing. */
+  private revealGateSeq = 0;
+  /** Timestamp of the most recent GM roster mutation — the gate waits
+   *  for a short quiet window so a multi-frame GM roster can't slip
+   *  half its actors past the reveal. */
+  private rosterChangedAt = 0;
 
   /**
    * Resolve the current cell id for a fighter by spriteId. Reads the
@@ -469,6 +495,9 @@ export class GameSession {
   // ── Inbound event side-effects ──────────────────────────────────
 
   private onSpriteAddOrReplace(row: GMSpriteAdd, op: "add" | "replace"): void {
+    // Roster activity ping for the reveal gate — BEFORE the cell guard
+    // so even degenerate rows count as "the GM stream is still talking".
+    this.rosterChangedAt = performance.now();
     if (row.cell < 0) {
       return;
     }
@@ -653,6 +682,26 @@ export class GameSession {
     void import("@/game/render/vello-loader")
       .then((m) => m.persistAllSceneCachesThrottled())
       .catch(() => {});
+    // ── Reveal gate (unified-atlas Step 4, QA-2) ────────────────────
+    // Canonical 1.29 sequencing: GDM starts a HIDDEN map load, the
+    // client sends GI after painting, attaches the GM roster while
+    // still hidden, and only reveals map + sprites together. wc3
+    // implements the same contract by freezing the world compose
+    // during a load and swapping atomically once tiles + actors are
+    // ready (dofuswebclient3/rust/client render_tiles/reveal.rs
+    // `gate_map_reveal`). Here: cover BEFORE the old roster is torn
+    // down, reveal in `runRevealGate` — bounded, never unbounded.
+    const gate = ++this.revealGateSeq;
+    if (this.battlefield) {
+      this.battlefield.coverForMapLoad();
+      // Hard watchdog: if the map FETCH itself stalls (network hang
+      // before the gate proper starts polling), never hold black.
+      setTimeout(() => {
+        if (this.revealGateSeq === gate) {
+          this.battlefield?.revealAfterMapLoad();
+        }
+      }, REVEAL_COVER_HARD_TIMEOUT_MS);
+    }
     try {
       const mapData = await loadMap(cur.mapId, cur.dateTime, cur.decryptKey);
       this.currentMapWidth = mapData.width;
@@ -694,9 +743,87 @@ export class GameSession {
       // `MapReady` (GDK). Without this ack the server never streams
       // our player sprite.
       this.client.send(GIOut, {});
+      // Reveal once terrain + initial roster are committed (or the
+      // gate times out). Fire-and-forget: the poll loop self-cancels
+      // when a newer GDA supersedes this gate.
+      void this.runRevealGate(bf, gate);
     } catch (err) {
       log.error(`map load failed for ${cur.mapId}: ${String(err)}`);
+      // Never leave the cover up on a failed load.
+      if (this.revealGateSeq === gate) {
+        this.battlefield?.revealAfterMapLoad();
+      }
     }
+  }
+
+  /**
+   * Reveal-gate poll (unified-atlas Step 4). Runs after the GI ack;
+   * drops the cover when
+   *   • the tile pipeline converged (map generation built) AND
+   *   • the initial GM roster arrived (≥1 row — self is always in it),
+   *     went quiet for REVEAL_ROSTER_QUIET_MS, and EVERY roster actor
+   *     has a first committed render (crowd rendered-flag swap /
+   *     strip `animReady`),
+   * bounded by (wc3's reveal.rs bounds, MAX_GM_WAIT/MAX_BAKE_GRACE):
+   *   • no GM within REVEAL_GM_WAIT_MS of the GI ack → reveal, or
+   *   • REVEAL_GATE_TIMEOUT_MS total → reveal regardless.
+   * Actors arriving after the reveal appear normally (no gating) —
+   * the gate token has already been consumed.
+   */
+  private async runRevealGate(bf: Battlefield, gate: number): Promise<void> {
+    const t0 = performance.now();
+    let tilesSettled = false;
+    void bf.whenTileGenerationSettled().then(() => {
+      tilesSettled = true;
+    });
+    const sleep = (ms: number): Promise<void> =>
+      new Promise((r) => setTimeout(r, ms));
+    for (;;) {
+      if (this.revealGateSeq !== gate || this.battlefield !== bf) {
+        return; // superseded by a newer map load — its gate owns the cover
+      }
+      const now = performance.now();
+      if (now - t0 >= REVEAL_GATE_TIMEOUT_MS) {
+        log.warn(`reveal gate: timeout after ${Math.round(now - t0)}ms`);
+        break;
+      }
+      const rosterArrived = this.sprites.size > 0;
+      if (!rosterArrived && now - t0 >= REVEAL_GM_WAIT_MS) {
+        log.warn("reveal gate: no GM roster — revealing terrain alone");
+        break;
+      }
+      if (
+        tilesSettled &&
+        rosterArrived &&
+        now - this.rosterChangedAt >= REVEAL_ROSTER_QUIET_MS &&
+        this.allRosterActorsCommitted(bf)
+      ) {
+        log.info(
+          `reveal gate: ${this.sprites.size} actors committed in ${Math.round(now - t0)}ms`
+        );
+        break;
+      }
+      await sleep(REVEAL_POLL_MS);
+    }
+    if (this.revealGateSeq === gate) {
+      bf.revealAfterMapLoad();
+    }
+  }
+
+  /** True when every actor currently in the GM roster has a first
+   *  committed render. Non-numeric sprite ids (defensive) are skipped —
+   *  they never reach the renderer. */
+  private allRosterActorsCommitted(bf: Battlefield): boolean {
+    for (const row of this.sprites.values()) {
+      const id = Number(row.spriteId);
+      if (!Number.isFinite(id)) {
+        continue;
+      }
+      if (!bf.isWorldActorRenderCommitted(id)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

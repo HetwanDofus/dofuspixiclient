@@ -1215,6 +1215,28 @@ export class PlayerRenderer {
   }
 
   /**
+   * Reveal-gate probe (unified-atlas Step 4): true once this actor's
+   * body has a FIRST committed render on screen.
+   *   • crowd path — the stable crowd sprite shows real cell content
+   *     (wasm `rendered` flag committed its swap in `commitSwaps`);
+   *   • strip path (mounted actors, or crowd disabled) — the first
+   *     `applyAnimation` commit flipped `animReady`.
+   * NOTE: for crowd-managed actors `animReady` is NOT usable here —
+   * `syncCrowd` flips it for every actor in the crowd order (physics
+   * unblock), not per first-rendered-cell.
+   */
+  isActorRenderCommitted(id: number): boolean {
+    const p = this.players.get(id);
+    if (!p) {
+      return false;
+    }
+    if (this.isCrowdManaged(p)) {
+      return this.crowd?.hasCommittedFirstRender(id) ?? false;
+    }
+    return p.animReady;
+  }
+
+  /**
    * Snapshot the LIVE per-player render state for the crowd renderer —
    * reads `ActivePlayer` directly, NOT through the strip. The strip is
    * dormant for crowd-managed bots, so its `crowdSnapshot()` would be

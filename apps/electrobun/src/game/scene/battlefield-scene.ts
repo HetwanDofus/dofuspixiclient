@@ -23,6 +23,7 @@ import type {
   MapTransition,
   TransitionDirection,
 } from "@/game/scene/map/transition";
+import { MapRevealCover } from "@/game/scene/map/reveal-cover";
 import type { DebugOverlay } from "@/game/scene/overlays/debug";
 import type { GridOverlay } from "@/game/scene/overlays/grid";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
@@ -178,6 +179,10 @@ export class Battlefield {
 
   /** Blur-out old map → blur-in new map on map change. */
   private mapTransition: MapTransition | null = null;
+
+  /** Opaque map-load cover for the reveal gate (unified-atlas Step 4).
+   *  Up from GDA until terrain + initial actor roster committed. */
+  private revealCover: MapRevealCover | null = null;
 
   /** Capability-bucketed actor registry + single ticker entry point. */
   private scene: Scene = new Scene();
@@ -977,6 +982,47 @@ export class Battlefield {
     await this.mapTransition?.reveal();
   }
 
+  // ── Reveal gate (unified-atlas Step 4) ─────────────────────────────
+  // GameSession drives the sequencing (GDA → cover → load → GI → GM
+  // roster → reveal); the battlefield only exposes the cover and the
+  // two readiness probes.
+
+  /** Put up the opaque map-load cover. Idempotent; called on every
+   *  GDA (first join AND map changes) before the old scene is torn
+   *  down, so the clear → rebuild window is never visible. */
+  coverForMapLoad(): void {
+    if (!this.app) {
+      return;
+    }
+    if (!this.revealCover) {
+      this.revealCover = new MapRevealCover(this.app);
+    }
+    this.revealCover.cover();
+  }
+
+  /** Drop the cover (gate satisfied or timed out). Idempotent — the
+   *  gate's satisfied path and its timeout watchdogs may both call
+   *  this without a double-reveal flash. */
+  revealAfterMapLoad(): void {
+    this.revealCover?.reveal();
+  }
+
+  /** Resolves when the tile pipeline has converged onto the latest
+   *  placement set (every atlas page baked + every sprite swapped) —
+   *  the "map generation built" half of the reveal condition. */
+  whenTileGenerationSettled(): Promise<void> {
+    return (
+      this.mapHandler?.getTileSpriteRenderer()?.whenConverged() ??
+      Promise.resolve()
+    );
+  }
+
+  /** Reveal-gate probe for one world actor — see
+   *  `PlayerRenderer.isActorRenderCommitted`. */
+  isWorldActorRenderCommitted(id: number): boolean {
+    return this.worldActors.isActorRenderCommitted(id);
+  }
+
   /** Set the player character ID (used for tracking). */
   setDebugPlayerId(_id: number): void {
     // Reserved for future use
@@ -1194,6 +1240,9 @@ export class Battlefield {
     // Clean up map transition
     this.mapTransition?.destroy();
     this.mapTransition = null;
+
+    this.revealCover?.destroy();
+    this.revealCover = null;
 
     this.zoom.destroy();
     hideContextMenu();

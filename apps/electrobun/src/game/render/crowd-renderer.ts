@@ -355,6 +355,17 @@ export class CrowdRenderer {
     return sp && sp.visible ? sp : null;
   }
 
+  /** Reveal-gate probe (unified-atlas Step 4): true once this actor's
+   *  stable sprite is showing real cell content — its first rendered
+   *  frame committed (`commitSwaps` cleared it from `freshIds` and
+   *  flipped the sprite visible). The wc3 analogue is `ActorReady`
+   *  gating compose (dofuswebclient3/rust/client
+   *  pump_deferred/mod.rs:147-173). */
+  hasCommittedFirstRender(id: number): boolean {
+    const sp = this.spriteById.get(id);
+    return !!sp && sp.visible;
+  }
+
   /** Pixel-true alpha test for the actor's sprite: maps the sprite-frame
    *  point `(adjX, adjY)` into the wasm's world hit space and requires
    *  the point-in-path test to resolve to THIS actor — canonical

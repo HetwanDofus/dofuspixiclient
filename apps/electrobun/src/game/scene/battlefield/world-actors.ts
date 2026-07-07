@@ -306,6 +306,13 @@ export class BattlefieldWorldActors {
     this.renderer?.updatePlayer(id, { look });
   }
 
+  /** Reveal-gate probe (unified-atlas Step 4) — see
+   *  `PlayerRenderer.isActorRenderCommitted`. False while no renderer
+   *  exists yet (gate keeps waiting, bounded by its timeout). */
+  isActorRenderCommitted(id: number): boolean {
+    return this.renderer?.isActorRenderCommitted(id) ?? false;
+  }
+
   remove(id: number): void {
     // Tear down decorative monster-group siblings alongside the leader
     // so the screen doesn't keep ghost sprites where the group used to

@@ -76,7 +76,16 @@ citizens of the same scene graph as actors/tiles.
    module + dedup plumbing through the slab intern path) and must not
    be half-adopted.]
 4. Reveal gating (map+actors appear together, canonical loading
-   semantics). Fixes QA-2.
+   semantics). Fixes QA-2. [DONE: MapRevealCover (plain black sprite,
+   no filters) armed on GDA with supersede token + 8s hard watchdog;
+   gate polls after GI on tile-generation settled + GM roster quiet
+   (150ms) + every roster actor first-render-committed, bounded by
+   wc3's 800ms GM wait / 2s total (reveal.rs semantics). Verified:
+   fresh login gated 1177ms, map change 564ms, actors present at
+   reveal. KNOWN FOLLOW-UP: map 951 shows ~3.9GB/120-tick allocation
+   churn from a scripted tile on the whole-scene volatile fallback
+   re-baking at bundle fps — cap that path's rebake rate or force
+   parts decomposition (rate ledger caught it; live memory flat).]
 5. Remaining wc3 features: minimap, spell-FX via modular avm1,
    wgpu_filters parity.
 6. Phase 3 creature mode (on the converged crowd path).
