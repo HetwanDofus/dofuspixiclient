@@ -221,9 +221,14 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
         accessories = fields[11] ?? "";
         restStart = 12;
       } else if (kind === "npc") {
-        color1 = parseHexOr(fields[8], -1);
-        color2 = parseHexOr(fields[9], -1);
-        color3 = parseHexOr(fields[10], -1);
+        // wc3 PARITY (user directive, 2026-07-07): NPCs render their
+        // AUTHORED palette unconditionally — wire colors are NOT
+        // applied. Canonical GameIn.as:284-287 does parse+apply them,
+        // but wc3 never does (from_net.rs falls through to
+        // (None, None, None) for Npc) and its months-validated visuals
+        // are the product truth; emulator seed data also uses 0 where
+        // canonical means "none", which canonical clients would render
+        // as flat black. Colors stay -1 (unset → authored).
         accessories = fields[11] ?? "";
         restStart = 12; // keep extraClip/customArtwork in `rest`
       } else if (kind === "offlineCharacter") {

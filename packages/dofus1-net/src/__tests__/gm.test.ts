@@ -85,18 +85,18 @@ describe("GM — sprite stream", () => {
     expect(p.rows[2]?.op).toBe("replace");
   });
 
-  test("decodes an npc (-4) row canonically (GameIn.as case -4)", () => {
+  test("decodes an npc (-4) row — authored palette always (wc3 parity)", () => {
     // Real AraknemuHorizon milicien row (npc_template 334, gfx 1211):
     // sex=[7] c1=[8] c2=[9] c3=[10] acc=[11] extraClip=[12] artwork=[13].
-    // Colors are hex; `0` is a REAL colour (flat black) — canonical
-    // applyColor skips only undefined/-1.
+    // Wire colors are deliberately IGNORED for NPCs (wc3 parity — see
+    // movement.ts npc branch; canonical GameIn.as:284-287 deviates).
     const raw = "GM*+256;3;0;-22304;334;-4;1211^100x100;0;0;0;828282;0,0,0,0;;0";
     const row = (dispatch(raw).payload as GM).rows[0] as GMSpriteAdd;
     expect(row.kind).toBe("npc");
     expect(row.gfxId).toBe(1211);
-    expect(row.color1).toBe(0);
-    expect(row.color2).toBe(0);
-    expect(row.color3).toBe(0x828282);
+    expect(row.color1).toBe(-1);
+    expect(row.color2).toBe(-1);
+    expect(row.color3).toBe(-1);
     expect(row.accessories).toBe("0,0,0,0");
     // extraClip + customArtwork stay in `rest` for the npc handler.
     expect(row.rest).toBe(";0");
