@@ -50,6 +50,12 @@ export interface WorldActorData {
    * team-colored ground ring reads correctly per fighter.
    */
   team?: number;
+  /**
+   * GM restrictions bitfield (roleplay player row tail, GameIn.as:481;
+   * base-36 per CharactersManager.as:150). Bit 0x40 = cannot switch
+   * into creatures mode (Character.as:175-178). Absent → 0.
+   */
+  restrictions?: number;
 }
 
 export interface BattlefieldWorldActorsDeps {
@@ -156,6 +162,7 @@ export class BattlefieldWorldActors {
       isCharacter: !data.monsterGroup,
       linkedChildren: data.linkedChildren,
       mount: data.mount,
+      restrictions: data.restrictions,
     }) ?? Promise.resolve());
 
     // If the player already existed (addPlayer short-circuits on

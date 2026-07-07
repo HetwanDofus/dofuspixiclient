@@ -77,6 +77,15 @@ export interface GMSpriteAdd {
   color3: number;
   /** Accessory block (raw `,`-separated id list). */
   accessories: string;
+  /** GM restrictions bitfield — rides the ROLEPLAY player row tail at
+   *  fixed index [18] (canonical GameIn.as:481
+   *  `_loc52_.restrictions = _loc10_[18]`, non-fight branch only; the
+   *  fight-row layout carries no restrictions field). Decoded base-36
+   *  per CharactersManager.as:150
+   *  (`parseInt(oData.restrictions, 36)`). Bit 0x40 = "cannot switch
+   *  into creatures mode" (Character.as:175-178). 0 for every other
+   *  sprite kind and for fight rows. */
+  restrictions: number;
   /** Power / level token at [2]. Server semantics vary by kind. */
   bonusValue: number;
   /** Type-specific tail — `;`-rejoined for sprite kinds we haven't
@@ -213,6 +222,7 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
       let color2 = -1;
       let color3 = -1;
       let accessories = "";
+      let restrictions = 0;
       let restStart = 7;
       if (kind === "creature" || kind === "monster") {
         color1 = parseHexOr(fields[8], -1);
@@ -249,6 +259,13 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
         color3 = parseHexOr(fields[colorBase + 2], -1);
         accessories = fields[colorBase + 3] ?? "";
         restStart = colorBase + 4;
+        if (!isFightRow) {
+          // Roleplay tail: [13]=aura [14]=emote [15]=emoteTimer
+          // [16]=guildName [17]=emblem [18]=restrictions (base-36),
+          // [19]=mount — canonical GameIn.as:475-481. Fight rows never
+          // ship restrictions (canonical fight branch stops at LPmax).
+          restrictions = parseBase36Or(fields[18], 0);
+        }
       }
 
       const rest = fields.slice(restStart).join(";");
@@ -269,6 +286,7 @@ export type GMRow = GMSpriteAdd | GMSpriteRemove;
         color2,
         color3,
         accessories,
+        restrictions,
         bonusValue,
         rest,
       });
@@ -288,6 +306,19 @@ function numberOr100(s: string | undefined): number {
   const v = Number(s);
 
   return Number.isNaN(v) ? 100 : v;
+}
+
+/** Canonical restrictions decode — CharactersManager.as:150
+ *  `_global.parseInt(oData.restrictions, 36)`. Empty / malformed →
+ *  fallback (canonical guards with `oData.restrictions != undefined`). */
+function parseBase36Or(s: string | undefined, fallback: number): number {
+  if (!s || s.length === 0) {
+    return fallback;
+  }
+
+  const n = Number.parseInt(s, 36);
+
+  return Number.isNaN(n) ? fallback : n;
 }
 
 function parseHexOr(s: string | undefined, fallback: number): number {

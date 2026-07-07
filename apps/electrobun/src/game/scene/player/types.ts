@@ -47,6 +47,12 @@ export interface PlayerSpriteData {
    * actors going through the same renderer.
    */
   isCharacter?: boolean;
+  /**
+   * GM restrictions bitfield (roleplay player row tail, GameIn.as:481;
+   * base-36 per CharactersManager.as:150). Bit 0x40 = cannot switch
+   * into creatures mode (Character.as:175-178). Absent → 0.
+   */
+  restrictions?: number;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
   mount?: MountDisplay;
   /**
@@ -210,6 +216,19 @@ export interface ActivePlayer {
    */
   animDataAtRequest: ActivePlayer["currentAnimData"] | null;
   look: string;
+  /** GM restrictions bitfield — see `PlayerSpriteData.restrictions`. */
+  restrictions: number;
+  /**
+   * Creature-mode swap state — canonical SpriteHandler.as:605
+   * `setCreatureMode`. Non-null ≡ `bInCreaturesMode`; carries the
+   * canonical `tmpGfxFile` / `tmpMount` saves so disable restores the
+   * real look + mount. The underlying network roster
+   * (`session.sprites`) is never touched — this is render state only.
+   */
+  creatureMode: {
+    savedLook: string;
+    savedMount: MountDisplay | undefined;
+  } | null;
   linkedParentId?: number;
   linkedChildren: number[];
   childIndex?: number;

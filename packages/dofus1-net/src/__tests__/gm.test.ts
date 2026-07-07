@@ -41,6 +41,22 @@ describe("GM — sprite stream", () => {
     expect(row.color2).toBe(0x80);
     expect(row.color3).toBe(0x40);
     expect(row.accessories).toBe("6_123,16_456");
+    expect(row.restrictions).toBe(0);
+  });
+
+  test("decodes roleplay player restrictions at tail [18], base-36 (GameIn.as:481, CharactersManager.as:150)", () => {
+    // `1s` base-36 = 64 = 0x40 — the "cannot switch into creatures
+    // mode" bit (Character.as:175-178).
+    const raw =
+      "GM*+200;3;0;42;Pippin;0;1234^100x100;0;;ff;80;40;6_123,16_456;;;;;;1s;";
+    const row = (dispatch(raw).payload as GM).rows[0] as GMSpriteAdd;
+    expect(row.restrictions).toBe(0x40);
+
+    // Fight rows (25+ fields) never carry restrictions → 0.
+    const fight =
+      "GM*+200;3;0;42;Pippin;0;1234^100x100;0;12;lvl;ff;80;40;6_123;300;6;3;0;0;0;0;0;0;0;1;;0;0;300";
+    const fightRow = (dispatch(fight).payload as GM).rows[0] as GMSpriteAdd;
+    expect(fightRow.restrictions).toBe(0);
   });
 
   test("decodes a creature (-1) row with the creature field layout", () => {

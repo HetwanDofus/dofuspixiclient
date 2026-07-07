@@ -544,6 +544,10 @@ export class GameSession {
       scaleX: row.scaleX,
       scaleY: row.scaleY,
       isCurrentPlayer: row.spriteId === this.currentCharacter?.spriteId,
+      // GM restrictions bitfield off the roleplay player row tail
+      // (GameIn.as:481). Bit 0x40 gates creature-mode eligibility
+      // (Character.as:175-178 canSwitchInCreaturesMode).
+      restrictions: row.restrictions,
     });
   }
 

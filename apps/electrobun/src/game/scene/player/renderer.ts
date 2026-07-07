@@ -37,6 +37,13 @@ import {
   drawPlayerPlaceholder,
   FighterOverheadPanel,
 } from "@/game/scene/player/graphics";
+import {
+  canSwitchInCreaturesMode,
+  CREATURES_MODE_HYSTERESIS,
+  CREATURES_MODE_STORAGE_KEY,
+  creatureLookFor,
+  getCreaturesModeThreshold,
+} from "@/game/scene/player/creature-mode";
 import { PlayerMovement } from "@/game/scene/player/movement";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
 import { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
@@ -154,6 +161,15 @@ export class PlayerRenderer {
    *  seeds the crowd's bake density at creation so the boot render is
    *  edge-crisp at the canonical zoom. */
   private readonly getZoom: (() => number | null) | null;
+  /** Creature mode currently ON for this map's roster — canonical
+   *  SpriteHandler's implicit "are we swapped" state (per-sprite
+   *  `bInCreaturesMode` lives on each `ActivePlayer.creatureMode`). */
+  private creatureModeOn = false;
+  /** Bulk-teardown guard: `clear()` removes every player one by one,
+   *  and each `cleanupPlayer` re-evaluates the threshold — without
+   *  this flag the OFF flip mid-clear would sweep restore-reloads
+   *  over players that are about to be destroyed anyway. */
+  private suppressCreatureMode = false;
 
   constructor(parentContainer: Container, config: PlayerRendererConfig) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
@@ -286,6 +302,29 @@ export class PlayerRenderer {
             };
           }),
     };
+
+    // CreaturesMode option hook — the wc2 stand-in for the canonical
+    // options-panel slider (Options.as:557-568 → OptionsManager.as:188
+    // re-applies on change). Threshold persists in localStorage
+    // (`creaturesMode`); `set(null)` clears back to the default.
+    (
+      window as unknown as { __creaturesMode?: Record<string, unknown> }
+    ).__creaturesMode = {
+      isActive: () => this.creatureModeOn,
+      threshold: () => getCreaturesModeThreshold(),
+      setThreshold: (n: number | null) => {
+        if (n == null) {
+          globalThis.localStorage?.removeItem(CREATURES_MODE_STORAGE_KEY);
+        } else {
+          globalThis.localStorage?.setItem(
+            CREATURES_MODE_STORAGE_KEY,
+            String(n)
+          );
+        }
+        this.applyCreatureMode();
+      },
+      apply: () => this.applyCreatureMode(),
+    };
   }
 
   // ── Player lifecycle ───────────────────────────────────────────────
@@ -299,6 +338,13 @@ export class PlayerRenderer {
     const player = this.buildActivePlayer(data);
     this.players.set(data.id, player);
     this.registerPlayerActor(data.id, player);
+    // Roster grew — re-evaluate the CreaturesMode threshold (canonical
+    // GameIn.as:1342 calls applyCreatureMode at the end of every
+    // onSpriteMovement). Runs BEFORE boot() so a player joining an
+    // already-switched map boots directly as its breed creature (the
+    // sweep swaps `player.look`/`gfxId` in place; boot loads whatever
+    // the look says).
+    this.applyCreatureMode();
     // Strip residue fix (unified-atlas Step 3): crowd-managed bodies
     // never touch the strip — no slot, no composition-atlas acquire,
     // no `strip.players` count. The strip attaches lazily the moment a
@@ -783,8 +829,18 @@ export class PlayerRenderer {
   clear(): void {
     log.debug(`clear() — removing ${this.players.size} players`);
 
-    for (const actor of Array.from(this.playerActors.values())) {
-      this.scene.remove(actor.id);
+    // Bulk teardown: don't let per-player cleanup re-evaluate the
+    // creature-mode threshold N times over a dying roster. The mode
+    // resets with the roster (canonical resets playerCount per map and
+    // re-applies on onMapLoaded — aks/Game.as:560).
+    this.suppressCreatureMode = true;
+    try {
+      for (const actor of Array.from(this.playerActors.values())) {
+        this.scene.remove(actor.id);
+      }
+    } finally {
+      this.suppressCreatureMode = false;
+      this.creatureModeOn = false;
     }
     this.visibleNameplateIds.clear();
     clearPlayerNameplates();
@@ -853,6 +909,8 @@ export class PlayerRenderer {
       onAnimLastFrame: null,
       animDataAtRequest: null,
       look: data.look,
+      restrictions: data.restrictions ?? 0,
+      creatureMode: null,
       linkedChildren: [],
       mount: data.mount,
       mountLayers: null,
@@ -910,6 +968,13 @@ export class PlayerRenderer {
 
   setFightMode(enabled: boolean): void {
     this.fightMode = enabled;
+    if (!enabled) {
+      // Canonical re-applies creature mode when the battlefield comes
+      // back into roleplay view (aks/Game.as:560 onMapLoaded →
+      // applyCreatureMode); while `isFight` the controller is gated
+      // off entirely (GameManager.as:975).
+      this.applyCreatureMode();
+    }
     if (enabled) {
       this.visibleNameplateIds.clear();
       clearPlayerNameplates();
@@ -928,6 +993,162 @@ export class PlayerRenderer {
         }
       }
     }
+  }
+
+  // ── Creature mode ───────────────────────────────────────────────────
+
+  /**
+   * Threshold + hysteresis controller — canonical GameManager.as:971
+   * `applyCreatureMode()`:
+   *
+   *   if (!Game.isFight && container visible) {
+   *     count = Game.playerCount;                    // :977
+   *     threshold = getOption("CreaturesMode");      // :978
+   *     if (count >= threshold)          setCreatureMode(true);   // :979-981
+   *     else if (count < threshold - 2)  setCreatureMode(false);  // :983-985
+   *   }
+   *
+   * `playerCount` is the live Character-sprite roster size — canonical
+   * increments/decrements it per `instanceof Character` add/remove
+   * (GameIn.as:1267); we mirror that by counting `isCharacter` actors
+   * in the live registry. Hysteresis is widened to −10 (canonical −2;
+   * see CREATURES_MODE_HYSTERESIS for the 300-scale rationale).
+   * "Container visible" ≈ this renderer existing — it's constructed
+   * per map and destroyed with it.
+   *
+   * Called from every roster add/remove (GameIn.as:1342), from
+   * fight-exit (aks/Game.as:560), and from the `__creaturesMode`
+   * option hook (OptionsManager.as:188-190).
+   */
+  applyCreatureMode(): void {
+    if (this.suppressCreatureMode || this.fightMode) {
+      return;
+    }
+    const threshold = getCreaturesModeThreshold();
+    let playerCount = 0;
+    for (const p of this.players.values()) {
+      if (p.isCharacter) {
+        playerCount++;
+      }
+    }
+    if (playerCount >= threshold) {
+      this.setCreatureMode(true);
+    } else if (playerCount < threshold - CREATURES_MODE_HYSTERESIS) {
+      this.setCreatureMode(false);
+    }
+  }
+
+  /**
+   * Whole-roster sweep — canonical SpriteHandler.as:605
+   * `setCreatureMode(bEnabled)`. Deliberately NOT gated on the mode
+   * already matching: canonical sweeps every sprite each call and
+   * relies on the per-sprite `bInCreaturesMode` guard
+   * (SpriteHandler.as:622/632, our `player.creatureMode`), which is
+   * what swaps players that joined after the mode engaged.
+   */
+  setCreatureMode(enabled: boolean): void {
+    this.creatureModeOn = enabled;
+    for (const player of this.players.values()) {
+      if (enabled) {
+        this.enterCreatureModeFor(player);
+      } else {
+        this.exitCreatureModeFor(player);
+      }
+    }
+  }
+
+  /**
+   * Per-player swap — canonical SpriteHandler.as:619-631:
+   *   tmpGfxFile = gfxFile; tmpMount = mount; mount = undefined;
+   *   setSpriteGfx(id, CLIPS_PERSOS_PATH + <breed> + "2.swf");
+   *   bInCreaturesMode = true;
+   * Eligibility: `instanceof Character` (:614) → `isCharacter`;
+   * `canSwitchInCreaturesMode` (:616, Character.as:175 bit 0x40);
+   * `!(instanceof Mutant)` (:618) + player-body gfx → the breed-range
+   * gate inside `creatureLookFor`.
+   */
+  private enterCreatureModeFor(player: ActivePlayer): void {
+    if (player.creatureMode) {
+      return; // already swapped (bInCreaturesMode guard)
+    }
+    if (!player.isCharacter) {
+      return;
+    }
+    if (!canSwitchInCreaturesMode(player.restrictions)) {
+      return;
+    }
+    const creatureLook = creatureLookFor(player.gfxId);
+    if (creatureLook === null) {
+      return; // not a player-breed body (NPC / monster / Mutant gfx)
+    }
+
+    player.creatureMode = {
+      savedLook: player.look,
+      savedMount: player.mount,
+    };
+    // Canonical clears the mount outright (`mount = undefined`). The
+    // creature body renders through the crowd path (unmounted actors
+    // are crowd-eligible), so tear the strip's mount sub-layer slots
+    // down explicitly — `syncPlacement`'s unmounted branch early-outs
+    // under the crowd and would otherwise leave them dangling.
+    player.mount = undefined;
+    player.isMounting = false;
+    if (player.mountLayers) {
+      player.mountLayers.clear();
+      player.mountLayers = null;
+      this.stripRenderer.removeSlot(player, "mount-back");
+      this.stripRenderer.removeSlot(player, "mount-rider");
+      this.stripRenderer.removeSlot(player, "mount-front");
+    }
+    this.swapBodyGfx(player, creatureLook);
+  }
+
+  /**
+   * Per-player restore — canonical SpriteHandler.as:632-640:
+   *   mount = tmpMount; delete tmpMount;
+   *   gfx = tmpGfxFile ?? gfxFile; delete tmpGfxFile;
+   *   setSpriteGfx(id, gfx); bInCreaturesMode = false;
+   */
+  private exitCreatureModeFor(player: ActivePlayer): void {
+    const saved = player.creatureMode;
+    if (!saved) {
+      return;
+    }
+    player.creatureMode = null;
+    player.mount = saved.savedMount;
+    player.isMounting = !!saved.savedMount;
+    // Mount layers rebuild themselves on the reload below:
+    // sprite-controller's apply() sees isMounting and re-runs
+    // applyMount with the restored `player.mount`.
+    this.swapBodyGfx(player, saved.savedLook);
+  }
+
+  /**
+   * Swap the player's body clip in place and reload its current
+   * animation from the new gfx — the wc2 equivalent of canonical
+   * `api.gfx.setSpriteGfx(id, file)` (SpriteHandler.as:629/639).
+   * Only render state changes; the network roster row is untouched.
+   */
+  private swapBodyGfx(player: ActivePlayer, look: string): void {
+    player.look = look;
+    player.gfxId = parseGfxId(look);
+
+    // Pre-boot: addPlayer's applyCreatureMode hook runs before
+    // sprites.boot(), so the initial load hasn't fired yet — boot will
+    // load the swapped look itself; a reload here would double-load.
+    if (!player.spriteReady && player.currentAnimName === "") {
+      return;
+    }
+
+    // Force the reload: sprite-controller's switch() short-circuits on
+    // an unchanged anim NAME, and the name doesn't encode the gfx that
+    // just changed under it. Clearing the latch makes it re-resolve
+    // against the new (gfxId, animName, look) triple. Until the load
+    // lands, `currentAnimData` keeps pointing at the old body's anim —
+    // same deferred-commit window as any other async anim swap.
+    player.currentAnimName = "";
+    const baseAnim = getAnimationBaseFromType(player.animation);
+    this.sprites.switch(player, baseAnim, player.direction);
   }
 
   setHpBarVisible(id: number, visible: boolean): void {
@@ -1077,6 +1298,11 @@ export class PlayerRenderer {
     player.container.destroy({ children: true });
     this.players.delete(id);
     this.playerActors.delete(id);
+    // Roster shrank — re-evaluate the CreaturesMode hysteresis exit
+    // (canonical GameIn.as:1267 decrements playerCount on Character
+    // removal, then :1342 applyCreatureMode). Suppressed during bulk
+    // clear() — the whole roster is going away.
+    this.applyCreatureMode();
   }
 
   private calculateZIndex(cellId: number): number {

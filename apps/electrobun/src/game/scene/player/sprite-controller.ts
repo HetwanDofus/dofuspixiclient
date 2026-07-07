@@ -310,8 +310,15 @@ export class PlayerSpriteController {
     player.spriteLoading = true;
     player.pendingAnim = null;
 
+    // Snapshot the gfx this load was issued against. A creature-mode
+    // body swap (renderer `swapBodyGfx`) can retarget `player.gfxId`
+    // while this await is in flight; applying the stale result would
+    // re-latch `currentAnimName` for the OLD body and make the queued
+    // pendingAnim switch() short-circuit — stranding the player on the
+    // pre-swap gfx.
+    const gfxAtRequest = player.gfxId;
     const result = await this.spriteLoader.loadAnimationWithFallback(
-      player.gfxId,
+      gfxAtRequest,
       baseAnim,
       direction,
       player.look
@@ -323,7 +330,7 @@ export class PlayerSpriteController {
       return;
     }
 
-    if (result) {
+    if (result && player.gfxId === gfxAtRequest) {
       this.apply(player, result.animation, result.animName);
     }
 

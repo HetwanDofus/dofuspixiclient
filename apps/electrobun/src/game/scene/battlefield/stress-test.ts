@@ -1365,6 +1365,11 @@ export async function spawnTestPlayers(
       hp: 100,
       maxHp: 100,
       isPlayer: false,
+      // Bots model OTHER PLAYERS' avatars — AS2 `instanceof Character`
+      // (canonical run threshold 3+, and they count toward + are
+      // eligible for the CreaturesMode crowd swap, GameIn.as:1267 /
+      // SpriteHandler.as:614).
+      isCharacter: true,
       decorative: true,
     });
     if (spawnDelay > 0) {
@@ -1448,6 +1453,8 @@ export async function spawnBurst(
       hp: 100,
       maxHp: 100,
       isPlayer: false,
+      // Player-avatar semantics — see spawnTestPlayers.
+      isCharacter: true,
       decorative: true,
     });
   }
