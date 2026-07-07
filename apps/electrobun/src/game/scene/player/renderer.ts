@@ -4,23 +4,23 @@ import { clampFightDirection } from "@dofus/grid";
 import { Container, Graphics, Ticker } from "pixi.js";
 
 import type { CellData } from "@/game/datacenter/cell";
-import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
-import { CrowdRenderer } from "@/game/render/crowd-renderer";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
+import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
 import type { Scene } from "@/game/scene/scene";
-import { wireColorsToZones } from "@/game/assets/color-zone";
-import { parseLook } from "@/game/assets/look-parser";
 import {
   type CharacterSpriteLoader,
   getCharacterSpriteLoader,
   isDirectionFlipped,
 } from "@/game/assets/character-sprite";
+import { wireColorsToZones } from "@/game/assets/color-zone";
+import { parseLook } from "@/game/assets/look-parser";
 import {
   DEFAULT_GROUND_LEVEL,
   DEFAULT_MAP_WIDTH,
 } from "@/game/constants/battlefield";
 import { playerZIndex } from "@/game/constants/z-index";
+import { CrowdRenderer } from "@/game/render/crowd-renderer";
 import { PlayerActor } from "@/game/scene/player/actor";
 import {
   getAnimationBaseFromType,
@@ -32,18 +32,18 @@ import {
   type PlayerAnimationValue,
 } from "@/game/scene/player/animation";
 import {
+  CREATURES_MODE_HYSTERESIS,
+  CREATURES_MODE_STORAGE_KEY,
+  canSwitchInCreaturesMode,
+  creatureLookFor,
+  getCreaturesModeThreshold,
+} from "@/game/scene/player/creature-mode";
+import {
   applyFighterCircleTeam,
   createFighterGroundCircle,
   drawPlayerPlaceholder,
   FighterOverheadPanel,
 } from "@/game/scene/player/graphics";
-import {
-  canSwitchInCreaturesMode,
-  CREATURES_MODE_HYSTERESIS,
-  CREATURES_MODE_STORAGE_KEY,
-  creatureLookFor,
-  getCreaturesModeThreshold,
-} from "@/game/scene/player/creature-mode";
 import { PlayerMovement } from "@/game/scene/player/movement";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
 import { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
@@ -233,14 +233,24 @@ export class PlayerRenderer {
         // `crowdSnapshot()`); the strip is bypassed entirely for the
         // main slot.
         if (this.isCrowdManaged(player)) {
-          this.installAnimAfterApply(playerId, animation, animName, prevAnimName);
+          this.installAnimAfterApply(
+            playerId,
+            animation,
+            animName,
+            prevAnimName
+          );
           return;
         }
         void this.stripRenderer
           .applyAnimation(player, "main", animation, animName, dir, flipped)
           .then((committed) => {
             if (!committed) return;
-            this.installAnimAfterApply(playerId, animation, animName, prevAnimName);
+            this.installAnimAfterApply(
+              playerId,
+              animation,
+              animName,
+              prevAnimName
+            );
           });
       },
       // Pre-warm hook: first bot per gfxId triggers a background
@@ -646,9 +656,7 @@ export class PlayerRenderer {
    * registered or the strip renderer hasn't mounted its main slot
    * yet (e.g. during the initial async character-asset load).
    */
-  getPlayerPickingData(
-    id: number
-  ):
+  getPlayerPickingData(id: number):
     | {
         sprite: Sprite;
         container: Container;
@@ -695,12 +703,12 @@ export class PlayerRenderer {
     type AlphaTestFactory = {
       getSlotAlphaTest?: (
         id: number,
-        slot: "main",
+        slot: "main"
       ) => import("@/game/types").PickableObject["alphaTest"];
     };
     const factory = this.stripRenderer as unknown as AlphaTestFactory;
     const alphaTest = factory.getSlotAlphaTest
-      ? factory.getSlotAlphaTest(id, "main") ?? undefined
+      ? (factory.getSlotAlphaTest(id, "main") ?? undefined)
       : undefined;
     return { sprite, container: f.container, alphaTest };
   }
@@ -1387,8 +1395,8 @@ export class PlayerRenderer {
       // Idempotent — the crowd is created once, so this installs the
       // resolver a single time. `pick()` gates the resolved id by
       // z-order against the sprite candidates.
-      this.pickingSystem?.setCrowdResolver((gx, gy) =>
-        this.crowd?.hitTest(gx, gy) ?? null
+      this.pickingSystem?.setCrowdResolver(
+        (gx, gy) => this.crowd?.hitTest(gx, gy) ?? null
       );
     }
     this.crowd.sync(this.crowdSnapshot());
@@ -1400,7 +1408,9 @@ export class PlayerRenderer {
     // compose (pure waste) — the real FPS win of the cutover.
     this.stripRenderer.setComposeSuppressed(this.crowd.isActive());
 
-    const rendered = new Set(this.crowd.isActive() ? this.crowd.getRenderedIds() : []);
+    const rendered = new Set(
+      this.crowd.isActive() ? this.crowd.getRenderedIds() : []
+    );
     for (const id of this.crowdHiddenIds) {
       if (!rendered.has(id)) {
         this.setMainRenderable(id, true);
@@ -1549,7 +1559,12 @@ export class PlayerRenderer {
         const ac = a.accessories[i];
         let entry = acc[i];
         if (!entry) {
-          entry = { bundle: ac.bundle, export: ac.exportName, slot: ac.slot, animType: ac.animType };
+          entry = {
+            bundle: ac.bundle,
+            export: ac.exportName,
+            slot: ac.slot,
+            animType: ac.animType,
+          };
           acc[i] = entry;
         } else {
           entry.bundle = ac.bundle;

@@ -408,7 +408,7 @@ export class PlayerSpriteController {
       animation,
       animName,
       isDirectionFlipped(player.direction),
-      prevAnimName,
+      prevAnimName
     );
   }
 

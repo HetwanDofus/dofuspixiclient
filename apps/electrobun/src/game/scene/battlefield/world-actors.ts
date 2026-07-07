@@ -1,8 +1,4 @@
 import type { DofusPathfinding } from "@dofus/grid";
-import type {
-  MonsterGroupMember,
-  MountDisplay,
-} from "@/game/scene/sprite-types";
 import { Container } from "pixi.js";
 
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
@@ -12,6 +8,10 @@ import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
 import type { MapHandler } from "@/game/scene/map/handler";
 import type { Scene } from "@/game/scene/scene";
+import type {
+  MonsterGroupMember,
+  MountDisplay,
+} from "@/game/scene/sprite-types";
 import { PlayerRenderer } from "@/game/scene/player/renderer";
 import { fightStore } from "@/game/stores/fight-store";
 
