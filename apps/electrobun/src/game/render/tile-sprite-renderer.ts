@@ -54,6 +54,8 @@ import {
   renderSwfTileAtlasPage,
   renderSwfTileInstancePart,
   renderSwfTileInstancePartStrip,
+  renderSwfTileInstancePartTexture,
+  rerenderSwfTileInstancePartTexture,
   tickTileInstances,
   tileInstanceCreate,
   tileInstanceDynFrames,
@@ -63,6 +65,11 @@ import {
   type VelloSwfTileStripResult,
   uploadAndCloseBitmap,
 } from "@/game/render/vello-loader";
+import {
+  type TileBehaviorPlan,
+  type TileExecutor,
+  tileExecutorFor,
+} from "@/game/render/tile-routing";
 import { createLogger } from "@/utils/logger";
 
 /**
@@ -82,44 +89,21 @@ export interface TilePlacement {
   /** 0/1/2/3 — multiplied by 90° at render. */
   rotation: number;
   flip: boolean;
-  /** Total frames in the timeline (1 for static). */
-  frameCount: number;
-  /** True when the tile auto-loops on a per-frame timer. */
-  isAnimated: boolean;
-  /** Frames per second for animated tiles. */
+  /** Bundle-authored frames per second (loop advance rate). */
   fps: number;
-  /**
-   * Frame to render for *non*-animated multi-frame tiles
-   * (slope/random tiles where each cell picks a fixed frame index).
-   * Ignored for animated tiles (they advance via `tick`).
-   */
-  staticFrame: number;
   /**
    * Cell this placement occupies — the deterministic seed for the
    * canonical per-instance semantics (executed `gotoAndStop(random)`
    * variants, per-cell loop phase, per-instance trigger schedules).
    */
-  cellId?: number;
+  cellId: number;
   /**
-   * Loop fast path: per-cell phase seed
-   * (`tile_behavior::seed_for_cell`). Canonically each placed clip
-   * owns its playhead, so identical gfx on different cells must not
-   * animate in lockstep — the seed offsets the starting frame and
-   * sub-frame accumulator.
+   * THE routing decision, made once in `placements.ts` (canonical
+   * pre-engine override, or the wasm classifier's result verbatim).
+   * The renderer derives its executor mechanically via
+   * `tileExecutorFor` — no classification logic lives here.
    */
-  phaseSeed?: number;
-  /**
-   * True when classification found stop-parked / enterFrame-triggered
-   * children — the tile routes through the per-instance scripted path
-   * (`tileInstanceCreate` + `tickTileInstances`) instead of a strip.
-   */
-  scripted?: boolean;
-  /**
-   * Static tiles only: stable hash of the executed script's chosen
-   * variant (frame + frozen-child pins). Spec key so cells whose
-   * random draws matched share one atlas cell.
-   */
-  staticSig?: number;
+  plan: TileBehaviorPlan;
   /**
    * True for the single map-background placement. The background is
    * the widest art we render; its atlas item self-clamps its bake
@@ -243,7 +227,8 @@ interface TileSpriteState {
 /**
  * One paint-ordered slice of a live scripted tile. Shared parts (runs
  * + child strips) reference generation-owned textures; whole-scene
- * fallbacks re-bake into a part-owned volatile source.
+ * fallbacks re-bake IN PLACE into a part-owned persistent GPU texture;
+ * child parts whose strip bake failed re-bake into a volatile source.
  */
 interface ScriptedPartState {
   sprite: Sprite;
@@ -252,6 +237,15 @@ interface ScriptedPartState {
   frames: Texture[] | null;
   /** Privately-owned source for volatile parts. Replaced on re-bake. */
   volatileSource: ImageSource | null;
+  /**
+   * Whole-scene fallback parts only: the part-owned PERSISTENT render
+   * target. Re-bakes render into the same GPU storage
+   * (`rerenderSwfTileInstancePartTexture`) so per-tick animation of a
+   * masked wrapper allocates NOTHING — the bitmap-per-re-bake model
+   * churned ~3.9 GB/120 ticks through the deferred-destroy GC on
+   * map 951. Reallocated only when dims change (resolution swap).
+   */
+  persistent: { source: ExternalSource; textureId: number } | null;
 }
 
 /**
@@ -310,54 +304,69 @@ function applyMatrix(
   sprite.rotation = rot * (Math.PI / 2);
 }
 
-/** Initial frame for a placement (loop phase seed / fixed pick). */
-function initialFrameFor(p: LayeredTilePlacement): number {
-  if (p.isAnimated) {
-    return (p.phaseSeed ?? 0) % Math.max(1, p.frameCount);
-  }
-  return p.staticFrame;
+/** Initial frame for an executor (loop phase seed / fixed pick). */
+function initialFrameFor(exec: TileExecutor): number {
+  return exec.mode === "strip"
+    ? exec.phaseSeed % Math.max(1, exec.cycle)
+    : 0;
 }
 
 /**
- * The unique bake spec a placement samples, or null for scripted
- * tiles (their parts bake per-instance at create time).
+ * The unique bake spec an executor samples, or null for instance
+ * (scripted) tiles — their parts bake per-instance at create time.
+ * Pure raster packaging over `tileExecutorFor`'s result; the ONLY
+ * routing decision here is the STRIP_MAX_FRAMES page-area bound
+ * (over-long loops fall back to per-advance live re-bakes from a
+ * single fixed cell — they still animate).
  */
-function specForPlacement(p: LayeredTilePlacement): TileBakeSpec | null {
-  if (p.scripted) return null;
-  const useStrip =
-    p.isAnimated && p.frameCount > 1 && p.frameCount <= STRIP_MAX_FRAMES;
-  if (useStrip) {
+function specForExecutor(
+  p: LayeredTilePlacement,
+  exec: TileExecutor
+): TileBakeSpec | null {
+  if (exec.mode === "instance") return null;
+  if (exec.mode === "strip") {
+    if (exec.cycle <= STRIP_MAX_FRAMES) {
+      return {
+        key: `strip|${p.bundle}:${p.exportName}:${exec.cycle}`,
+        bundle: p.bundle,
+        exportName: p.exportName,
+        kind: 2,
+        param: exec.cycle,
+      };
+    }
+    const frame = initialFrameFor(exec);
     return {
-      key: `strip|${p.bundle}:${p.exportName}:${p.frameCount}`,
+      key: `frame|${p.bundle}:${p.exportName}@${frame}`,
       bundle: p.bundle,
       exportName: p.exportName,
-      kind: 2,
-      param: p.frameCount,
+      kind: 0,
+      param: frame,
     };
   }
-  const useSeeded =
-    !p.isAnimated && p.staticSig !== undefined && p.cellId !== undefined;
-  if (useSeeded) {
+  if (exec.mode === "seeded") {
     return {
       // Keyed by the variant SIGNATURE (frame + frozen-child pins) so
       // cells whose random draws matched share one cell; the param is
       // a representative cellId — any cell with this sig reproduces
       // the identical bake.
-      key: `seeded|${p.bundle}:${p.exportName}@${p.staticSig}`,
+      key: `seeded|${p.bundle}:${p.exportName}@${exec.sig}`,
       bundle: p.bundle,
       exportName: p.exportName,
       kind: 1,
-      param: p.cellId!,
+      param: p.cellId,
     };
   }
-  const frame = initialFrameFor(p);
   return {
-    key: `frame|${p.bundle}:${p.exportName}@${frame}`,
+    key: `frame|${p.bundle}:${p.exportName}@${exec.frame}`,
     bundle: p.bundle,
     exportName: p.exportName,
     kind: 0,
-    param: frame,
+    param: exec.frame,
   };
+}
+
+function specForPlacement(p: LayeredTilePlacement): TileBakeSpec | null {
+  return specForExecutor(p, tileExecutorFor(p.plan));
 }
 
 /**
@@ -882,13 +891,16 @@ export class TileSpriteRenderer {
     p: LayeredTilePlacement,
     gen: TileGeneration
   ): void {
-    // Scripted tiles (stop-parked / enterFrame-triggered children) go
-    // through the per-instance path; on wasm refusal fall through to
-    // the plain sprite so the tile is never invisible.
-    if (p.scripted && this.tryCreateScripted(key, p, gen)) {
+    const exec = tileExecutorFor(p.plan);
+    // Instance (scripted) tiles — stop-parked / enterFrame-triggered
+    // children — go through the per-instance path; they bake no atlas
+    // spec, so a wasm refusal leaves the placement unrendered (error
+    // path, matches the classifier-refusal contract).
+    if (exec.mode === "instance") {
+      this.tryCreateScripted(key, p, gen);
       return;
     }
-    const spec = specForPlacement(p);
+    const spec = specForExecutor(p, exec);
     if (!spec) return;
     const entry = gen.entries.get(spec.key);
     if (!entry) {
@@ -898,7 +910,9 @@ export class TileSpriteRenderer {
       }
       return;
     }
-    const initialFrame = initialFrameFor(p);
+    const isAnimated = exec.mode === "strip";
+    const frameCount = isAnimated ? Math.max(1, exec.cycle) : 1;
+    const initialFrame = initialFrameFor(exec);
     const sprite = new Sprite(entry.frames[initialFrame % entry.frames.length]);
     sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
     applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, entry.resolution);
@@ -910,9 +924,9 @@ export class TileSpriteRenderer {
 
     // Sub-frame phase: spread the first advance across the period so
     // same-cycle tiles don't all step on the same host tick.
-    const phase = p.isAnimated ? (p.phaseSeed ?? 0) : 0;
+    const phase = exec.mode === "strip" ? exec.phaseSeed : 0;
     const period = p.fps > 0 ? 1000 / p.fps : 0;
-    const accumMs = p.isAnimated
+    const accumMs = isAnimated
       ? (((phase >>> 8) & 0xffff) / 0x10000) * period
       : 0;
     this.states.set(key, {
@@ -920,9 +934,9 @@ export class TileSpriteRenderer {
       layer: p.layer,
       bundle: p.bundle,
       exportName: p.exportName,
-      frameCount: p.frameCount,
+      frameCount,
       fps: p.fps,
-      isAnimated: p.isAnimated,
+      isAnimated,
       currentFrame: initialFrame,
       accumMs,
       specKey: spec.key,
@@ -1017,7 +1031,6 @@ export class TileSpriteRenderer {
     p: LayeredTilePlacement,
     gen: TileGeneration
   ): boolean {
-    if (p.cellId === undefined) return false;
     const created = tileInstanceCreate(p.bundle, p.exportName, p.cellId);
     if (!created || !created.parts || created.parts.length === 0) {
       return false;
@@ -1029,11 +1042,14 @@ export class TileSpriteRenderer {
     let anyContent = false;
     for (let i = 0; i < created.parts.length; i++) {
       const info = created.parts[i];
-      let frames: Texture[] | null = null;
-      let volatileSource: ImageSource | null = null;
-      let texture: Texture = Texture.EMPTY;
-      let anchorFracX = 0;
-      let anchorFracY = 0;
+      const sprite = new Sprite(Texture.EMPTY);
+      const part: ScriptedPartState = {
+        sprite,
+        info,
+        frames: null,
+        volatileSource: null,
+        persistent: null,
+      };
       const shared = this.acquireScriptedPart(
         gen,
         created.instId,
@@ -1044,15 +1060,21 @@ export class TileSpriteRenderer {
         created.sig
       );
       if (shared) {
-        frames = shared.frames;
-        texture = shared.frames[(info.curFrame ?? 0) % shared.frames.length];
-        anchorFracX = shared.anchorFracX;
-        anchorFracY = shared.anchorFracY;
+        part.frames = shared.frames;
+        sprite.texture =
+          shared.frames[(info.curFrame ?? 0) % shared.frames.length];
+        sprite.anchor.set(shared.anchorFracX, shared.anchorFracY);
         anyContent = true;
+      } else if (info.kind === "whole") {
+        // Whole-scene fallback (masked wrapper): part-owned PERSISTENT
+        // texture; per-change re-bakes render into the same storage.
+        if (this.bakeWholePartPersistent(created.instId, i, part, resolution)) {
+          anyContent = true;
+        }
       } else {
-        // Volatile path: whole fallback or a part whose shared bake
-        // failed (e.g. strip over GPU limits) — bake the current
-        // composed state, re-baked on change.
+        // Volatile path: a child part whose shared strip bake failed
+        // (e.g. over GPU limits) — bake the current composed state,
+        // re-baked on change.
         const r = renderSwfTileInstancePart(created.instId, i, resolution);
         if (r) {
           const wrapped = this.wrapSingle(
@@ -1060,15 +1082,15 @@ export class TileSpriteRenderer {
             `tile-pvol-${p.bundle}:${p.exportName}:p${i}@g${gen.id}`,
             resolution
           );
-          volatileSource = wrapped.source;
-          texture = wrapped.entry.frames[0];
-          anchorFracX = wrapped.entry.anchorFracX;
-          anchorFracY = wrapped.entry.anchorFracY;
+          part.volatileSource = wrapped.source;
+          sprite.texture = wrapped.entry.frames[0];
+          sprite.anchor.set(
+            wrapped.entry.anchorFracX,
+            wrapped.entry.anchorFracY
+          );
           anyContent = true;
         }
       }
-      const sprite = new Sprite(texture);
-      sprite.anchor.set(anchorFracX, anchorFracY);
       applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, resolution);
       // Paint order inside the tile = part order; the fractional
       // offset keeps parts stacked canonically without disturbing
@@ -1077,12 +1099,20 @@ export class TileSpriteRenderer {
       parent.addChild(sprite);
       // Index in `parts` MUST match the wasm part index —
       // `tileInstanceDynFrames` pairs address parts positionally.
-      parts.push({ sprite, info, frames, volatileSource });
+      parts.push(part);
     }
     if (!anyContent) {
       for (const part of parts) {
         part.sprite.parent?.removeChild(part.sprite);
         part.sprite.destroy({ texture: false });
+        if (part.persistent) {
+          this.destroyPersistentLater(part.persistent);
+          part.persistent = null;
+        }
+        if (part.volatileSource) {
+          this.destroySourceLater(part.volatileSource);
+          part.volatileSource = null;
+        }
       }
       tileInstanceFree(created.instId);
       return false;
@@ -1183,13 +1213,30 @@ export class TileSpriteRenderer {
 
   /**
    * Re-bake a volatile scripted part at the instance's CURRENT
-   * composed state (whole-scene fallback, or a child part whose strip
-   * bake failed). Old source retires after the settle delay so an
-   * in-flight Pixi pass never loses its texture mid-frame.
+   * composed state. Whole-scene fallbacks (masked wrappers — wc3's
+   * `plan_tile_parts` refuses them identically,
+   * dofuswebclient3/rust/swf-spike/src/render/tile_parts.rs:82) render
+   * IN PLACE into the part's persistent texture: they re-bake at
+   * bundle fps, and the previous create-bitmap/destroy-source cycle
+   * pushed ~3.9 GB/120 ticks of allocation churn through the
+   * deferred-destroy GC on map 951 (the historical crash class).
+   * Child parts whose strip bake failed keep the volatile-source model
+   * (rare, and their dims vary per frame); the old source retires
+   * after the settle delay so an in-flight Pixi pass never loses its
+   * texture mid-frame.
    */
   private rebakeScriptedPart(state: ScriptedTileState, partIdx: number): void {
     const part = state.parts[partIdx];
     if (!part) return;
+    if (part.info.kind === "whole") {
+      this.bakeWholePartPersistent(
+        state.instId,
+        partIdx,
+        part,
+        state.resolution
+      );
+      return;
+    }
     const r = renderSwfTileInstancePart(state.instId, partIdx, state.resolution);
     if (!r) return;
     const wrapped = this.wrapSingle(
@@ -1204,6 +1251,89 @@ export class TileSpriteRenderer {
     if (old) {
       this.destroySourceLater(old);
     }
+  }
+
+  /**
+   * (Re-)bake a whole-scene fallback part into its part-owned
+   * PERSISTENT texture. Fast path: the part already has a persistent
+   * target and its dims still match (whole parts size against the
+   * memoized full-anim union, so this holds until a resolution swap) —
+   * Vello re-renders into the SAME GPU storage and the sprite's
+   * texture binding is untouched. Zero allocation, nothing enters the
+   * deferred-destroy queue. Slow path (first bake / resolution swap):
+   * allocate a new persistent texture, adopt it zero-copy as an
+   * `ExternalSource` on the shared device, retire the old one after
+   * the 2-tick settle (`freeRenderTexture`,
+   * `feedback_pixi_wgpu_texture_lifetime`). Returns true when the
+   * sprite has renderable content.
+   */
+  private bakeWholePartPersistent(
+    instId: number,
+    partIdx: number,
+    part: ScriptedPartState,
+    resolution: number
+  ): boolean {
+    if (
+      part.persistent &&
+      rerenderSwfTileInstancePartTexture(
+        instId,
+        partIdx,
+        resolution,
+        part.persistent.textureId
+      )
+    ) {
+      return true;
+    }
+    const r = renderSwfTileInstancePartTexture(instId, partIdx, resolution);
+    if (!r) return part.persistent !== null;
+    const pixiRenderer = getPixiRenderer();
+    if (!pixiRenderer) {
+      // Never displayed — release the storage immediately.
+      freeRenderTexture(r.textureId);
+      return part.persistent !== null;
+    }
+    const source = new ExternalSource({
+      resource: r.texture,
+      renderer: pixiRenderer,
+      width: r.width,
+      height: r.height,
+      label: `tile-pwhole-${instId}:p${partIdx}`,
+    });
+    source.alphaMode = "no-premultiply-alpha";
+    source.scaleMode = "linear";
+    source.format = "rgba8unorm";
+    source.autoGarbageCollect = false;
+    const old = part.persistent;
+    part.sprite.texture = new Texture({ source });
+    part.sprite.anchor.set(
+      r.width > 0 ? r.anchorX / r.width : 0,
+      r.height > 0 ? r.anchorY / r.height : 0
+    );
+    part.persistent = { source, textureId: r.textureId };
+    if (old) {
+      this.destroyPersistentLater(old);
+    }
+    return true;
+  }
+
+  /**
+   * Destroy a retired persistent part target after the 2-tick settle:
+   * the Pixi source AND the wasm-side wgpu texture (the patched
+   * fork's Drop is a no-op — `freeRenderTexture` is the only release,
+   * see `feedback_pixi_wgpu_texture_lifetime`).
+   */
+  private destroyPersistentLater(p: {
+    source: ExternalSource;
+    textureId: number;
+  }): void {
+    setTimeout(() => {
+      try {
+        p.source.destroy();
+      } catch {
+        // already destroyed
+      }
+      freeRenderTexture(p.textureId);
+    }, RETIRE_DELAY_MS);
   }
 
   /**

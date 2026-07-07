@@ -870,11 +870,12 @@ export class VelloRenderer {
     /**
      * Bake ONE part of a scripted tile at the instance's CURRENT
      * composed state. Used for static runs (baked once, shared per
-     * `(export, sig, resolution)` on the JS side) and the whole-scene
-     * fallback (re-baked when `tickTileInstances` reports the
-     * instance changed). Same result shape as `renderSwfFrame`; the
-     * anchor is the part's own offset from the SWF origin so stacked
-     * part sprites all mount at the cell position.
+     * `(export, sig, resolution)` on the JS side). Same result shape
+     * as `renderSwfFrame`; the anchor is the part's own offset from
+     * the SWF origin so stacked part sprites all mount at the cell
+     * position. Per-change re-bakes (whole-scene fallback) go through
+     * `renderSwfTileInstancePartTexture` instead — this bitmap path
+     * allocates a fresh GPU texture + ImageBitmap round-trip per call.
      */
     renderSwfTileInstancePart(inst_id: number, part_idx: number, resolution: number): any;
     /**
@@ -888,6 +889,21 @@ export class VelloRenderer {
      * single part per change instead).
      */
     renderSwfTileInstancePartStrip(inst_id: number, part_idx: number, resolution: number): any;
+    /**
+     * Bake ONE part of a scripted tile into a PERSISTENT render
+     * texture adopted zero-copy by Pixi (`ExternalSource` over the
+     * shared GPUDevice), registered in `self.textures` and released
+     * via `freeRenderTexture(textureId)`. Whole-scene fallback parts
+     * (masked wrappers — refused by tile_parts decomposition, wc3
+     * render/tile_parts.rs:82 refuses them identically) re-bake at
+     * bundle fps; the bitmap path allocated a fresh GPU texture + an
+     * ImageBitmap round-trip PER re-bake, pushing ~3.9 GB/120 ticks of
+     * create+destroy churn through the deferred-destroy GC on map 951.
+     * This variant allocates ONCE; subsequent re-bakes render into the
+     * same storage via `rerenderSwfTileInstancePartTexture` (the
+     * `tickSwfSpellFrame` persistent-output pattern).
+     */
+    renderSwfTileInstancePartTexture(inst_id: number, part_idx: number, resolution: number): any;
     /**
      * Render the STATIC parts of a multi-frame tile export (every depth
      * whose placement data is constant across the timeline AND whose
@@ -926,6 +942,19 @@ export class VelloRenderer {
      * Optional acc_info: flat array of pairs [asset_id, slot_id, ...] for accessory occluders.
      */
     renderZoneMaskStrip(asset_id: number, animation: string, resolution: number, acc_info?: Uint32Array | null): any;
+    /**
+     * Re-bake a scripted-tile part into its EXISTING persistent
+     * texture — ZERO allocation, nothing enters the deferred-destroy
+     * GC. Returns `false` when the target texture is gone or the
+     * part's pixel dims no longer match (e.g. after a resolution
+     * change) — the caller then reallocates via
+     * `renderSwfTileInstancePartTexture`. Whole-scene parts size
+     * against the memoized full-anim union, so their dims are stable
+     * across re-bakes by construction. In-place update is race-free:
+     * Vello and Pixi share one GPUQueue, so the re-render submission
+     * is ordered against Pixi's sampling passes.
+     */
+    rerenderSwfTileInstancePartTexture(inst_id: number, part_idx: number, resolution: number, tex_id: number): boolean;
     /**
      * Memory accounting snapshot from the patched-wgpu fork. Returns
      * a `Float64Array` of 8 values in this order:
@@ -1454,10 +1483,12 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
     readonly vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_renderSwfTileInstancePartTexture: (a: number, b: number, c: number, d: number) => any;
     readonly vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderSwfTileStaticSeeded: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
     readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_rerenderSwfTileInstancePartTexture: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly vellorenderer_rustGpuByteStats: (a: number) => [number, number];
     readonly vellorenderer_rustGpuCreatedByName: (a: number, b: number) => [number, number];
     readonly vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];

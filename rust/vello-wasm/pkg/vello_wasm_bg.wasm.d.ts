@@ -83,10 +83,12 @@ export const vellorenderer_renderSwfTileAtlasPage: (a: number, b: number, c: num
 export const vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_renderSwfTileInstancePart: (a: number, b: number, c: number, d: number) => any;
 export const vellorenderer_renderSwfTileInstancePartStrip: (a: number, b: number, c: number, d: number) => any;
+export const vellorenderer_renderSwfTileInstancePartTexture: (a: number, b: number, c: number, d: number) => any;
 export const vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderSwfTileStaticSeeded: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
 export const vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+export const vellorenderer_rerenderSwfTileInstancePartTexture: (a: number, b: number, c: number, d: number, e: number) => number;
 export const vellorenderer_rustGpuByteStats: (a: number) => [number, number];
 export const vellorenderer_rustGpuCreatedByName: (a: number, b: number) => [number, number];
 export const vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];

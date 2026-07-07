@@ -1593,11 +1593,12 @@ export class VelloRenderer {
     /**
      * Bake ONE part of a scripted tile at the instance's CURRENT
      * composed state. Used for static runs (baked once, shared per
-     * `(export, sig, resolution)` on the JS side) and the whole-scene
-     * fallback (re-baked when `tickTileInstances` reports the
-     * instance changed). Same result shape as `renderSwfFrame`; the
-     * anchor is the part's own offset from the SWF origin so stacked
-     * part sprites all mount at the cell position.
+     * `(export, sig, resolution)` on the JS side). Same result shape
+     * as `renderSwfFrame`; the anchor is the part's own offset from
+     * the SWF origin so stacked part sprites all mount at the cell
+     * position. Per-change re-bakes (whole-scene fallback) go through
+     * `renderSwfTileInstancePartTexture` instead — this bitmap path
+     * allocates a fresh GPU texture + ImageBitmap round-trip per call.
      * @param {number} inst_id
      * @param {number} part_idx
      * @param {number} resolution
@@ -1623,6 +1624,28 @@ export class VelloRenderer {
      */
     renderSwfTileInstancePartStrip(inst_id, part_idx, resolution) {
         const ret = wasm.vellorenderer_renderSwfTileInstancePartStrip(this.__wbg_ptr, inst_id, part_idx, resolution);
+        return ret;
+    }
+    /**
+     * Bake ONE part of a scripted tile into a PERSISTENT render
+     * texture adopted zero-copy by Pixi (`ExternalSource` over the
+     * shared GPUDevice), registered in `self.textures` and released
+     * via `freeRenderTexture(textureId)`. Whole-scene fallback parts
+     * (masked wrappers — refused by tile_parts decomposition, wc3
+     * render/tile_parts.rs:82 refuses them identically) re-bake at
+     * bundle fps; the bitmap path allocated a fresh GPU texture + an
+     * ImageBitmap round-trip PER re-bake, pushing ~3.9 GB/120 ticks of
+     * create+destroy churn through the deferred-destroy GC on map 951.
+     * This variant allocates ONCE; subsequent re-bakes render into the
+     * same storage via `rerenderSwfTileInstancePartTexture` (the
+     * `tickSwfSpellFrame` persistent-output pattern).
+     * @param {number} inst_id
+     * @param {number} part_idx
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfTileInstancePartTexture(inst_id, part_idx, resolution) {
+        const ret = wasm.vellorenderer_renderSwfTileInstancePartTexture(this.__wbg_ptr, inst_id, part_idx, resolution);
         return ret;
     }
     /**
@@ -1711,6 +1734,27 @@ export class VelloRenderer {
         var len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_renderZoneMaskStrip(this.__wbg_ptr, asset_id, ptr0, len0, resolution, ptr1, len1);
         return ret;
+    }
+    /**
+     * Re-bake a scripted-tile part into its EXISTING persistent
+     * texture — ZERO allocation, nothing enters the deferred-destroy
+     * GC. Returns `false` when the target texture is gone or the
+     * part's pixel dims no longer match (e.g. after a resolution
+     * change) — the caller then reallocates via
+     * `renderSwfTileInstancePartTexture`. Whole-scene parts size
+     * against the memoized full-anim union, so their dims are stable
+     * across re-bakes by construction. In-place update is race-free:
+     * Vello and Pixi share one GPUQueue, so the re-render submission
+     * is ordered against Pixi's sampling passes.
+     * @param {number} inst_id
+     * @param {number} part_idx
+     * @param {number} resolution
+     * @param {number} tex_id
+     * @returns {boolean}
+     */
+    rerenderSwfTileInstancePartTexture(inst_id, part_idx, resolution, tex_id) {
+        const ret = wasm.vellorenderer_rerenderSwfTileInstancePartTexture(this.__wbg_ptr, inst_id, part_idx, resolution, tex_id);
+        return ret !== 0;
     }
     /**
      * Memory accounting snapshot from the patched-wgpu fork. Returns

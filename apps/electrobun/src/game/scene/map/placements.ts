@@ -1,25 +1,35 @@
 // Base (non-tactic) tile-placement builder. Walks a `MapData`'s cells
 // and emits one `LayeredTilePlacement` per (cell, layer) with a
-// non-zero tile id, resolving each tile id to its bundle/export/frame
-// via a `TileResolver`.
+// non-zero tile id, resolving each tile id to its bundle/export via a
+// `TileResolver` and its BEHAVIOR via the single decision point below.
+//
+// ROUTING (wc3 render_tiles/resolve.rs model — one decision point, no
+// TS-side classification):
+//  1. explicit tactic frame override → forced static (canonical
+//     `gotoAndStop(counter % 3 + 1)` decor round-robin);
+//  2. ground layer with `groundSlope != 1` → forced static at
+//     `slope - 1` (canonical external `tile.gotoAndStop(slope)`,
+//     assets/sources/client-code/ank/battlefield/MapHandler.as:224-227;
+//     wc3 render_tiles/resolve.rs:69-77);
+//  3. otherwise the wasm classifier (`swfTileBehavior` — byte-equal
+//     port of wc3's `tile_behavior::resolve_full`) decides, and its
+//     result rides the placement VERBATIM;
+//  4. classifier refusal (bundle missing / renderer halted) is an
+//     ERROR path: console.error + forced static frame 0 — never a
+//     second classifier.
 //
 // Extracted from `MapHandler.buildPlacements` so one cell-walk owns
-// the base layers (it also powered the removed neighbour-map side
-// bakes). The tactic-mode extras
-// (background override + LOS decor) stay in `MapHandler`, which calls
-// `buildBaseMapPlacements` for the base layers then appends its own.
+// the base layers. The tactic-mode extras (background override + LOS
+// decor) stay in `MapHandler`, which calls `buildBaseMapPlacements`
+// for the base layers then appends its own.
 
 import type { MapData } from "@/game/datacenter/map";
 import type { TileResolver } from "@/game/render/tile-resolver";
+import type { TileBehaviorPlan } from "@/game/render/tile-routing";
 import type { LayeredTilePlacement } from "@/game/render/tile-sprite-renderer";
 import type { TilePrefixOverride } from "@/game/scene/tiles/layer-builder";
 import { getCellPosition } from "@/game/datacenter/cell";
 import { swfTileBehavior } from "@/game/render/vello-loader";
-import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
-
-/** Count of placements where the wasm classifier refused and the legacy
- * token-scan fallback silently engaged (see pushPlacementByKey). */
-let wasmClassifyRefusals = 0;
 
 interface CellPlacementInput {
   cellId: number;
@@ -30,9 +40,9 @@ interface CellPlacementInput {
   groundSlope: number;
   isBackground?: boolean;
   /**
-   * Explicit frame index override — bypasses `frameIndexForTile`'s
-   * slope/random selection (used by tactic decor; unused on the base
-   * path).
+   * Explicit frame index override — a canonical pre-engine playhead
+   * force (tactic decor's `gotoAndStop(counter % 3 + 1)`); unused on
+   * the base path.
    */
   staticFrameOverride?: number;
 }
@@ -62,7 +72,8 @@ export function tileKeyFor(
 
 /**
  * Resolve one tile placement and push it onto `out`. No-op if the tile
- * key doesn't resolve against any loaded bundle.
+ * key doesn't resolve against any loaded bundle. THE single behavior
+ * decision point — see the module doc.
  */
 export function pushPlacementByKey(
   out: LayeredTilePlacement[],
@@ -73,78 +84,44 @@ export function pushPlacementByKey(
 ): void {
   const resolved = tileResolver.resolve(tileKey);
   if (!resolved) return;
-  const hasFrameOverride = cell.staticFrameOverride !== undefined;
 
-  // Canonical per-cell classification: EXECUTE the export's frame-1
-  // AS2 with the cell's deterministic seed (Flash runs the script on
-  // attach — `tile_behavior::resolve_full`). Skipped for slope tiles
-  // (the engine externally forces `tile.gotoAndStop(cell.groundSlope)`,
-  // assets/sources/client-code/ank/battlefield/MapHandler.as:226),
-  // explicit tactic frame overrides, and trivially-static 1-frame
-  // exports.
-  const shouldClassify =
-    !hasFrameOverride && resolved.kind !== "slope" && resolved.frameCount > 1;
-  const behaviorInfo = shouldClassify
-    ? swfTileBehavior(resolved.bundle, resolved.exportName, cell.cellId)
-    : null;
-  if (shouldClassify && !behaviorInfo) {
-    // Wasm refused (bundle not loaded / export not a sprite / renderer
-    // halted) — the placement silently rides the legacy token-scan
-    // fallback below. Keep that visible: it means classification
-    // parity with wc3 is NOT in effect for this tile.
-    console.warn(
-      `[placements] wasm tile classification refused #${++wasmClassifyRefusals}: ${resolved.bundle}/${resolved.exportName} cell=${cell.cellId}`
-    );
-  }
-
-  let isAnimated =
-    !hasFrameOverride &&
-    resolved.kind === "animated" &&
-    resolved.frameCount > 1;
-  let frameCount = resolved.frameCount;
-  let scripted = false;
-  let phaseSeed: number | undefined;
-  let staticSig: number | undefined;
-  let staticFrame: number;
-
-  if (behaviorInfo?.kind === "static") {
-    // One-shot frozen: the authored `gotoAndStop(random(...))` result
-    // for THIS cell (replaces the old `cellId % frameCount` heuristic).
-    isAnimated = false;
-    staticFrame = behaviorInfo.frame ?? 0;
-    staticSig = behaviorInfo.sig;
-  } else if (behaviorInfo?.kind === "loop") {
-    // Free-running loop: strip-atlas fast path over the combined
-    // cycle, phase-offset per cell.
-    isAnimated = true;
-    frameCount = Math.max(1, behaviorInfo.cycle ?? resolved.frameCount);
-    phaseSeed = behaviorInfo.phaseSeed;
-    staticFrame = 0;
-  } else if (behaviorInfo?.kind === "scripted") {
-    // Stop-parked / randomly-triggered children: per-instance AVM1
-    // playheads in wasm (tileInstanceCreate path).
-    isAnimated = false;
-    scripted = true;
-    staticFrame = 0;
+  const maxFrame = Math.max(0, resolved.frameCount - 1);
+  let plan: TileBehaviorPlan;
+  if (cell.staticFrameOverride !== undefined) {
+    plan = {
+      source: "forced",
+      reason: "override",
+      frame: Math.max(0, Math.min(maxFrame, cell.staticFrameOverride)),
+    };
+  } else if (layer === 0 && cell.groundSlope !== 1 && !cell.isBackground) {
+    // Canonical slope force: the engine externally calls
+    // `tile.gotoAndStop(cell.groundSlope)` AFTER attach
+    // (MapHandler.as:224-227) — it wins over whatever the sprite's own
+    // script would have done (wc3 render_tiles/resolve.rs:69-77;
+    // ground layer only, like wc3's `TileLayer::Ground` guard).
+    plan = {
+      source: "forced",
+      reason: "slope",
+      frame: Math.min(maxFrame, Math.max(0, cell.groundSlope - 1)),
+    };
   } else {
-    // Legacy fallback (wasm classification unavailable / slope /
-    // explicit override).
-    const behavior = resolved.kind === "" ? "static" : resolved.kind;
-    staticFrame = isAnimated
-      ? 0
-      : hasFrameOverride
-        ? Math.max(
-            0,
-            Math.min(resolved.frameCount - 1, cell.staticFrameOverride!)
-          )
-        : frameIndexForTile(
-            {
-              frameCount: resolved.frameCount,
-              behavior,
-            } as Parameters<typeof frameIndexForTile>[0],
-            cell.cellId,
-            cell.groundSlope
-          );
+    const behavior = swfTileBehavior(
+      resolved.bundle,
+      resolved.exportName,
+      cell.cellId
+    );
+    if (behavior) {
+      plan = { source: "engine", behavior };
+    } else {
+      // ERROR path — classification parity with wc3 is NOT in effect
+      // for this tile; render it frozen at frame 0 rather than invent
+      // a second classifier.
+      // eslint-disable-next-line no-console
+      console.error(
+        `[placements] tile classifier refused ${resolved.bundle}/${resolved.exportName} cell=${cell.cellId} — forcing static frame 0`
+      );
+      plan = { source: "forced", reason: "engine-refused", frame: 0 };
+    }
   }
 
   out.push({
@@ -156,13 +133,8 @@ export function pushPlacementByKey(
     cellY: cell.cellY,
     rotation: cell.rotation & 3,
     flip: cell.flip,
-    frameCount,
-    isAnimated,
     fps: resolved.fps,
-    staticFrame,
-    phaseSeed,
-    scripted,
-    staticSig,
+    plan,
     layer,
     isBackground: cell.isBackground === true,
   });

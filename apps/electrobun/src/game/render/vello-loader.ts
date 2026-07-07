@@ -2943,6 +2943,89 @@ export function renderSwfTileInstancePart(
 }
 
 /**
+ * Persistent-texture bake of one scripted-tile part (whole-scene
+ * fallback parts — masked wrappers refused by tile_parts
+ * decomposition). ZERO-COPY: `texture` is the live GPUTexture on the
+ * shared device (adopt as `ExternalSource`) and the caller MUST
+ * retire it via `freeRenderTexture(textureId)` after a 2-tick settle
+ * (`feedback_pixi_wgpu_texture_lifetime`). Subsequent re-bakes go
+ * through `rerenderSwfTileInstancePartTexture` into the SAME storage
+ * — no per-re-bake create/destroy churn through the deferred-destroy
+ * GC (the map-951 ~3.9 GB/120-tick allocation-rate finding).
+ */
+export interface VelloTilePartTextureResult {
+  texture: GPUTexture;
+  textureId: number;
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+export function renderSwfTileInstancePartTexture(
+  instId: number,
+  partIdx: number,
+  resolution: number
+): VelloTilePartTextureResult | null {
+  if (!renderer || isHalted()) {
+    return null;
+  }
+  const r = renderer as unknown as {
+    renderSwfTileInstancePartTexture?(
+      instId: number,
+      partIdx: number,
+      resolution: number
+    ): unknown;
+  };
+  if (typeof r.renderSwfTileInstancePartTexture !== "function") {
+    return null;
+  }
+  const result = r.renderSwfTileInstancePartTexture(
+    instId,
+    partIdx,
+    resolution
+  ) as VelloTilePartTextureResult | null;
+  if (result) {
+    trackRenderTexture(result.textureId, "tilePartPersistent");
+  }
+  return result ?? null;
+}
+
+/**
+ * Re-bake a scripted-tile part into its EXISTING persistent texture
+ * (zero allocation). Returns false when the texture is gone or the
+ * part's dims changed (resolution swap) — the caller reallocates via
+ * `renderSwfTileInstancePartTexture`.
+ */
+export function rerenderSwfTileInstancePartTexture(
+  instId: number,
+  partIdx: number,
+  resolution: number,
+  textureId: number
+): boolean {
+  if (!renderer || isHalted()) {
+    return false;
+  }
+  const r = renderer as unknown as {
+    rerenderSwfTileInstancePartTexture?(
+      instId: number,
+      partIdx: number,
+      resolution: number,
+      textureId: number
+    ): boolean;
+  };
+  if (typeof r.rerenderSwfTileInstancePartTexture !== "function") {
+    return false;
+  }
+  return r.rerenderSwfTileInstancePartTexture(
+    instId,
+    partIdx,
+    resolution,
+    textureId
+  );
+}
+
+/**
  * Bake a dynamic child part's whole frame range as a strip atlas at
  * the child's own union bounds — per-tick animation of the scripted
  * tile becomes a pure texture swap. Null when the strip would exceed

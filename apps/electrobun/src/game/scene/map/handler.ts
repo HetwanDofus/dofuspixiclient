@@ -16,6 +16,8 @@ import {
   buildBaseMapPlacements,
   pushPlacementByKey,
 } from "@/game/scene/map/placements";
+import { swfTileBehavior } from "@/game/render/vello-loader";
+import { tileExecutorFor } from "@/game/render/tile-routing";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("MapHandler");
@@ -319,6 +321,68 @@ export class MapHandler {
       this.ticker = config.ticker;
       this.attachTickerIfNeeded();
     }
+
+    // DEV diagnostic: per-placement tile-routing parity audit against
+    // the resolve engine (byte-equal to wc3 — Step 1). Surfaces
+    // placements whose wc2 ROUTE disagrees with what wc3's
+    // resolve_behavior would do (render_tiles/resolve.rs:56-79).
+    (window as unknown as Record<string, unknown>).__tileRoutingAudit = () =>
+      this.tileRoutingAudit();
+  }
+
+  /**
+   * Tautology assertion over the single-decision-point routing (wc3
+   * render_tiles/resolve.rs model): every engine-sourced placement
+   * must carry the classifier's result verbatim (re-calling the
+   * deterministic engine reproduces it), and refusals must be zero.
+   * Forced plans (slope / tactic override) are canonical pre-engine
+   * playhead forces and are reported by reason, not compared.
+   */
+  private tileRoutingAudit(): unknown {
+    if (!this.currentMapData) return { error: "no map" };
+    const placements = this.buildPlacements(
+      this.currentMapData,
+      this.currentPrefixOverride
+    );
+    const rows: Array<Record<string, unknown>> = [];
+    const counts: Record<string, number> = {};
+    let refusals = 0;
+    const bump = (k: string) => {
+      counts[k] = (counts[k] ?? 0) + 1;
+    };
+    for (const p of placements) {
+      if (p.plan.source === "forced") {
+        bump(`forced-${p.plan.reason}`);
+        if (p.plan.reason === "engine-refused") refusals++;
+        continue;
+      }
+      const carried = p.plan.behavior;
+      bump(tileExecutorFor(p.plan).mode);
+      const again = swfTileBehavior(p.bundle, p.exportName, p.cellId);
+      const ok =
+        again !== null &&
+        again.kind === carried.kind &&
+        (again.frame ?? -1) === (carried.frame ?? -1) &&
+        (again.sig ?? -1) === (carried.sig ?? -1) &&
+        (again.cycle ?? -1) === (carried.cycle ?? -1);
+      if (!ok) {
+        rows.push({
+          tileKey: p.tileKey,
+          layer: p.layer,
+          cell: p.cellId,
+          bundle: p.bundle,
+          exportName: p.exportName,
+          carried,
+          engine: again,
+        });
+      }
+    }
+    return {
+      placements: placements.length,
+      counts,
+      refusals,
+      mismatches: rows,
+    };
   }
 
   private attachTickerIfNeeded(): void {

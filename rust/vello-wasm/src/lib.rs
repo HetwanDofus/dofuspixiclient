@@ -11205,12 +11205,23 @@ impl VelloRenderer {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return JsValue::NULL;
         };
-        let Some(Symbol::Sprite(sprite)) = doc.lookup_export(export) else {
+        let Some(sym) = doc.lookup_export(export) else {
             return JsValue::NULL;
+        };
+        let result = js_sys::Object::new();
+        let Symbol::Sprite(sprite) = sym else {
+            // Non-sprite export (shape/bitmap tile): trivially static —
+            // wc3 render_tiles/resolve.rs:62-68 does the same. NULL is
+            // reserved for genuinely unknown bundle/export (the JS error
+            // path).
+            let sig = overrides_signature(0, &std::collections::HashMap::new());
+            let _ = js_sys::Reflect::set(&result, &"kind".into(), &"static".into());
+            let _ = js_sys::Reflect::set(&result, &"frame".into(), &JsValue::from(0u16));
+            let _ = js_sys::Reflect::set(&result, &"sig".into(), &JsValue::from(sig));
+            return result.into();
         };
         let cell = (cell_id & 0xffff) as u16;
         let resolution = resolve_full(sprite, doc, cell);
-        let result = js_sys::Object::new();
         match resolution.behavior {
             TileBehavior::Static { frame } => {
                 let sig = overrides_signature(frame, &resolution.child_overrides);
@@ -11506,27 +11517,24 @@ impl VelloRenderer {
         self.tile_instances.remove(&inst_id);
     }
 
-    /// Bake ONE part of a scripted tile at the instance's CURRENT
-    /// composed state. Used for static runs (baked once, shared per
-    /// `(export, sig, resolution)` on the JS side) and the whole-scene
-    /// fallback (re-baked when `tickTileInstances` reports the
-    /// instance changed). Same result shape as `renderSwfFrame`; the
-    /// anchor is the part's own offset from the SWF origin so stacked
-    /// part sprites all mount at the cell position.
-    #[wasm_bindgen(js_name = "renderSwfTileInstancePart")]
-    pub fn render_swf_tile_instance_part(
+    /// Build the composed-state Vello scene for ONE part of a scripted
+    /// tile at the instance's CURRENT playheads. Shared by the bitmap
+    /// bake (`renderSwfTileInstancePart` — static runs, baked once)
+    /// and the persistent-texture pair
+    /// (`renderSwfTileInstancePartTexture` /
+    /// `rerenderSwfTileInstancePartTexture` — whole-scene fallback,
+    /// re-baked at bundle fps). Returns `(scene, w, h, anchor_x,
+    /// anchor_y)`; the anchor is the part's own offset from the SWF
+    /// origin so stacked part sprites all mount at the cell position.
+    fn build_tile_instance_part_scene(
         &mut self,
         inst_id: u32,
         part_idx: u32,
         resolution: f32,
-    ) -> JsValue {
+    ) -> Option<(vello::Scene, u32, u32, f64, f64)> {
         use swf_spike::swf_doc::Symbol;
-        let Some(inst) = self.tile_instances.get(&inst_id) else {
-            return JsValue::NULL;
-        };
-        let Some(&part) = inst.parts.get(part_idx as usize) else {
-            return JsValue::NULL;
-        };
+        let inst = self.tile_instances.get(&inst_id)?;
+        let &part = inst.parts.get(part_idx as usize)?;
         let bundle = inst.bundle.clone();
         let export = inst.export.clone();
         let max_child_frames = inst.max_child_frames;
@@ -11538,13 +11546,11 @@ impl VelloRenderer {
             inst.scripts.iter().map(|s| s.child_id).collect();
 
         // Whole-scene fallback sizes against the memoized full-anim
-        // union so its anchor never shifts across re-bakes (this call
-        // mutably borrows self, so run it before taking doc refs).
+        // union so its anchor (and pixel dims — the re-bake-in-place
+        // contract relies on this) never shift across re-bakes (this
+        // call mutably borrows self, so run it before taking doc refs).
         let whole_bounds = if matches!(part, TileInstPart::Whole) {
-            let Some(c) = self.cache_strip_bounds(&bundle, &export, max_child_frames.max(1))
-            else {
-                return JsValue::NULL;
-            };
+            let c = self.cache_strip_bounds(&bundle, &export, max_child_frames.max(1))?;
             Some(vello::kurbo::Rect::new(c.min_x, c.min_y, c.max_x, c.max_y))
         } else {
             None
@@ -11554,14 +11560,10 @@ impl VelloRenderer {
                 Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
-        let Some(doc) = self.swf_bundles.get(&bundle) else {
-            return JsValue::NULL;
-        };
-        let Some(sym) = doc.lookup_export(&export) else {
-            return JsValue::NULL;
-        };
+        let doc = self.swf_bundles.get(&bundle)?;
+        let sym = doc.lookup_export(&export)?;
         let Symbol::Sprite(sprite) = sym else {
-            return JsValue::NULL;
+            return None;
         };
         let spec = match part {
             TileInstPart::Run { depth_lo, depth_hi } => {
@@ -11577,10 +11579,10 @@ impl VelloRenderer {
             (Some(s), None) => {
                 swf_spike::render::tile_part_bounds(doc, sprite, *s, &dynamic, &overrides)
             }
-            (None, None) => return JsValue::NULL,
+            (None, None) => return None,
         };
         if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
-            return JsValue::NULL;
+            return None;
         }
         let scale = f64::from(resolution) / 20.0;
         let pad = 1.0;
@@ -11590,7 +11592,7 @@ impl VelloRenderer {
         let h = (((bounds.y1 * scale).ceil() + pad - px_min_y) as u32).max(1);
         if w > 16384 || h > 16384 {
             console_log!("renderSwfTileInstancePart: {w}x{h} exceeds GPU limits");
-            return JsValue::NULL;
+            return None;
         }
         let cache: &swf_spike::render::cache::RenderCache = self
             .swf_render_caches
@@ -11630,6 +11632,29 @@ impl VelloRenderer {
                 cache,
             ),
         }
+        Some((scene, w, h, -px_min_x, -px_min_y))
+    }
+
+    /// Bake ONE part of a scripted tile at the instance's CURRENT
+    /// composed state. Used for static runs (baked once, shared per
+    /// `(export, sig, resolution)` on the JS side). Same result shape
+    /// as `renderSwfFrame`; the anchor is the part's own offset from
+    /// the SWF origin so stacked part sprites all mount at the cell
+    /// position. Per-change re-bakes (whole-scene fallback) go through
+    /// `renderSwfTileInstancePartTexture` instead — this bitmap path
+    /// allocates a fresh GPU texture + ImageBitmap round-trip per call.
+    #[wasm_bindgen(js_name = "renderSwfTileInstancePart")]
+    pub fn render_swf_tile_instance_part(
+        &mut self,
+        inst_id: u32,
+        part_idx: u32,
+        resolution: f32,
+    ) -> JsValue {
+        let Some((scene, w, h, anchor_x, anchor_y)) =
+            self.build_tile_instance_part_scene(inst_id, part_idx, resolution)
+        else {
+            return JsValue::NULL;
+        };
         let Some(texture) = self.render_scene_to_texture(&scene, w, h, "vello_tile_part")
         else {
             return JsValue::NULL;
@@ -11642,9 +11667,133 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
-        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
-        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(anchor_y));
         result.into()
+    }
+
+    /// Bake ONE part of a scripted tile into a PERSISTENT render
+    /// texture adopted zero-copy by Pixi (`ExternalSource` over the
+    /// shared GPUDevice), registered in `self.textures` and released
+    /// via `freeRenderTexture(textureId)`. Whole-scene fallback parts
+    /// (masked wrappers — refused by tile_parts decomposition, wc3
+    /// render/tile_parts.rs:82 refuses them identically) re-bake at
+    /// bundle fps; the bitmap path allocated a fresh GPU texture + an
+    /// ImageBitmap round-trip PER re-bake, pushing ~3.9 GB/120 ticks of
+    /// create+destroy churn through the deferred-destroy GC on map 951.
+    /// This variant allocates ONCE; subsequent re-bakes render into the
+    /// same storage via `rerenderSwfTileInstancePartTexture` (the
+    /// `tickSwfSpellFrame` persistent-output pattern).
+    #[wasm_bindgen(js_name = "renderSwfTileInstancePartTexture")]
+    pub fn render_swf_tile_instance_part_texture(
+        &mut self,
+        inst_id: u32,
+        part_idx: u32,
+        resolution: f32,
+    ) -> JsValue {
+        let Some((scene, w, h, anchor_x, anchor_y)) =
+            self.build_tile_instance_part_scene(inst_id, part_idx, resolution)
+        else {
+            return JsValue::NULL;
+        };
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("vello_tile_part_persistent"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        // Extract-before-view (see `renderSwfTileAtlasPage`): a view of
+        // a not-yet-extracted texture enqueues the storage into the
+        // deferred-destroy GC when the view drops, and Pixi loses it two
+        // ticks later. Extraction flips the shared flag first; lifetime
+        // is then owned by `self.textures` + `freeRenderTexture`.
+        let gpu_texture = extract_gpu_texture(&texture);
+        {
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let params = vello::RenderParams {
+                base_color: Color::TRANSPARENT,
+                width: w,
+                height: h,
+                antialiasing_method: AaConfig::Area,
+            };
+            if let Err(e) =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+            {
+                console_log!("renderSwfTileInstancePartTexture: render error: {e}");
+                // Never shipped to JS — release the storage explicitly
+                // (extracted textures skip the deferred-destroy queue).
+                texture.destroy();
+                return JsValue::NULL;
+            }
+        }
+        let tex_id = self.next_texture_id;
+        self.next_texture_id += 1;
+        self.textures.insert(tex_id, texture);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
+        let _ = js_sys::Reflect::set(&result, &"textureId".into(), &JsValue::from(tex_id as f64));
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(anchor_y));
+        result.into()
+    }
+
+    /// Re-bake a scripted-tile part into its EXISTING persistent
+    /// texture — ZERO allocation, nothing enters the deferred-destroy
+    /// GC. Returns `false` when the target texture is gone or the
+    /// part's pixel dims no longer match (e.g. after a resolution
+    /// change) — the caller then reallocates via
+    /// `renderSwfTileInstancePartTexture`. Whole-scene parts size
+    /// against the memoized full-anim union, so their dims are stable
+    /// across re-bakes by construction. In-place update is race-free:
+    /// Vello and Pixi share one GPUQueue, so the re-render submission
+    /// is ordered against Pixi's sampling passes.
+    #[wasm_bindgen(js_name = "rerenderSwfTileInstancePartTexture")]
+    pub fn rerender_swf_tile_instance_part_texture(
+        &mut self,
+        inst_id: u32,
+        part_idx: u32,
+        resolution: f32,
+        tex_id: f64,
+    ) -> bool {
+        let Some((scene, w, h, _anchor_x, _anchor_y)) =
+            self.build_tile_instance_part_scene(inst_id, part_idx, resolution)
+        else {
+            return false;
+        };
+        let Some(texture) = self.textures.get(&(tex_id as u64)) else {
+            return false;
+        };
+        if texture.width() != w || texture.height() != h {
+            return false;
+        }
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: w,
+            height: h,
+            antialiasing_method: AaConfig::Area,
+        };
+        if let Err(e) =
+            self.renderer
+                .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+        {
+            console_log!("rerenderSwfTileInstancePartTexture: render error: {e}");
+            return false;
+        }
+        true
     }
 
     /// Bake a dynamic child part's ENTIRE frame range as one strip
