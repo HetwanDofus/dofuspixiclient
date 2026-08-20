@@ -5,6 +5,7 @@ import { classicTheme } from "@/themes/classic";
 import { ThemeProvider } from "@/themes/ThemeProvider";
 
 import { AuthFlow } from "./auth/AuthFlow";
+import { ConnectionLostDialog } from "./ConnectionLostDialog";
 import { Loader } from "./Loader";
 import { MapRenderer } from "./MapRenderer";
 
@@ -92,6 +93,13 @@ export function App() {
             <AuthFlow client={client} onEnterGame={handleEnterGame} />
           )}
         </div>
+
+        {/*
+          Outside the loader/auth/game switch on purpose: the link can die at
+          any point in the session, and the player has to be told wherever they
+          happen to be (QA-046).
+        */}
+        <ConnectionLostDialog />
       </main>
     </ThemeProvider>
   );

@@ -465,7 +465,12 @@ double-clic n'a donc pas à déclencher la course ; il ne devrait simplement pas
 émettre deux ordres.
 
 **QA-046 — P1 — Session zombie après un redémarrage du core : aucun retour utilisateur**
-`confirmé` · `docker restart` sur `gamed`, client laissé ouvert. Résultat :
+`à revérifier` · **Corrigé le 2026-08-20** — voir la note de correction en fin
+d'entrée. Vérifié bout en bout sur la stack Docker ; reste à repasser le
+parcours joueur complet manette en main pour clore.
+
+Constat d'origine : `docker restart` sur `gamed`, client laissé ouvert.
+Résultat :
 
 - le gateway conserve la socket (`/health` → `sessions:1`) et le nouveau core
   démarre proprement (`WsRouter registered 21 message handler(s)`,
@@ -486,6 +491,72 @@ Le défaut à corriger n'est pas le handoff lui-même mais **l'absence totale de
 détection** : le client doit repérer que ses ordres restent sans acquittement
 et le dire au joueur. Le 1.29 affiche une boîte de dialogue de perte de
 connexion. Ici l'interface ment activement en affichant « Connected ».
+
+#### Note de correction — 2026-08-20
+
+**La détection a été placée au gateway, pas au client.** Le rapport proposait
+un timeout d'acquittement côté client ; c'est le seul endroit qui ne sait
+*rien*. Le gateway, lui, voit le lien UDS du core tomber puis revenir hors
+handoff : à cet instant précis l'état de session du core est prouvablement
+perdu. Il ferme donc les WebSockets qu'il tenait pour ce core, avec le code
+applicatif **4001 / `core_gone`**. Aucune heuristique, aucun délai à régler,
+aucun faux positif sous latence.
+
+Portée de la fermeture, dans `apps/gameserver-ts/src/gateway/upstream.ts` :
+
+- seules les sessions **du rôle concerné** partent — un `gamed` qui redémarre
+  ne touche pas aux sessions `authd` en cours de login ;
+- seules les sessions **existant à l'instant de la coupure** partent. Un
+  client qui se connecte *pendant* l'indisponibilité est annoncé au nouveau
+  core depuis le buffer et reste parfaitement valide : c'est exactement ce que
+  QA-048 rend possible, et la correction ici ne devait pas le reprendre ;
+- un **handoff ne ferme personne** : le lien qui meurt n'est plus l'actif, et
+  son état a déjà été transféré.
+
+Côté client, trois défauts s'ajoutaient à l'absence de détection :
+
+- `setOnConnected` / `setOnDisconnected` (`game/game-client.ts`) existaient et
+  n'étaient **appelés par personne** ;
+- le badge « Connected » de `MapRenderer.tsx` était un `useState` renseigné
+  **une seule fois au montage**. Il mentait donc aussi sur une coupure réseau
+  franche, pas seulement sur une session zombie ;
+- `Connection.scheduleReconnect` abandonnait **en silence** une fois les
+  tentatives épuisées : l'appelant recevait un `disconnected`, puis plus rien —
+  indistinguable d'un lien sain et inactif.
+
+Ce qui a été fait : un `connectionStore` porte l'état réel
+(`connecting` / `connected` / `reconnecting` / `lost`), le badge et
+`hudStore.connected` le lisent en direct, `Connection` émet un événement
+`failed` quand il renonce, ne retente plus rien sur 4001 (une socket neuve
+vers un serveur qui nous a oubliés ne répare rien), et une modale
+« Connexion au serveur perdue » s'affiche au-dessus de l'auth comme du jeu,
+avec un seul bouton : retour à l'écran de connexion. Ce retour est un
+rechargement complet, assumé — l'état d'une session est réparti entre des
+acteurs xstate de portée module, le battlefield Pixi, l'audio et une demi-
+douzaine de stores, dont aucun n'a de chemin de démontage aujourd'hui.
+
+Couverture : 3 tests gateway sur vraies sockets UDS (fermeture ciblée par
+rôle, survie d'un client arrivé pendant la coupure, handoff qui ne ferme
+personne), 4 tests sur la politique de retry de `Connection` et 6 tests sur le
+câblage client → état affiché. Les tests ont été vérifiés rouges sans le
+correctif.
+
+Vérification Docker : `docker restart dofuspixiclient-gamed-1`, la session
+ouverte avant la coupure reçoit `close code=4001 reason="core_gone"` en
+**62 ms**, un client connecté pendant l'indisponibilité reste ouvert et
+survit au retour du core, et les sessions `authd` ne bougent pas.
+
+**Duplication assumée** : le code 4001 est défini deux fois, dans
+`apps/gameserver-ts/src/gateway/close-codes.ts` et
+`apps/electrobun/src/game/network/close-codes.ts`. Les deux applications sont
+des déployables distincts sans paquet runtime commun ; chaque fichier renvoie
+explicitement à l'autre.
+
+**Ce qui n'est pas corrigé ici** : la reprise de session elle-même. Un joueur
+déconnecté par un redémarrage de core doit se reconnecter et perd sa
+progression non enregistrée. Le rendre transparent suppose un handoff
+orchestré à chaque redémarrage, ou une restauration d'état côté core à partir
+de la base — deux chantiers d'une autre taille.
 
 **QA-047 — P3 — Un clic hors de la zone de map est correctement ignoré**
 `vérifié, RAS` · Aucun log, aucune trame. Comportement attendu.
@@ -592,8 +663,8 @@ rejouée et traitée par `gamed`.
 
 **Ce qui n'est pas corrigé ici** : le core redémarré a perdu l'état des
 sessions déjà en jeu. Le gateway relaie de nouveau, mais un joueur connecté
-avant la coupure reste sans état côté serveur — c'est QA-046, et cela demande
-une détection côté client.
+avant la coupure reste sans état côté serveur — c'est QA-046, traité depuis
+(voir sa note de correction du même jour).
 
 ### Interactions de la bannière et du monde
 
@@ -661,6 +732,96 @@ ailleurs aucun panneau d'options : `PanelName` se limite à `stats`, `spells`,
 `inventory`, `quests`, `friends`, `guild`, `mount`, `conquest`. Le joueur ne
 peut ni baisser ni couper le son. Le 1.29 a un panneau d'options avec un
 curseur par canal.
+
+### Sessions et comptes
+
+**QA-057 — P1 — Un même compte pouvait ouvrir autant de fenêtres qu'il voulait**
+`à revérifier` · **Corrigé le 2026-08-20.** Découvert en testant QA-046 : deux
+fenêtres se connectent en parallèle sur le compte `dev`, aucune n'est
+déconnectée, et elles peuvent piloter **le même personnage**.
+
+Rien ne l'interdisait à aucun étage :
+
+- `login.handler.ts` vérifiait identifiants et bannissement, puis appelait
+  `attachAccount` sans chercher si le compte avait déjà une session ;
+- les tickets sont bien à usage unique (`redeem` fait `where usedAt is null` →
+  `set usedAt`), mais la seconde fenêtre refait un login complet et obtient son
+  propre ticket, parfaitement légitime — l'unicité du ticket protège du rejeu,
+  pas de la seconde connexion ;
+- `select-character.handler.ts` vérifiait que le personnage appartient au
+  compte, pas que personne d'autre ne le joue.
+
+Le `SessionRegistry` du core n'était indexé que par `sessionId` : il n'y avait
+littéralement nulle part où chercher. Côté base, `markLoggedIn` n'écrit que
+`lastLoginAt` / `lastLoginIp`, aucun état « en ligne ».
+
+Le dégât n'est pas théorique : `PlayerPresenceService` indexe `byCharacter`
+(personnage → map) et `bySession` (session → personnage). Deux sessions sur le
+même personnage écrasent `byCharacter`, et le premier départ laisse une entrée
+`bySession` orpheline.
+
+Signe que l'intention était là : `LOGIN_ERROR_ALREADY_ONLINE = 3` existe dans
+`proto/account.proto` et le client sait déjà l'afficher (`auth.handler.ts`).
+Seul le test côté serveur n'avait jamais été écrit.
+
+#### Note de correction — 2026-08-20
+
+**On éjecte l'ancienne session, on ne refuse pas la nouvelle** — un joueur
+réellement déconnecté doit pouvoir revenir sans attendre l'expiration de
+l'ancienne.
+
+Le core sait qui devrait être connecté, le gateway seul possède la socket. Le
+core lui envoie donc un `SessionClose` — la trame existait déjà, employée
+jusqu'ici seulement dans le sens gateway → core ; elle devient bidirectionnelle,
+et dans ce sens signifie « raccroche ». **Aucune régénération `buf`.** Le
+gateway traduit le motif en code de fil (`account_taken_over` → **4002**), et le
+client réutilise toute la machinerie de QA-046 : pas de reconnexion, modale
+« Votre compte a été connecté depuis un autre endroit », retour au login.
+
+L'éjection passe par un point unique, `SessionEvictionService.evictAccount()`,
+appelé au login `authd` **et** à la redemption du ticket `gamed` — c'est ce
+second point qui remplace réellement une session en jeu. Elle ferme la session
+localement, donc le départ du monde emprunte la saga `session.closed` existante,
+comme une déconnexion ordinaire.
+
+Garde-fous, tous couverts par des tests vérifiés rouges d'abord :
+
+- **un login raté n'éjecte personne** (mot de passe faux, compte banni, pseudo
+  inconnu, ticket refusé). Sans ce garde, connaître un pseudo suffirait à
+  déconnecter un joueur à volonté ;
+- jamais d'auto-éjection ;
+- `restore()` reconstruit l'index par compte après un handoff — sans quoi un
+  déploiement bleu/vert désactiverait silencieusement toute la détection ;
+- un `accountId` vide n'est jamais indexé (les sessions s'ouvrent anonymes) ;
+- pas de boucle : le `sessionClose` que le gateway renvoie tombe sur une session
+  déjà retirée ;
+- 4002 est non-retryable côté client, donc la fenêtre éjectée ne peut pas
+  éjecter l'autre en retour.
+
+Vérifié sur la stack Docker, parcours complet login → sélection serveur →
+ticket : la fenêtre A est fermée en `4002 account_taken_over` **31 ms** après
+que B a présenté son ticket, `/health` reste à `sessions:1`. Un mot de passe
+faux depuis une seconde fenêtre laisse la première intacte, et un
+`docker restart gamed` ferme toujours en `4001 core_gone` — les deux chemins
+restent distincts.
+
+**Ce qui n'est pas corrigé ici : la reprise de session.** Après éjection, le
+personnage quitte le monde et le joueur repasse par le login. En 1.29 il
+reprendrait sa partie, combat compris. Ce n'est pas un défaut introduit ici —
+le combat est indexé par `sessionId` (`fight.fighter.ts`, `fight.registry.ts`,
+et l'audience des diffusions dans `fight.entity.ts`) et **rien n'écoute
+`session.closed` côté combat** : `FightLeaveHandler` ne répond qu'au
+`GameLeaveRequest` explicite. Une simple coupure réseau en plein combat laisse
+déjà un combattant orphelin. L'éjection ajoute un déclencheur à ce défaut, pas
+le défaut.
+
+Points d'accroche déjà en place pour ce chantier, à ne pas défaire :
+`SessionLeaveSaga.onSessionClosed({ session, reason })` reçoit déjà le motif —
+c'est là que se branchera le délai de grâce ; `FightRegistryService`
+`registerSession()` / `unregisterSession()` et `Fighter.sessionId`, mutable,
+permettent de rebrancher un combattant sur une nouvelle session ; et la reprise
+devra s'accrocher à la **sélection de personnage**, pas au ticket, puisqu'au
+moment du ticket on ne connaît que le compte.
 
 ---
 

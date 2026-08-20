@@ -9,6 +9,10 @@ import {
 
 import type { GameClient } from "@/game/game-client";
 import { getLoadProgress } from "@/game/render/load-progress";
+import {
+  type ConnectionStatus,
+  connectionStore,
+} from "@/game/stores/connection-store";
 import { Battlefield } from "@/game/scene";
 import {
   chatStore,
@@ -23,6 +27,13 @@ import { PixiAppContext } from "@/hud/contexts/PixiAppContext";
 import { Keybindings } from "@/hud/core/keybindings";
 import { HudOverlay } from "@/hud/HudOverlay";
 
+const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
+  connecting: "Connexion…",
+  connected: "Connecté",
+  reconnecting: "Reconnexion…",
+  lost: "Déconnecté",
+};
+
 interface MapRendererProps {
   client: GameClient;
   onReady?: () => void;
@@ -35,12 +46,26 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   const gameClientRef = useRef<GameClient | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [pixiApp, setPixiApp] = useState<Application | null>(null);
   const [baseZoom, setBaseZoom] = useState(2);
   const [canvasRect, setCanvasRect] = useState({ left: 0, top: 0, w: 0, h: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
+  // Live, not a snapshot: this used to be a useState set once during setup, so
+  // the badge kept claiming "Connected" through core restarts and outright
+  // socket deaths alike (QA-046).
+  const { status: connectionStatus } = useSyncExternalStore(
+    connectionStore.subscribe,
+    connectionStore.getSnapshot
+  );
+  const connected = connectionStatus === "connected";
+
+  // hudStore.connected mirrors the same source of truth, for HUD widgets that
+  // read the store rather than subscribing here.
+  useEffect(() => {
+    hudStore.setState({ connected });
+  }, [connected]);
+
   const { side: chatSide, isOpen: chatOpen } = useSyncExternalStore(
     chatStore.subscribe,
     chatStore.getSnapshot,
@@ -117,11 +142,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         (window as unknown as { gameClient: GameClient }).gameClient =
           gameClient;
         gameClient.setBattlefield(battlefield);
-        setConnected(gameClient.isConnected());
-        hudStore.setState({
-          connected: gameClient.isConnected(),
-          loggedIn: true,
-        });
+        hudStore.setState({ loggedIn: true });
 
         onProgress?.(100, "Ready!");
         onReady?.();
@@ -284,7 +305,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
           <div
             className={`connection-indicator ${connected ? "connected" : "offline"}`}
           >
-            {connected ? "Connected" : "Offline"}
+            {CONNECTION_LABEL[connectionStatus]}
           </div>
 
           <HudOverlay

@@ -2,6 +2,11 @@ export type { CharacterStats } from "@/game/types/stats";
 
 export type { CharacterState } from "./character-store";
 export type { ChatEntry, ChatState } from "./chat-store";
+export type {
+  ConnectionStatus,
+  ConnectionUiState,
+  LostCause,
+} from "./connection-store";
 export type { ContextMenuOption, ContextMenuState } from "./context-menu-store";
 export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
@@ -16,6 +21,12 @@ export {
   setChatSide,
   toggleChatOpen,
 } from "./chat-store";
+export {
+  connectionStore,
+  markConnected,
+  markLost,
+  markReconnecting,
+} from "./connection-store";
 export {
   contextMenuStore,
   hideContextMenu,

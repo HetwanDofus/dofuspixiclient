@@ -96,6 +96,19 @@ export class GatewayFrameService implements OnModuleDestroy {
     );
   }
 
+  // Orders the gateway to hang up on a client. `sessionClose` travels
+  // gateway → core when a client leaves on its own; sent the other way it means
+  // "drop this one for me" — the core knows who should be connected, the
+  // gateway owns the socket. The gateway maps `reason` onto a WebSocket close
+  // code (see gateway/close-codes.ts) so the client can tell what happened.
+  closeSession(sessionId: string, reason: string) {
+    this.send(
+      create(GatewayFrameSchema, {
+        kind: { case: "sessionClose", value: { sessionId, reason } },
+      })
+    );
+  }
+
   sendHandoff(phase: HandoffControl_Phase, snapshot?: Uint8Array) {
     const hc = create(HandoffControlSchema, {
       phase,

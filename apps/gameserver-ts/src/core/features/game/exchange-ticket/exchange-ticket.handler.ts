@@ -12,6 +12,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
+import { SessionEvictionService } from "@shared/gateway-adapter/session-eviction.service";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 
 @Injectable()
@@ -23,7 +24,8 @@ export class ExchangeTicketHandler {
     config: ConfigService<GameEnv, true>,
     private readonly repo: ExchangeTicketRepository,
     private readonly sessions: SessionRegistry,
-    private readonly frames: GatewayFrameService
+    private readonly frames: GatewayFrameService,
+    private readonly eviction: SessionEvictionService
   ) {
     this.gameServerId = config.get("GAME_SERVER_ID", { infer: true });
   }
@@ -38,6 +40,10 @@ export class ExchangeTicketHandler {
       );
       return this.respond(ctx, false);
     }
+
+    // The one that matters: this is where an in-game session gets replaced.
+    // A rejected ticket returns above without evicting anyone.
+    this.eviction.evictAccount(row.accountId, ctx.sessionId);
 
     this.sessions.attachAccount(ctx.sessionId, row.accountId);
 
