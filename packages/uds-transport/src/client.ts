@@ -25,9 +25,14 @@ export function connect(opts: ClientOptions): FramedSocket {
       current = await Bun.connect({
         unix: opts.path,
         socket: {
-          open() {
+          open(socket) {
             reader = new FrameReader(GatewayFrameSchema);
             wb = new WriteBuffer();
+            // Publish the socket *before* onConnect: on a reconnect, `current`
+            // still holds the dead socket (or null) until the awaited
+            // Bun.connect() resolves, so anything the callback sends —
+            // a buffer replay, typically — would be dropped on the floor.
+            current = socket;
             opts.onConnect?.();
           },
           data(_s, chunk) {

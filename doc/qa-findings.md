@@ -491,7 +491,11 @@ connexion. Ici l'interface ment activement en affichant « Connected ».
 `vérifié, RAS` · Aucun log, aucune trame. Comportement attendu.
 
 **QA-048 — P0 — Le gateway ne sort jamais du mode buffering après une reconnexion au core**
-`confirmé` · **Cause racine identifiée, correctif d'une ligne.**
+`à revérifier` · **Corrigé le 2026-08-20** — voir la note de correction en fin
+d'entrée. Le mécanisme est vérifié bout en bout sur la stack Docker ; reste à
+repasser le parcours joueur complet (login → liste des personnages) pour clore.
+
+**Cause racine identifiée** — mais le correctif n'est pas d'une ligne.
 
 Reproduction :
 1. `docker restart dofuspixiclient-gamed-1` (client connecté ou non) ;
@@ -547,6 +551,49 @@ composant censé ne jamais redémarrer.
 
 QA-046 (session zombie côté client) est la face visible de ce même bug : le
 client ne détecte pas que ses trames partent dans le vide.
+
+#### Note de correction — 2026-08-20
+
+Le correctif d'une ligne envisagé plus haut **ne suffisait pas**. Remettre
+`buffering = false` dans `onConnect` lève bien le blocage, mais les trames
+mises en file partent quand même dans le vide, pour une seconde raison :
+
+- dans `packages/uds-transport/src/client.ts`, `current` n'est réassigné qu'au
+  retour du `await Bun.connect(...)`, alors que `onConnect` est appelé
+  *pendant* ce connect. À l'instant du rappel, `current` pointe encore sur la
+  socket morte, et `send()` — qui teste `current && isOpen(current)` — jette
+  silencieusement tout ce qu'on lui donne. Le vidage du buffer déclenché depuis
+  `onConnect` était donc entièrement perdu. La socket est maintenant publiée
+  avant l'appel du rappel.
+
+Deux défauts voisins ont été corrigés dans la foulée, parce qu'ils produisent
+exactement le même symptôme par un autre chemin :
+
+- `sessionOpen` / `sessionClose` court-circuitaient le buffer et partaient
+  directement sur la socket : une session ouverte pendant la coupure n'était
+  jamais annoncée au nouveau core, et ses trames arrivaient ensuite pour une
+  session qu'il ne connaissait pas. Tout passe désormais par la même file, ce
+  qui garantit aussi l'ordre `open` → messages → `close`.
+- un handoff qui échoue laissait `standby` positionné (tout handoff ultérieur
+  refusé) et `buffering` à `true` — le gel de QA-048, par une autre route. Le
+  repli sur le core actif est maintenant explicite.
+
+Enfin, le journal d'un buffer saturé émettait une ligne **par trame perdue** :
+mesuré à 190 ms et 200 000 notifications de l'UI Ink pour 200 000 trames, soit
+un ralentissement auto-infligé au pire moment. Une ligne à l'ouverture de
+l'épisode, un décompte à la reprise.
+
+Couverture : `apps/gameserver-ts/src/gateway/upstream.spec.ts`, 7 tests sur de
+vraies sockets UDS (redémarrage de core, ordre des trames de session, plafond
+du buffer, handoff nominal, handoff en échec). Vérifié aussi sur la stack
+Docker : `docker restart dofuspixiclient-gamed-1` puis `/health` repasse à
+`buffering:false` en moins de 2 s, et une trame émise pendant la coupure est
+rejouée et traitée par `gamed`.
+
+**Ce qui n'est pas corrigé ici** : le core redémarré a perdu l'état des
+sessions déjà en jeu. Le gateway relaie de nouveau, mais un joueur connecté
+avant la coupure reste sans état côté serveur — c'est QA-046, et cela demande
+une détection côté client.
 
 ### Interactions de la bannière et du monde
 
