@@ -1,3 +1,4 @@
+import type { DecodedCell } from "@modules/maps/maps.cells-codec";
 import { match, P } from "ts-pattern";
 
 // Dofus 1.29 alternating-row grid: long rows have `width` cells, short rows
@@ -97,19 +98,27 @@ export function oppositeEdgeCell(
 // Derives exit direction from a cell's position on an HxW grid. Corners
 // take precedence over pure edges so cell (0, W-1) counts as NE, not N or
 // E alone.
+//
+// The outline of the diamond zigzags between long and short rows, so BOTH
+// parities carry border cells: a long row ends at `mapWidth - 1`, a short one
+// at `mapWidth - 2`, and the first/last two rows are the top/bottom lips.
+// This matters because in real 1.29 map data the outermost long-row cells are
+// blocked decoration and every walkable exit — the cell a player actually
+// stands on to leave — is on a short row. Restricting to long rows recognised
+// an exit on just 21 of 400 imported maps; counting both parities finds 141.
 export function detectExitDirection(
   cellId: number,
   mapWidth: number,
   mapHeight: number
 ): number | undefined {
   const { row, col, isLong } = cellToRowCol(cellId, mapWidth);
-  const lastRow = 2 * mapHeight - 1;
+  const lastRow = 2 * mapHeight - 2;
 
   const edge = {
-    top: row === 0,
+    top: row <= 1,
     bottom: row >= lastRow - 1,
-    left: isLong && col === 0,
-    right: isLong && col === mapWidth - 1,
+    left: col === 0,
+    right: col === (isLong ? mapWidth - 1 : mapWidth - 2),
   } as const;
 
   return match(edge)
@@ -123,4 +132,94 @@ export function detectExitDirection(
     .with({ right: true }, () => 0)
     .with(P._, () => undefined)
     .exhaustive();
+}
+
+// Cardinal components of each direction — SE is south *and* east, etc. Used to
+// test whether a cell sits on the edge a player arrives through.
+const CARDINALS: Record<number, readonly number[]> = {
+  0: [0],
+  1: [2, 0],
+  2: [2],
+  3: [2, 4],
+  4: [4],
+  5: [6, 4],
+  6: [6],
+  7: [6, 0],
+};
+
+function onEdge(
+  coord: CellCoord,
+  mapWidth: number,
+  mapHeight: number,
+  direction: number
+): boolean {
+  const lastRow = 2 * mapHeight - 2;
+
+  return (CARDINALS[direction] ?? []).some((cardinal) =>
+    match(cardinal)
+      .with(6, () => coord.row <= 1)
+      .with(2, () => coord.row >= lastRow - 1)
+      .with(4, () => coord.col === 0)
+      .with(0, () => coord.col === (coord.isLong ? mapWidth - 1 : mapWidth - 2))
+      .otherwise(() => false)
+  );
+}
+
+/**
+ * The cell a player actually lands on after leaving `fromCellId` through
+ * `exitDirection`.
+ *
+ * `oppositeEdgeCell` gives the geometric mirror, but that cell is very often
+ * unusable: the outermost long row of a 1.29 map is blocked decoration, so a
+ * player crossing north was dropped onto a cell with no walkable neighbour at
+ * all and could not move again. This picks the walkable cell on the arrival
+ * edge closest to that mirror instead, and only gives up when the target map
+ * has no walkable cell on that side.
+ */
+export function resolveLandingCell(
+  target: { width: number; height: number; cells: readonly DecodedCell[] },
+  fromCellId: number,
+  exitDirection: number,
+  sourceWidth: number
+): number | undefined {
+  const ideal = oppositeEdgeCell(
+    fromCellId,
+    exitDirection,
+    sourceWidth,
+    target.width,
+    target.height
+  );
+
+  if (ideal === undefined) {
+    return undefined;
+  }
+
+  const idealCoord = cellToRowCol(ideal, target.width);
+  const arrival = (exitDirection + 4) % 8;
+
+  let best: number | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const cell of target.cells) {
+    if (!cell.active || !cell.walkable) {
+      continue;
+    }
+
+    const coord = cellToRowCol(cell.id, target.width);
+
+    if (!onEdge(coord, target.width, target.height, arrival)) {
+      continue;
+    }
+
+    const distance =
+      Math.abs(coord.row - idealCoord.row) +
+      Math.abs(coord.col - idealCoord.col);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = cell.id;
+    }
+  }
+
+  return best;
 }

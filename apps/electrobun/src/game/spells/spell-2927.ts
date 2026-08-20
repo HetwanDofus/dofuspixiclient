@@ -92,7 +92,7 @@ export class Spell2927 extends RuntimeSpell {
 
   // Keep references so onSpellStart can attach the shoot symbol.
   private plumesSym!: SymbolDefinition;
-  private feux Sym!: SymbolDefinition;
+  private feuxSym!: SymbolDefinition;
   private plumes2Sym!: SymbolDefinition;
   private shootSym!: SymbolDefinition;
 

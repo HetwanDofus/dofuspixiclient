@@ -32,11 +32,23 @@ describe("fastDistance", () => {
     expect(d1).toBe(d2);
   });
 
-  test("matches distance for adjacent cells", () => {
+  // fastDistance is Chebyshev over (row, col); `distance` is a BFS over the
+  // real isometric adjacency (a cell's neighbours are ±width and ±(width-1),
+  // NOT ±1). The two agree on true neighbours and diverge on same-row pairs
+  // like (0, 1), which are two grid steps apart — that gap is accepted: the
+  // only caller is the monster AI's target heuristic.
+  test("matches distance for true grid neighbours", () => {
     const fmap = makeMap(15, 17);
-    const fast = fastDistance(fmap, 0, 1);
-    const slow = distance(fmap, 0, 1);
+    const fast = fastDistance(fmap, 30, 15);
+    const slow = distance(fmap, 30, 15);
+    expect(fast).toBe(1);
     expect(fast).toBe(slow);
+  });
+
+  test("underestimates same-row pairs, which are two steps apart", () => {
+    const fmap = makeMap(15, 17);
+    expect(fastDistance(fmap, 0, 1)).toBe(1);
+    expect(distance(fmap, 0, 1)).toBe(2);
   });
 });
 
@@ -67,9 +79,12 @@ describe("distance", () => {
     expect(distance(fmap, 5, 5)).toBe(0);
   });
 
+  // Neighbours in the isometric grid sit ±width and ±(width-1) away — cell 6
+  // is the same row as cell 5, which is two steps, not one.
   test("returns 1 for adjacent cells", () => {
     const fmap = makeMap(10, 10);
-    expect(distance(fmap, 5, 6)).toBe(1);
+    expect(distance(fmap, 5, 15)).toBe(1);
+    expect(distance(fmap, 5, 14)).toBe(1);
   });
 
   test("calculates distance correctly for distant cells", () => {

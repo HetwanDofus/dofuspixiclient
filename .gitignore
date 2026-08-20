@@ -39,3 +39,7 @@ assets/dist
 
 # Docker
 pgdata/
+# Local env
+.env
+.env.*
+!.env.example

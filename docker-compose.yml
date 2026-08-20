@@ -9,19 +9,57 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dofus -d dofus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  server:
+  # One-shot: brings the schema up to date, then exits.
+  migrate:
+    build: .
+    command: ["bun", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://dofus:dofus@postgres:5432/dofus
+    restart: "no"
+
+  authd:
+    build: .
+    command: ["bun", "run", "src/core/main.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MODE: auth
+      DATABASE_URL: postgres://dofus:dofus@postgres:5432/dofus
+    volumes:
+      - sockets:/sockets
+
+  gamed:
+    build: .
+    command: ["bun", "run", "src/core/main.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MODE: game
+      DATABASE_URL: postgres://dofus:dofus@postgres:5432/dofus
+    volumes:
+      - sockets:/sockets
+
+  gateway:
     build: .
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
-    environment:
-      PG_HOST: postgres
-      PG_PORT: "5432"
-      PG_DATABASE: dofus
-      PG_USER: dofus
-      PG_PASSWORD: dofus
+      - authd
+      - gamed
+    volumes:
+      - sockets:/sockets
 
 volumes:
   pgdata:
+  sockets:

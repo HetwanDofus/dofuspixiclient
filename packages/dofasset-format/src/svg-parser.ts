@@ -217,26 +217,6 @@ function parseGroupChildren($: CheerioAPI, el: Element, inherited: InheritedStyl
 }
 
 /**
- * Parse a clipPath's path `d` attribute to extract the clip rectangle.
- */
-function parseClipRect(d: string): { x: number; y: number; width: number; height: number } {
-  // Clip paths in these SVGs are always simple rects: "M1 1h23v47H1z"
-  const segments = parsePath(d);
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const seg of segments) {
-    for (let i = 0; i < seg.coords.length; i += 2) {
-      const x = seg.coords[i]!;
-      const y = seg.coords[i + 1]!;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-/**
  * Parse a complete atlas SVG file into structured data.
  */
 export function parseSvg(svgContent: string): ParsedSvg {

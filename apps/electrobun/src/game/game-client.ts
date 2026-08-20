@@ -160,6 +160,9 @@ export class GameClient {
             return;
           }
           loginActor.send({ type: "LOGOUT" });
+          // The world is gone — so is its music. A pivot disconnect returns
+          // above, so the track survives the gamed handoff.
+          this.audioManager.stop();
           this.onDisconnected?.();
         })
         .with({ type: "message" }, (e) => {

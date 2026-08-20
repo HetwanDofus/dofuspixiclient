@@ -213,6 +213,12 @@ message GameMapData {
   // Dofus subarea id (0-261). Drives tactic-mode theme + colors via
   // lang.MA.sa[subarea_id]. 0 = unknown (map row carried null).
   int32 subarea_id = 8;
+  // Audio, read from the retail map SWF (MapsServersManager.as:135-136).
+  // Both index the `audio` lang bundle: `AUM[music_id]` names the mp3 to
+  // loop, `AUA[ambiance_id]` names the environment bed + random noises.
+  // 0 = none, which is what the client treats as "keep silence".
+  int32 music_id = 9;
+  int32 ambiance_id = 10;
 }
 
 // MapCell mirrors the fields exposed by the TS CellData interface

@@ -167,7 +167,8 @@ export class MapHandler {
 
     const oldMapId = this.currentMapId;
     this.currentMapId = mapId;
-    this.audioManager.playForMap(mapId);
+    void this.audioManager.playMusic(payload.musicId);
+    void this.audioManager.playEnvironment(payload.ambianceId);
     this.isMoving = false;
 
     try {

@@ -19,6 +19,8 @@ export class MapsRepository {
         "width",
         "height",
         "background",
+        "musicId",
+        "ambianceId",
         "cells",
         "x",
         "y",

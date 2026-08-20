@@ -218,6 +218,9 @@ export interface MapsTable {
   y: number;
   superarea: number;
   background: number;
+  /** `audio` lang bundle indices — AUM[musicId] / AUA[ambianceId]. */
+  musicId: number | null;
+  ambianceId: number | null;
   mapData: string;
   capabilities: number;
   numgroup: number;

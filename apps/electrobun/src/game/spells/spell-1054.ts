@@ -410,21 +410,13 @@ export class Spell1054 extends RuntimeSpell {
       },
     };
 
-    // ---- sprite20 — flickering glow ----------------------------
-    // No onLoad.
-    // AS DefineSprite_20/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ---- sprite20 — flickering glow (superseded) ----------------
+    // AS DefineSprite_20/frame_1/PlaceObject2_16_1 had a standalone
     //   _alpha = random(170);
-    const sprite20Sym: SymbolDefinition = {
-      name: "sprite20",
-      totalFrames: 1,
-      frames: textures.getFrames("lib_sprite20"),
-      anchorX: sprite20Anchor.x,
-      anchorY: sprite20Anchor.y,
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_20/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-        clip.alpha = Math.floor(Math.random() * 170) / 100;
-      },
-    };
+    // clip event, but the shipped model folds sprite20 into sprite21 as
+    // its authored child (see the sprite21 block below), so the standalone
+    // definition is not built — a second `sprite20` symbol would collide
+    // by name in the registry.
 
     // ---- sprite21 — spiralling orb -----------------------------
     // AS DefineSprite_21/frame_1/PlaceObject2_20_1/CLIPACTIONRECORD onClipEvent(load).as

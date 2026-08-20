@@ -4,6 +4,7 @@ set shell := ["bash", "-cu"]
 
 # Project paths
 root := justfile_directory()
+vello_root := env_var_or_default("VELLO_ROOT", justfile_directory() + "/../dofus-vello-custom-format")
 pipeline := "cd " + root + "/tools/asset-pipeline && bun run src/cli.ts"
 
 db_user := env_var_or_default("PG_USER", "dofus")
@@ -28,29 +29,85 @@ setup: install db wasm
 install:
     bun install
 
-# Create database and run migrations
-db: db-create db-migrate
+# Start PostgreSQL, run migrations, seed a dev account
+db: db-up db-migrate db-seed
 
-# Create PostgreSQL database and user
-db-create:
-    @echo "Creating database..."
-    @psql -h {{db_host}} -p {{db_port}} -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='{{db_user}}'" | grep -q 1 || \
-        psql -h {{db_host}} -p {{db_port}} -U postgres -c "CREATE ROLE {{db_user}} WITH LOGIN PASSWORD '{{db_pass}}';"
-    @psql -h {{db_host}} -p {{db_port}} -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='{{db_name}}'" | grep -q 1 || \
-        psql -h {{db_host}} -p {{db_port}} -U postgres -c "CREATE DATABASE {{db_name}} OWNER {{db_user}};"
+# Start the PostgreSQL container (creates role + database on first run)
+db-up:
+    docker compose up -d postgres
+    @until docker compose exec -T postgres pg_isready -U {{db_user}} -d {{db_name}} >/dev/null 2>&1; do sleep 1; done
     @echo "Database ready."
 
+# Point `assets/dist/langs` at the published lang bundles.
+#
+# Migration 0039 and the gameserver both read `assets/dist/langs/<locale>/
+# <namespace>.json` — the asset-pipeline's *output* directory, which only
+# exists after `just pipeline-langs` (and that needs the retail lang SWFs).
+# A checkout already carries the published copy under
+# `apps/electrobun/public/assets/langs`, so link the two.
+langs-link:
+    @test -e assets/dist/langs || ( \
+        mkdir -p assets/dist && \
+        ln -s ../../apps/electrobun/public/assets/langs assets/dist/langs && \
+        echo "linked assets/dist/langs -> apps/electrobun/public/assets/langs" )
+
 # Run database migrations
-db-migrate:
-    cd apps/server && bun run migrate
+db-migrate: langs-link
+    cd apps/gameserver-ts && bun run db:migrate
 
-# Build the Vello WASM renderer
+# Seed one dev account (dev/dev) + one game server row
+db-seed:
+    cd apps/gameserver-ts && bun run db:seed:dev
+
+# Show which migrations have run
+db-status:
+    cd apps/gameserver-ts && bun run db:status
+
+# Run this BEFORE `just import-maps`: the neighbour election uses the flag.
+
+# Read map background, outdoor flag, music + ambiance from a retail 1.29 client's map SWFs
+import-map-swf maps_dir:
+    cd apps/gameserver-ts && bun run scripts/import-map-swf.ts "{{ maps_dir }}"
+
+# Get the dump first:
+#   curl -LO https://raw.githubusercontent.com/StarLoco/StarLoco-Game/master/game.sql
+
+# Import the world (maps, subareas, fight places) from a StarLoco game.sql
+import-maps dump:
+    cd apps/gameserver-ts && bun run scripts/import-starloco-maps.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
+
+# Build the Vello WASM renderer.
+# `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —
+# its own package.json calls itself `dofus-vello-custom-format`, which is the
+# name `apps/electrobun/vite.config.ts` aliases `vello-wasm` to. Override
+# VELLO_ROOT if your clone lives elsewhere.
 wasm:
-    cd ../dofus-vello-custom-format/packages/vello-wasm && wasm-pack build --target web --release
+    cd {{vello_root}}/packages/vello-wasm && wasm-pack build --target web --release
 
-# Start the game server (dev mode with watch)
-server:
-    cd apps/server && bun run dev
+# The gameserver is three processes, one per terminal: `just gateway`,
+# `just gamed`, `just authd`. `just server` is an alias for the gateway.
+
+# Alias for `just gateway` (kept for muscle memory)
+server: gateway
+
+# WebSocket gateway (:8080) — dials the authd + gamed sockets
+gateway:
+    cd apps/gameserver-ts && bun run dev:gateway
+
+# Game core (MODE=game), watch mode
+gamed:
+    cd apps/gameserver-ts && bun run dev:gamed
+
+# Auth core (MODE=auth), watch mode
+authd:
+    cd apps/gameserver-ts && bun run dev:authd
+
+# Whole server stack in containers (postgres + migrate + authd + gamed + gateway)
+docker-up:
+    docker compose up -d --build
+
+docker-down:
+    docker compose down
 
 # Start the client (Electrobun dev mode)
 client:
@@ -59,6 +116,10 @@ client:
 # Start client with HMR
 client-hmr:
     cd apps/electrobun && bun run dev:hmr
+
+# Client in a plain WebGPU browser (Vite dev server on :5173) — no Electrobun
+client-web:
+    cd apps/electrobun && bun run hmr
 
 # Build everything for production
 build:
@@ -161,5 +222,6 @@ ui-builder:
 # Show current configuration
 info:
     @echo "Configuration:"
-    @echo "  Root:     {{root}}"
-    @echo "  Pipeline: {{pipeline}}"
+    @echo "  Root:       {{root}}"
+    @echo "  Vello root: {{vello_root}}"
+    @echo "  Pipeline:   {{pipeline}}"

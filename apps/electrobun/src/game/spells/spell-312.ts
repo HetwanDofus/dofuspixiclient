@@ -327,7 +327,6 @@ export class Spell312 extends RuntimeSpell {
     // calls _parent.removeMovieClip() → spell complete.
     // sprite8 instances are placed at frames 3, 15, 30, 45 (0-based:
     // 3, 15, 30, 45 → already 0-indexed per manifest `frame` field).
-    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
     let hitSignalled = false;
     this.anim1Sym = {
       name: "anim1",

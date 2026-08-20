@@ -1,4 +1,4 @@
-import { readFile, readFileSync, existsSync } from "node:fs";
+import { readFile, readFileSync, existsSync, realpathSync } from "node:fs";
 import { resolve, join } from "node:path";
 
 import type { Plugin } from "vite";
@@ -10,6 +10,28 @@ import { defineConfig } from "vite";
 import babel from "vite-plugin-babel";
 
 const __dirname = import.meta.dirname;
+
+/**
+ * The Vello WASM package, built by `just wasm` into the sibling
+ * `dofus-vello-custom-format` checkout (that is the name its own package.json
+ * uses; the GitHub repo is `vello-dofasset-format`, so the checkout is often a
+ * symlink under that other name).
+ *
+ * Vite runs its `server.fs.allow` check against the *resolved* path, so a
+ * symlinked checkout has to be allow-listed by its realpath — otherwise the
+ * dev server answers 403 for `vello_wasm_bg.wasm` and the battlefield renderer
+ * never initialises. Set VELLO_ROOT to point at a checkout elsewhere.
+ */
+const velloPkgDir = (() => {
+  const root =
+    process.env.VELLO_ROOT ?? resolve(__dirname, "../../../dofus-vello-custom-format");
+  const pkg = join(root, "packages/vello-wasm/pkg");
+  try {
+    return realpathSync(pkg);
+  } catch {
+    return pkg;
+  }
+})();
 
 function compressionPlugin(): Plugin {
   return {
@@ -492,7 +514,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
-      "vello-wasm": resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
+      "vello-wasm": velloPkgDir,
     },
   },
   build: {
@@ -505,10 +527,7 @@ export default defineConfig({
     strictPort: true,
     fs: {
       // Allow serving files from the vello-wasm pkg directory (outside project root)
-      allow: [
-        resolve(__dirname, "../.."),
-        resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
-      ],
+      allow: [resolve(__dirname, "../.."), velloPkgDir],
     },
   },
   optimizeDeps: {

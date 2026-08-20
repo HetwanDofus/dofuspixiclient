@@ -14,12 +14,13 @@
     "db:migrate": "bunx kysely migrate:latest",
     "db:rollback": "bunx kysely migrate:down",
     "db:status": "bunx kysely migrate:list",
-    "test:e2e": "bun test test/",
+    "db:seed:dev": "bun run scripts/dev-seed.ts",
+    "test:e2e": "bun test test/ --timeout 180000",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "TESTCONTAINERS_RYUK_DISABLED=true bun test",
+    "test": "TESTCONTAINERS_RYUK_DISABLED=true bun test --timeout 180000",
     "test:unit": "bun test src/",
-    "test:integration": "TESTCONTAINERS_RYUK_DISABLED=true bun test test/integration",
+    "test:integration": "TESTCONTAINERS_RYUK_DISABLED=true bun test test/integration --timeout 180000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

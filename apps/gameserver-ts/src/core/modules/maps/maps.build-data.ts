@@ -13,6 +13,8 @@ type MapRow = {
   width: number;
   height: number;
   background: number;
+  musicId: number | null;
+  ambianceId: number | null;
   cells: Uint8Array;
   subareaId: number | null;
 };
@@ -27,5 +29,7 @@ export function buildMapData(row: MapRow): GameMapData {
     background: row.background,
     cells: decodeCells(row.cells).map((c) => create(MapCellSchema, c)),
     subareaId: row.subareaId ?? 0,
+    musicId: row.musicId ?? 0,
+    ambianceId: row.ambianceId ?? 0,
   });
 }

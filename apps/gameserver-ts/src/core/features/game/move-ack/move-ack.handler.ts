@@ -8,7 +8,7 @@ import {
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { FightStartService } from "@features/game/fight-start/fight-start.service";
 import { MapCacheService } from "@modules/maps/maps.cache.service";
-import { detectExitDirection, oppositeEdgeCell } from "@modules/maps/maps.edge";
+import { detectExitDirection, resolveLandingCell } from "@modules/maps/maps.edge";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
@@ -201,15 +201,21 @@ export class MoveAckHandler {
       return;
     }
 
-    const landingCell = oppositeEdgeCell(
+    // Not the bare geometric mirror: that lands on the target's outermost
+    // long row, which is blocked decoration on real 1.29 maps, and strands the
+    // player on a cell with no walkable neighbour.
+    const landingCell = resolveLandingCell(
+      targetMap,
       cellId,
       resolved.direction,
-      sourceMap.width,
-      targetMap.width,
-      targetMap.height
+      sourceMap.width
     );
 
     if (landingCell === undefined) {
+      this.logger.warn(
+        `edge-transition: map ${resolved.neighborMapId} has no walkable cell ` +
+          `on the arrival edge (from map ${mapId} cell ${cellId})`
+      );
       return;
     }
 

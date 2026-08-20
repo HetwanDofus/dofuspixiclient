@@ -1,0 +1,18 @@
+node_modules
+**/node_modules
+.git
+.turbo
+**/dist
+**/target
+assets/cache
+assets/dist
+# The 5.8 GB of published client art is client-only; the server needs just
+# the lang bundles, which are copied explicitly in the Dockerfile.
+apps/electrobun/public/assets/spritesheets
+apps/electrobun/public/assets/dofassets
+apps/electrobun/public/assets/items
+apps/electrobun/public/assets/sound
+apps/electrobun/public/assets/loader
+apps/electrobun/public/assets/maps
+tools/combat-exporter/output
+tools/combat-exporter/spell-analysis
