@@ -30,7 +30,11 @@ type CoreLink = {
 export class Upstream {
   private active: CoreLink | null = null;
   private standby: CoreLink | null = null;
-  private buffer: PendingClientMsg[] = [];
+  // Everything bound for the core goes through this one queue — session
+  // lifecycle frames included — so a replay after an outage keeps the
+  // open → messages → close order the core relies on.
+  private buffer: GatewayFrame[] = [];
+  private dropped = 0;
   private buffering = false;
   private pendingSnapshotAck: ((snapshot: Uint8Array) => void) | null = null;
   private pendingRestoreAck: (() => void) | null = null;
@@ -38,7 +42,8 @@ export class Upstream {
 
   constructor(
     readonly role: Role,
-    private readonly sessions: SessionRegistry
+    private readonly sessions: SessionRegistry,
+    private readonly handoffTimeoutMs: number = HANDOFF_TIMEOUT_MS
   ) {
     this.log = logger.child({ mod: "upstream", role });
   }
@@ -59,6 +64,22 @@ export class Upstream {
           this.log.info({ path }, "connected to core");
 
           link.resolveReady();
+
+          // The transport reconnects the *same* link object in place, so a core
+          // that dies and comes back never passes through setActive() again —
+          // the only other place that lowers `buffering`. Without this the
+          // gateway stays in buffering mode for good and every client frame
+          // piles up unsent until BUFFER_CAP.
+          // A handoff owns `buffering` for its whole duration: if a standby is
+          // in flight, leave the flag to handoffTo().
+          if (this.active === link && this.buffering && !this.standby) {
+            this.log.warn(
+              { path, buffered: this.buffer.length },
+              "active core reconnected — resuming"
+            );
+
+            this.resume();
+          }
         },
         onDisconnect: () => {
           // Only flip to buffering if the *active* link just died. A retired
@@ -80,8 +101,7 @@ export class Upstream {
 
   setActive(link: CoreLink) {
     this.active = link;
-    this.buffering = false;
-    this.flushBuffer();
+    this.resume();
   }
 
   status() {
@@ -95,25 +115,7 @@ export class Upstream {
   }
 
   forwardClient(msg: PendingClientMsg) {
-    if (this.buffering || !this.active) {
-      if (this.buffer.length >= BUFFER_CAP) {
-        this.log.error(
-          { cap: BUFFER_CAP },
-          "buffer overflow — dropping oldest"
-        );
-        this.buffer.shift();
-      }
-
-      this.buffer.push(msg);
-
-      return;
-    }
-
-    this.sendClientEnvelope(this.active, msg);
-  }
-
-  private sendClientEnvelope(link: CoreLink, msg: PendingClientMsg) {
-    link.socket.send(
+    this.send(
       create(GatewayFrameSchema, {
         kind: {
           case: "clientEnv",
@@ -123,40 +125,104 @@ export class Upstream {
     );
   }
 
-  private flushBuffer() {
-    if (!this.active) {
-      return;
-    }
-
-    for (const m of this.buffer) {
-      this.sendClientEnvelope(this.active, m);
-    }
-
-    this.buffer = [];
-  }
-
   sessionOpen(
     sessionId: string,
     accountId: string,
     characterId: string,
     remoteAddr: string
   ) {
-    const frame = create(GatewayFrameSchema, {
-      kind: {
-        case: "sessionOpen",
-        value: { sessionId, accountId, characterId, remoteAddr },
-      },
-    });
-
-    (this.active ?? this.standby)?.socket.send(frame);
+    // Buffered like any other frame: a session that opens while the core is
+    // down must still be announced when it comes back, and must be announced
+    // *before* the client frames that reference it.
+    this.send(
+      create(GatewayFrameSchema, {
+        kind: {
+          case: "sessionOpen",
+          value: { sessionId, accountId, characterId, remoteAddr },
+        },
+      })
+    );
   }
 
   sessionClose(sessionId: string, reason: string) {
-    const frame = create(GatewayFrameSchema, {
-      kind: { case: "sessionClose", value: { sessionId, reason } },
-    });
+    this.send(
+      create(GatewayFrameSchema, {
+        kind: { case: "sessionClose", value: { sessionId, reason } },
+      })
+    );
+  }
 
-    (this.active ?? this.standby)?.socket.send(frame);
+  private resume() {
+    this.buffering = false;
+    this.flushBuffer();
+  }
+
+  private send(frame: GatewayFrame) {
+    if (this.buffering || !this.active) {
+      this.pushBuffered(frame);
+
+      return;
+    }
+
+    this.active.socket.send(frame);
+  }
+
+  private pushBuffered(frame: GatewayFrame) {
+    if (this.buffer.length >= BUFFER_CAP) {
+      // One line per overflow episode, not one per dropped frame: every log
+      // entry is parsed by the in-memory sink and pushed to the Ink UI, so a
+      // saturated buffer used to cost ~190ms and 200k re-renders per 200k
+      // dropped frames — a self-inflicted stall exactly when the gateway is
+      // already struggling. The tally goes out once, at flush.
+      if (this.dropped === 0) {
+        this.log.error(
+          { cap: BUFFER_CAP },
+          "buffer overflow — dropping oldest frames"
+        );
+      }
+
+      this.dropped += 1;
+
+      this.buffer.shift();
+    }
+
+    this.buffer.push(frame);
+  }
+
+  private flushBuffer() {
+    if (!this.active || this.buffer.length === 0) {
+      this.reportDropped();
+
+      return;
+    }
+
+    // Swap the queue out before sending: anything re-entering send() while we
+    // drain must land in the new buffer, not in the one being replayed.
+    const active = this.active;
+    const replay = this.buffer;
+
+    this.buffer = [];
+
+    for (const frame of replay) {
+      active.socket.send(frame);
+    }
+
+    this.log.info({ flushed: replay.length }, "buffer flushed to core");
+
+    this.reportDropped();
+  }
+
+  private reportDropped() {
+    if (this.dropped === 0) {
+      return;
+    }
+
+    this.log.error(
+      { dropped: this.dropped, cap: BUFFER_CAP },
+      "frames lost to buffer overflow during outage"
+    );
+
+    this.dropped = 0;
   }
 
   private onCoreFrame(frame: GatewayFrame) {
@@ -195,76 +261,103 @@ export class Upstream {
 
     this.standby = this.connect(standbyPath);
 
-    await withTimeout(
-      this.standby.ready,
-      HANDOFF_TIMEOUT_MS,
-      "standby connect"
-    );
+    try {
+      await withTimeout(
+        this.standby.ready,
+        this.handoffTimeoutMs,
+        "standby connect"
+      );
 
-    this.buffering = true;
+      this.buffering = true;
 
-    this.active.socket.send(
-      create(GatewayFrameSchema, {
-        kind: {
-          case: "handoff",
-          value: {
-            phase: HandoffControl_Phase.DRAIN,
-            snapshot: new Uint8Array(),
+      this.active.socket.send(
+        create(GatewayFrameSchema, {
+          kind: {
+            case: "handoff",
+            value: {
+              phase: HandoffControl_Phase.DRAIN,
+              snapshot: new Uint8Array(),
+            },
           },
-        },
-      })
-    );
+        })
+      );
 
-    const snapshot = await withTimeout(
-      new Promise<Uint8Array>((r) => {
-        this.pendingSnapshotAck = r;
-      }),
-      HANDOFF_TIMEOUT_MS,
-      "snapshot from active"
+      const snapshot = await withTimeout(
+        new Promise<Uint8Array>((r) => {
+          this.pendingSnapshotAck = r;
+        }),
+        this.handoffTimeoutMs,
+        "snapshot from active"
+      );
+
+      this.pendingSnapshotAck = null;
+
+      this.standby.socket.send(
+        create(GatewayFrameSchema, {
+          kind: {
+            case: "handoff",
+            value: { phase: HandoffControl_Phase.RESTORE, snapshot },
+          },
+        })
+      );
+
+      await withTimeout(
+        new Promise<void>((r) => {
+          this.pendingRestoreAck = r;
+        }),
+        this.handoffTimeoutMs,
+        "restore ack from standby"
+      );
+
+      this.pendingRestoreAck = null;
+
+      const old = this.active;
+      this.active = this.standby;
+      this.standby = null;
+      this.resume();
+
+      old.socket.send(
+        create(GatewayFrameSchema, {
+          kind: {
+            case: "handoff",
+            value: {
+              phase: HandoffControl_Phase.SHUTDOWN,
+              snapshot: new Uint8Array(),
+            },
+          },
+        })
+      );
+
+      setTimeout(() => old.socket.close(), 500);
+
+      this.log.info(
+        { from: old.path, to: this.active.path },
+        "handoff complete"
+      );
+    } catch (err) {
+      // A half-finished handoff must not wedge the gateway: a leftover
+      // `standby` rejects every later attempt, and `buffering` left true
+      // freezes every session — the QA-048 failure mode by another road.
+      this.abortHandoff(err as Error);
+
+      throw err;
+    }
+  }
+
+  private abortHandoff(err: Error) {
+    this.log.error(
+      { err: err.message, standby: this.standby?.path ?? null },
+      "handoff failed — falling back to the active core"
     );
 
     this.pendingSnapshotAck = null;
-
-    this.standby.socket.send(
-      create(GatewayFrameSchema, {
-        kind: {
-          case: "handoff",
-          value: { phase: HandoffControl_Phase.RESTORE, snapshot },
-        },
-      })
-    );
-
-    await withTimeout(
-      new Promise<void>((r) => {
-        this.pendingRestoreAck = r;
-      }),
-      HANDOFF_TIMEOUT_MS,
-      "restore ack from standby"
-    );
-
     this.pendingRestoreAck = null;
 
-    const old = this.active;
-    this.active = this.standby;
+    const standby = this.standby;
     this.standby = null;
-    this.buffering = false;
-    this.flushBuffer();
+    standby?.socket.close();
 
-    old.socket.send(
-      create(GatewayFrameSchema, {
-        kind: {
-          case: "handoff",
-          value: {
-            phase: HandoffControl_Phase.SHUTDOWN,
-            snapshot: new Uint8Array(),
-          },
-        },
-      })
-    );
-
-    setTimeout(() => old.socket.close(), 500);
-
-    this.log.info({ from: old.path, to: this.active.path }, "handoff complete");
+    this.resume();
   }
 
   private onHandoffFrame(phase: HandoffControl_Phase, snapshot: Uint8Array) {
