@@ -13,6 +13,10 @@ import {
 import { match } from "ts-pattern";
 
 import type { Role, SessionRegistry } from "./session-registry.ts";
+import {
+  closeCodeForCoreReason,
+  WS_CLOSE_CORE_GONE,
+} from "./close-codes.ts";
 import { logger } from "./logger.ts";
 
 const BUFFER_CAP = 10_000;
@@ -89,6 +93,7 @@ export class Upstream {
             this.log.warn({ path }, "active core disconnected — buffering");
 
             this.buffering = true;
+            this.invalidateSessions();
           } else {
             this.log.info({ path }, "retired core disconnected (expected)");
           }
@@ -149,6 +154,35 @@ export class Upstream {
       create(GatewayFrameSchema, {
         kind: { case: "sessionClose", value: { sessionId, reason } },
       })
+    );
+  }
+
+  // The core process just died and took every scrap of per-session state with
+  // it: character selection, map, presence. Sessions bound to it are zombies —
+  // the socket is still open, the client still shows "Connected", and every
+  // order it sends lands in a core that has never heard of the session. Hang up
+  // so it finds out (QA-046).
+  //
+  // Only sessions that existed at this instant are doomed. A client that
+  // connects *during* the outage is announced to the new core from the buffer
+  // and is perfectly valid — QA-048 exists to make sure of it.
+  //
+  // A handoff never reaches here: the retired link is not `active` by the time
+  // it dies, and its state has already been moved across.
+  private invalidateSessions() {
+    const closed = this.sessions.closeRole(
+      this.role,
+      WS_CLOSE_CORE_GONE,
+      "core_gone"
+    );
+
+    if (closed.length === 0) {
+      return;
+    }
+
+    this.log.warn(
+      { sessions: closed.length },
+      "core gone — closing its sessions so clients stop believing they are connected"
     );
   }
 
@@ -239,6 +273,23 @@ export class Upstream {
         this.log.info(
           { sessions: value.sessionIds.length, delivered, payload: value.message.payload.case },
           "coreEnv → ws"
+        );
+      })
+      // `sessionClose` normally travels the other way (a client hung up).
+      // Coming *from* the core it is an order: drop this one. The core decides
+      // who should be connected — one session per account, for instance — but
+      // only the gateway holds the socket.
+      .with({ case: "sessionClose" }, ({ value }) => {
+        const code = closeCodeForCoreReason(value.reason);
+        const closed = this.sessions.closeOne(
+          value.sessionId,
+          code,
+          value.reason
+        );
+
+        this.log.info(
+          { session: value.sessionId, reason: value.reason, code, closed },
+          "core ordered a session closed"
         );
       })
       .with({ case: "handoff" }, ({ value }) =>

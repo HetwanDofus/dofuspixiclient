@@ -1,6 +1,7 @@
 import type { ConnectionConfig, ConnectionState } from "@/game/types";
 import { createLogger } from "@/utils/logger";
 
+import { isTerminalClose, WS_CLOSE_NORMAL } from "./close-codes";
 import { type DofusMessage, decodeServer } from "./protocol";
 
 const log = createLogger("Connection");
@@ -10,7 +11,11 @@ export type ConnectionEvent =
   | { type: "disconnected"; code: number; reason: string }
   | { type: "error"; error: Error }
   | { type: "message"; message: DofusMessage }
-  | { type: "reconnecting"; attempt: number };
+  | { type: "reconnecting"; attempt: number }
+  // Every reconnect attempt has been spent. Without this the caller saw a
+  // `disconnected` event, then nothing — indistinguishable from a healthy idle
+  // link, which is how the UI ended up lying about being connected (QA-046).
+  | { type: "failed"; attempts: number };
 
 export type ConnectionEventListener = (event: ConnectionEvent) => void;
 
@@ -19,6 +24,14 @@ const DEFAULT_CONFIG: Required<ConnectionConfig> = {
   reconnectInterval: 3000,
   maxReconnectAttempts: 5,
 };
+
+// A new socket only helps when the old one died of something a new one could
+// survive. A clean close was asked for; a terminal close means the server ended
+// the session on purpose — reconnecting there would hand us a live socket and
+// nothing else, which is the zombie session QA-046 is about.
+function isRetryable(code: number): boolean {
+  return code !== WS_CLOSE_NORMAL && !isTerminalClose(code);
+}
 
 export class Connection {
   private config: Required<ConnectionConfig>;
@@ -98,7 +111,7 @@ export class Connection {
     this.reconnectAttempts = this.config.maxReconnectAttempts;
 
     if (this.socket) {
-      this.socket.close(1000, "Client disconnect");
+      this.socket.close(WS_CLOSE_NORMAL, "Client disconnect");
       this.socket = null;
     }
 
@@ -141,7 +154,7 @@ export class Connection {
     this.state = "disconnected";
     this.emit({ type: "disconnected", code: event.code, reason: event.reason });
 
-    if (event.code !== 1000) {
+    if (isRetryable(event.code)) {
       this.scheduleReconnect();
     }
   }
@@ -163,6 +176,7 @@ export class Connection {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
+      this.emit({ type: "failed", attempts: this.reconnectAttempts });
       return;
     }
 

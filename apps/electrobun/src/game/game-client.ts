@@ -9,6 +9,11 @@ import { AudioManager } from "@/game/audio/audio-manager";
 import { derivePasswordKey } from "@/game/auth/pbkdf2";
 import { loginActor } from "@/game/machines/actors";
 import { spellCastActor } from "@/game/machines/spell-cast.machine";
+import {
+  isTerminalClose,
+  WS_CLOSE_ACCOUNT_TAKEN_OVER,
+  WS_CLOSE_CORE_GONE,
+} from "@/game/network/close-codes";
 import { Connection, type ConnectionEvent } from "@/game/network/connection";
 import { AuthHandler } from "@/game/network/handlers/auth.handler";
 import {
@@ -41,10 +46,21 @@ import {
 import { HighlightType } from "@/game/scene/overlays/cell-highlighter";
 import { PlayerAnimation } from "@/game/scene/player/animation";
 import { characterStore } from "@/game/stores";
+import {
+  type LostCause,
+  markConnected,
+  markLost,
+  markReconnecting,
+} from "@/game/stores/connection-store";
 import { fightActor, fightStore } from "@/game/stores/fight-store";
 import { spellsStore, tickCooldowns } from "@/game/stores/spells-store";
 import { HoverPreview } from "@/hud/fight/hover-preview";
 import { createLogger } from "@/utils/logger";
+
+const LOST_CAUSE: Record<number, LostCause> = {
+  [WS_CLOSE_CORE_GONE]: "core_restarted",
+  [WS_CLOSE_ACCOUNT_TAKEN_OVER]: "taken_over",
+};
 
 export type { CharacterInfo } from "@/game/network/handlers/character.handler";
 
@@ -148,6 +164,7 @@ export class GameClient {
               )
             );
           }
+          markConnected();
           this.onConnected?.();
         })
         .with({ type: "disconnected" }, (e) => {
@@ -159,6 +176,15 @@ export class GameClient {
             this.onDisconnected?.();
             return;
           }
+          // A terminal close means the server ended the session on purpose:
+          // its core died, or another window took the account over. Nothing
+          // remembers us, so say so instead of leaving a green badge over a
+          // world that will never answer again (QA-046).
+          if (isTerminalClose(e.code)) {
+            markLost(LOST_CAUSE[e.code] ?? "unreachable");
+          } else {
+            markReconnecting();
+          }
           loginActor.send({ type: "LOGOUT" });
           // The world is gone — so is its music. A pivot disconnect returns
           // above, so the track survives the gamed handoff.
@@ -167,6 +193,11 @@ export class GameClient {
         })
         .with({ type: "message" }, (e) => {
           this.messageHandler.handle(e.message);
+        })
+        .with({ type: "reconnecting" }, () => markReconnecting())
+        .with({ type: "failed" }, (e) => {
+          log.warn(`Giving up after ${e.attempts} reconnect attempts`);
+          markLost("unreachable");
         })
         .otherwise(() => {});
     });

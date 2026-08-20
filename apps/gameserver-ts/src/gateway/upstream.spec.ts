@@ -14,9 +14,14 @@ import {
 } from "@dofus/proto/gateway/v1/gateway_frame_pb";
 import { type FramedSocket, listen } from "@dofus/uds-transport";
 
+import {
+  WS_CLOSE_ACCOUNT_TAKEN_OVER,
+  WS_CLOSE_CORE_GONE,
+  WS_CLOSE_SESSION_ENDED,
+} from "./close-codes.ts";
 import { logSink } from "./log-sink.ts";
 import { logger } from "./logger.ts";
-import { SessionRegistry } from "./session-registry.ts";
+import { newSession, type Role, SessionRegistry } from "./session-registry.ts";
 import { Upstream } from "./upstream.ts";
 
 // These tests drive the real UDS transport against a fake core process, because
@@ -30,6 +35,8 @@ const RECONNECT_MS = 500; // uds-transport default retry delay
 type FakeCore = {
   /** Every frame this core instance received, in arrival order. */
   frames: GatewayFrame[];
+  /** Pushes a frame at the gateway, the way a real core does. */
+  send: (frame: GatewayFrame) => void;
   stop: () => void;
 };
 
@@ -53,51 +60,57 @@ function startCore(
   }
 
   const frames: GatewayFrame[] = [];
+  let live: FramedSocket | null = null;
 
   const server = listen({
     path,
-    onConnection: (socket: FramedSocket) => ({
-      onFrame: (f) => {
-        frames.push(f);
+    onConnection: (socket: FramedSocket) => {
+      live = socket;
 
-        if (!opts.answerHandoff || f.kind.case !== "handoff") {
-          return;
-        }
+      return {
+        onFrame: (f) => {
+          frames.push(f);
 
-        if (f.kind.value.phase === HandoffControl_Phase.DRAIN) {
-          socket.send(
-            create(GatewayFrameSchema, {
-              kind: {
-                case: "handoff",
-                value: {
-                  phase: HandoffControl_Phase.SNAPSHOT,
-                  snapshot: new Uint8Array([1, 2, 3]),
+          if (!opts.answerHandoff || f.kind.case !== "handoff") {
+            return;
+          }
+
+          if (f.kind.value.phase === HandoffControl_Phase.DRAIN) {
+            socket.send(
+              create(GatewayFrameSchema, {
+                kind: {
+                  case: "handoff",
+                  value: {
+                    phase: HandoffControl_Phase.SNAPSHOT,
+                    snapshot: new Uint8Array([1, 2, 3]),
+                  },
                 },
-              },
-            })
-          );
-        }
+              })
+            );
+          }
 
-        if (f.kind.value.phase === HandoffControl_Phase.RESTORE) {
-          socket.send(
-            create(GatewayFrameSchema, {
-              kind: {
-                case: "handoff",
-                value: {
-                  phase: HandoffControl_Phase.READY,
-                  snapshot: new Uint8Array(),
+          if (f.kind.value.phase === HandoffControl_Phase.RESTORE) {
+            socket.send(
+              create(GatewayFrameSchema, {
+                kind: {
+                  case: "handoff",
+                  value: {
+                    phase: HandoffControl_Phase.READY,
+                    snapshot: new Uint8Array(),
+                  },
                 },
-              },
-            })
-          );
-        }
-      },
-      onClose: () => undefined,
-    }),
+              })
+            );
+          }
+        },
+        onClose: () => undefined,
+      };
+    },
   });
 
   return {
     frames,
+    send: (frame) => live?.send(frame),
     stop: () => {
       server.stop(true);
 
@@ -446,4 +459,253 @@ describe("Upstream — handoff still holds", () => {
 
     link.socket.close();
   });
+});
+
+// ── QA-046 ───────────────────────────────────────────────────────────────────
+
+type FakeClient = {
+  sessionId: string;
+  /** Close frames the gateway pushed at this client, in order. */
+  closes: Array<{ code: number; reason: string }>;
+};
+
+/**
+ * Registers a session backed by a recording sink. `close` also unregisters, the
+ * way the real WebSocket close handler does in gateway/http.ts — without that,
+ * the registry would keep handing out sessions the gateway has already hung up
+ * on and the tests would pass for the wrong reason.
+ */
+function addSession(
+  registry: SessionRegistry,
+  sessionId: string,
+  role: Role
+): FakeClient {
+  const closes: Array<{ code: number; reason: string }> = [];
+
+  registry.add(
+    newSession({
+      sessionId,
+      role,
+      accountId: "acc-1",
+      characterId: "char-1",
+      remoteAddr: "10.0.0.1",
+      sink: {
+        sendBinary: () => undefined,
+        close: (code, reason) => {
+          closes.push({ code, reason });
+          registry.remove(sessionId);
+        },
+      },
+    })
+  );
+
+  return { sessionId, closes };
+}
+
+describe("Upstream — zombie sessions after a core restart (QA-046)", () => {
+  test("hangs up on every session the dead core was backing", async () => {
+    const path = sockPath();
+    const core = startCore(path);
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const playerA = addSession(registry, "game-a", "game");
+    const playerB = addSession(registry, "game-b", "game");
+    // Same gateway, different upstream: the auth core is still alive and its
+    // sessions have no business being torn down.
+    const atLogin = addSession(registry, "auth-a", "auth");
+
+    // `docker restart gamed`
+    core.stop();
+    await until(() => up.status().buffering, "buffering after core death");
+
+    expect(playerA.closes).toEqual([
+      { code: WS_CLOSE_CORE_GONE, reason: "core_gone" },
+    ]);
+    expect(playerB.closes).toEqual([
+      { code: WS_CLOSE_CORE_GONE, reason: "core_gone" },
+    ]);
+    expect(atLogin.closes).toEqual([]);
+
+    // Before the fix the client kept a live socket and a green "Connected"
+    // badge while every order it sent vanished into a core that had never
+    // heard of the session.
+    expect(registry.sizeByRole("game")).toBe(0);
+    expect(registry.sizeByRole("auth")).toBe(1);
+
+    link.socket.close();
+  }, 20_000);
+
+  test("a client connecting during the outage is not collateral damage", async () => {
+    const path = sockPath();
+    const first = startCore(path);
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const doomed = addSession(registry, "before", "game");
+
+    first.stop();
+    await until(() => up.status().buffering, "buffering after core death");
+
+    expect(doomed.closes).toHaveLength(1);
+
+    // Arrives after the core died — the new core will hear about it from the
+    // buffer, so this one is a perfectly valid session and must survive.
+    const newcomer = addSession(registry, "during", "game");
+    up.sessionOpen("during", "acc-1", "char-1", "10.0.0.1");
+
+    const second = track(startCore(path));
+
+    await until(
+      () => second.frames.length === 1,
+      "sessionOpen replayed",
+      RECONNECT_MS * 8
+    );
+
+    expect(kinds(second)).toEqual(["sessionOpen"]);
+    expect(newcomer.closes).toEqual([]);
+    expect(registry.sizeByRole("game")).toBe(1);
+
+    link.socket.close();
+  }, 20_000);
+
+  test("a handoff hangs up on nobody", async () => {
+    const pathA = sockPath();
+    const pathB = sockPath();
+    const coreA = track(startCore(pathA, { answerHandoff: true }));
+    track(startCore(pathB, { answerHandoff: true }));
+
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(pathA);
+
+    up.setActive(link);
+    await link.ready;
+
+    const player = addSession(registry, "game-a", "game");
+
+    await up.handoffTo(pathB);
+
+    // The retired core dying is the whole point of a handoff: state moved
+    // across first, so the session is very much alive.
+    coreA.stop();
+    await Bun.sleep(RECONNECT_MS * 2);
+
+    expect(player.closes).toEqual([]);
+    expect(registry.sizeByRole("game")).toBe(1);
+  }, 20_000);
+});
+
+// ── Session evicted by the core (one session per account) ────────────────────
+
+/** The order a core sends when it decides somebody else owns this account. */
+function evictionOrder(sessionId: string, reason: string): GatewayFrame {
+  return create(GatewayFrameSchema, {
+    kind: { case: "sessionClose", value: { sessionId, reason } },
+  });
+}
+
+describe("Upstream — the core evicting a session", () => {
+  test("hangs up on exactly the named session, with the mapped code", async () => {
+    const path = sockPath();
+    const core = track(startCore(path));
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const doomed = addSession(registry, "old-window", "game");
+    const bystander = addSession(registry, "someone-else", "game");
+
+    core.send(evictionOrder("old-window", "account_taken_over"));
+
+    await until(() => doomed.closes.length === 1, "eviction delivered");
+
+    expect(doomed.closes).toEqual([
+      { code: WS_CLOSE_ACCOUNT_TAKEN_OVER, reason: "account_taken_over" },
+    ]);
+    expect(bystander.closes).toEqual([]);
+
+    link.socket.close();
+  }, 20_000);
+
+  test("an unrecognised reason still closes, with the generic code", async () => {
+    const path = sockPath();
+    const core = track(startCore(path));
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const doomed = addSession(registry, "old-window", "game");
+
+    core.send(evictionOrder("old-window", "some_future_reason"));
+
+    await until(() => doomed.closes.length === 1, "eviction delivered");
+
+    // A core newer than the gateway must still be able to end a session; only
+    // the wording the player sees degrades.
+    expect(doomed.closes).toEqual([
+      { code: WS_CLOSE_SESSION_ENDED, reason: "some_future_reason" },
+    ]);
+
+    link.socket.close();
+  }, 20_000);
+
+  test("an order for an unknown session is a no-op, not a crash", async () => {
+    const path = sockPath();
+    const core = track(startCore(path));
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const survivor = addSession(registry, "still-here", "game");
+
+    // The normal race: the client hung up a moment before the core decided to.
+    core.send(evictionOrder("already-gone", "account_taken_over"));
+    await Bun.sleep(200);
+
+    expect(survivor.closes).toEqual([]);
+    expect(registry.sizeByRole("game")).toBe(1);
+
+    link.socket.close();
+  }, 20_000);
+
+  test("eviction and core death stay separate paths", async () => {
+    const path = sockPath();
+    const core = track(startCore(path));
+    const registry = new SessionRegistry();
+    const up = new Upstream("game", registry);
+    const link = up.connect(path);
+
+    up.setActive(link);
+    await link.ready;
+
+    const player = addSession(registry, "player", "game");
+
+    core.send(evictionOrder("player", "account_taken_over"));
+    await until(() => player.closes.length === 1, "eviction delivered");
+
+    // QA-046 closes on 4001 when the core dies; an eviction is 4002 and must
+    // not be mistaken for one — the player sees a different sentence.
+    expect(player.closes[0]?.code).toBe(WS_CLOSE_ACCOUNT_TAKEN_OVER);
+    expect(player.closes[0]?.code).not.toBe(WS_CLOSE_CORE_GONE);
+
+    link.socket.close();
+  }, 20_000);
 });

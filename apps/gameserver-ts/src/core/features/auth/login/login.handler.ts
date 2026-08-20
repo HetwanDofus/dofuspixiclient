@@ -11,6 +11,7 @@ import { LoginRepository } from "@features/auth/login/login.repository";
 import { Injectable, Logger } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
+import { SessionEvictionService } from "@shared/gateway-adapter/session-eviction.service";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 
 @Injectable()
@@ -20,7 +21,8 @@ export class LoginHandler {
   constructor(
     private readonly repo: LoginRepository,
     private readonly sessions: SessionRegistry,
-    private readonly frames: GatewayFrameService
+    private readonly frames: GatewayFrameService,
+    private readonly eviction: SessionEvictionService
   ) {}
 
   @MessageHandler(AccountSendIdentitySchema)
@@ -48,6 +50,11 @@ export class LoginHandler {
 
     const addr = session?.remoteAddr;
     await this.repo.markLoggedIn(account.id, addr && addr !== "unknown" ? addr : null);
+
+    // One session per account. Deliberately *after* the password and ban
+    // checks: evicting on a failed attempt would let anyone disconnect a player
+    // by guessing their username.
+    this.eviction.evictAccount(account.id, ctx.sessionId);
 
     this.sessions.attachAccount(ctx.sessionId, account.id);
 

@@ -114,7 +114,7 @@ export function buildHttpApp(deps: Deps) {
         accountId: "",
         characterId: "",
         remoteAddr: c.req.header("x-forwarded-for") ?? "unknown",
-        sink: { sendBinary: () => undefined },
+        sink: { sendBinary: () => undefined, close: () => undefined },
       });
 
       return {
@@ -122,6 +122,9 @@ export function buildHttpApp(deps: Deps) {
           session.sink = {
             sendBinary: (bytes) => {
               ws.send(bytes);
+            },
+            close: (code, reason) => {
+              ws.close(code, reason);
             },
           };
           deps.sessions.add(session);
@@ -165,7 +168,7 @@ export function buildHttpApp(deps: Deps) {
         accountId: auth.accountId,
         characterId: auth.characterId,
         remoteAddr: c.req.header("x-forwarded-for") ?? "unknown",
-        sink: { sendBinary: () => undefined },
+        sink: { sendBinary: () => undefined, close: () => undefined },
       });
 
       return {
@@ -173,6 +176,9 @@ export function buildHttpApp(deps: Deps) {
           session.sink = {
             sendBinary: (bytes) => {
               ws.send(bytes);
+            },
+            close: (code, reason) => {
+              ws.close(code, reason);
             },
           };
           deps.sessions.add(session);
