@@ -13,6 +13,14 @@ export interface SpellEffect {
   areaKind: AreaKind;
   areaSize: number;
   targetMask: number;
+  /**
+   * Raw lang `param` slot, persisted by migration 0039. Carries the
+   * target filter for effects that have one, and the state / item /
+   * summon name for the effects whose description template needs it.
+   * Optional because the combat resolver never reads it — only the
+   * spell book's effect-description formatter does.
+   */
+  param?: string;
 }
 
 export type SpellLevel = Omit<SpellLevelRow, "effects" | "criticalEffects"> & {

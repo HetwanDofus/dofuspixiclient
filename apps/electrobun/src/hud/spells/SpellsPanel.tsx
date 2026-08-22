@@ -1,196 +1,478 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+
+import { isClassSpell, loadClassesLang } from "@/game/lang/classes-lang";
+import { characterStore } from "@/game/stores";
+import {
+  MAX_SPELL_LEVEL,
+  type SpellEntry,
+  spellsStore,
+  spellUpgradeCost,
+} from "@/game/stores/spells-store";
 
 import { Panel } from "../components/Panel";
+import { Scrollbar } from "./Scrollbar";
+import { SpellIconMount } from "./SpellIconMount";
+import { type SpellTypeFilter, SpellTypeSelect } from "./SpellTypeSelect";
+import { SPELL_BOOK_COLORS, SPELL_LIST_METRICS } from "./spell-book-theme";
 
 interface SpellsPanelProps {
   onClose: () => void;
   zoom?: number;
+  /** Spell whose detail panel is open, so the row can render selected. */
+  selectedSpellId: number | null;
+  onSelectSpell: (spellId: number) => void;
+  onUpgradeSpell: (spellId: number) => void;
 }
 
+const M = SPELL_LIST_METRICS;
+const C = SPELL_BOOK_COLORS;
+
 /**
- * Spells panel: 250x390
- * Filter buttons + spell list + boost points footer
+ * "Tes sorts" — the spell book's list panel.
+ *
+ * Layout is a 1:1 transcription of the retail 1.29 window (see
+ * `spell-book-theme.ts` for how the numbers were derived): a capital
+ * counter, a spell-type filter, then a fixed 10-row viewport over the
+ * player's spells with its own scrollbar.
+ *
+ * Every row is a button: clicking opens the spell in the detail panel,
+ * and the `+` appears only when the player can actually afford the next
+ * level. Affordability is re-checked server-side — this only decides
+ * whether the button is drawn.
  */
-export function SpellsPanel({ onClose, zoom = 1 }: SpellsPanelProps) {
-  const [activeFilter, setActiveFilter] = useState(0);
+export function SpellsPanel({
+  onClose,
+  zoom = 1,
+  selectedSpellId,
+  onSelectSpell,
+  onUpgradeSpell,
+}: SpellsPanelProps) {
+  const p = (n: number) => n * zoom;
 
-  const p = (n: number) => Math.round(n * zoom);
+  const { spells } = useSyncExternalStore(
+    spellsStore.subscribe,
+    spellsStore.getSnapshot
+  );
+  const { classId, stats } = useSyncExternalStore(
+    characterStore.subscribe,
+    characterStore.getSnapshot
+  );
 
-  const filterColors = [
-    "#888888",
-    "#996633",
-    "#3399ff",
-    "#ff6633",
-    "#669933",
-    "#cccccc",
-    "#ffcc00",
-  ];
+  const [filter, setFilter] = useState<SpellTypeFilter>("class");
+  const [scrollTop, setScrollTop] = useState(0);
+  const [classesReady, setClassesReady] = useState(false);
 
-  const contentHeight = 390 - 22; // excluding title bar
-  const colHeaderY = p(6 + 14 + 14 + 4); // label(6) + filters(18+4) + section header(14) + spacing(4)
-  const listY = colHeaderY + p(14);
-  const rowH = p(18);
-  const footerY = contentHeight - p(16);
+  // The breed→spells table only gates the "Classe" filter, so it can
+  // land after the first paint; re-render once it does.
+  useEffect(() => {
+    let cancelled = false;
+    loadClassesLang().then(() => {
+      if (!cancelled) {
+        setClassesReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const spellPoints = stats?.bonusPointsSpell ?? 0;
+
+  // classesReady is not read below: it re-runs the memo once the breed
+  // table lands, so isClassSpell stops answering "everything".
+  // biome-ignore lint/correctness/useExhaustiveDependencies: classesReady is a re-run trigger, not an input.
+  const visible = useMemo(() => {
+    // Spell 0 is the weapon attack, which the book never lists. Every
+    // other id is fair game: breed spells run from 1 (Féca's Armure
+    // Aqueuse) to 705 (Pandawa), so there is no low-id range to skip.
+    const known = spells.filter((s) => s.spellId > 0);
+    const filtered =
+      filter === "class"
+        ? known.filter((s) => isClassSpell(classId, s.spellId))
+        : known;
+    return filtered.sort((a, b) => {
+      const aPos = a.position > 0 ? a.position : Number.POSITIVE_INFINITY;
+      const bPos = b.position > 0 ? b.position : Number.POSITIVE_INFINITY;
+      if (aPos !== bPos) {
+        return aPos - bPos;
+      }
+      return a.spellId - b.spellId;
+    });
+  }, [spells, filter, classId, classesReady]);
+
+  const viewportHeight = M.rowHeight * M.visibleRows;
+  const contentHeight = M.rowHeight * visible.length;
+  const maxScroll = Math.max(0, contentHeight - viewportHeight);
+  const clampedScroll = Math.min(scrollTop, maxScroll);
+  const scrollable = maxScroll > 0;
+
+  const listWidth =
+    M.width - 2 * M.border - 2 * M.gutter - (scrollable ? M.scrollbarWidth : 0);
 
   return (
-    <Panel title="Sorts" width={250} height={390} onClose={onClose} zoom={zoom}>
+    <Panel
+      title="Tes sorts"
+      width={M.width}
+      height={M.height}
+      onClose={onClose}
+      zoom={zoom}
+      style={{ background: C.body }}
+    >
       <div
         style={{
           position: "relative",
           width: "100%",
           height: "100%",
-          fontSize: p(11),
+          color: C.text,
+          fontFamily: "Verdana, sans-serif",
+          overflow: "hidden",
         }}
       >
-        {/* Filter type label */}
+        {/* Capital sorts */}
+        <Row centerY={p(M.capitalRowCenter)} gutter={p(M.gutter)}>
+          <span style={{ fontSize: p(9) }}>Capital sorts</span>
+          <span style={{ fontSize: p(10), fontWeight: "bold" }}>
+            {spellPoints}
+          </span>
+        </Row>
+
+        {/* Type de sort + filter dropdown */}
+        <Row centerY={p(M.typeRowCenter)} gutter={p(M.gutter)}>
+          <span style={{ fontSize: p(9) }}>Type de sort</span>
+        </Row>
         <div
           style={{
             position: "absolute",
-            left: p(6),
-            top: p(6),
-            fontSize: p(10),
-            fontWeight: "bold",
-            color: "var(--dofus-text-dark, #514a3c)",
+            right: p(M.gutter),
+            top: p(M.dropdownTop),
+            width: p(M.dropdownWidth),
+            height: p(M.dropdownHeight),
           }}
         >
-          Type
+          <SpellTypeSelect value={filter} onChange={setFilter} zoom={zoom} />
         </div>
 
-        {/* Filter buttons row */}
+        {/* Column header */}
         <div
           style={{
             position: "absolute",
-            left: p(6),
-            top: p(20),
-            display: "flex",
-            flexWrap: "wrap",
-            gap: p(4),
-            width: p(240),
-          }}
-        >
-          {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
-            <button
-              type="button"
-              key={`filter-${idx}`}
-              onClick={() => setActiveFilter(idx)}
-              style={{
-                width: p(18),
-                height: p(18),
-                borderRadius: p(2),
-                border: `${p(1)}px solid var(--dofus-bar-border, #514a3c)`,
-                background:
-                  idx === activeFilter
-                    ? filterColors[idx]
-                    : "var(--dofus-bar-bg, #514a3c)",
-                cursor: "pointer",
-                padding: 0,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Spell list section header */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: p(44),
-            width: "100%",
-            height: p(14),
-            background: "var(--dofus-header-bg, #514a3c)",
-            color: "var(--dofus-text-white, #ffffff)",
-            padding: `${p(3)}px ${p(8)}px`,
-            fontSize: p(10),
-            fontWeight: "bold",
-            boxSizing: "border-box",
-          }}
-        >
-          Liste des sorts
-        </div>
-
-        {/* Column headers */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: colHeaderY,
-            width: "100%",
-            height: p(14),
-            background: "var(--dofus-header-bg, #514a3c)",
-            color: "var(--dofus-text-white, #ffffff)",
-            padding: `${p(2)}px ${p(6)}px`,
-            fontSize: p(10),
-            fontWeight: "bold",
-            boxSizing: "border-box",
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>Nom</span>
-          <span>Niveau</span>
-        </div>
-
-        {/* Spell list rows */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: listY,
-            width: "100%",
-            height: footerY - listY,
-            overflow: "auto",
-          }}
-        >
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={`spell-${i}`}
-              style={{
-                position: "relative",
-                height: rowH,
-                padding: `${p(2)}px ${p(6)}px`,
-                borderBottom: `${p(1)}px solid var(--dofus-bar-border, #514a3c)`,
-                background:
-                  i % 2 === 1
-                    ? "var(--dofus-bg-alt, #c9bda5)"
-                    : "var(--dofus-bg, #d5cfaa)",
-                fontSize: p(10),
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              <img
-                src="/themes/classic/assets/panels/spells/spell-slot-background.svg"
-                alt="spell"
-                style={{ width: p(20), height: p(20) }}
-              />
-              <div />
-            </div>
-          ))}
-        </div>
-
-        {/* Footer: boost points */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: footerY,
-            width: "100%",
-            height: contentHeight - footerY,
-            background: "var(--dofus-header-bg, #514a3c)",
-            color: "var(--dofus-text-white, #ffffff)",
-            padding: `${p(4)}px`,
-            textAlign: "center",
-            fontSize: p(11),
-            fontWeight: "bold",
-            boxSizing: "border-box",
+            left: p(M.gutter),
+            right: p(M.gutter),
+            top: p(M.listTop),
+            height: p(M.columnHeader),
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            background: C.header,
+            color: C.headerText,
+            fontSize: p(9),
           }}
         >
-          Points de boost : 0
+          <span style={{ flex: 2, textAlign: "center" }}>Nom</span>
+          <span style={{ flex: 1, textAlign: "center" }}>Niveau</span>
+        </div>
+
+        {/* Row viewport + scrollbar */}
+        <div
+          style={{
+            position: "absolute",
+            left: p(M.gutter),
+            right: p(M.gutter),
+            top: p(M.listTop + M.columnHeader),
+            height: p(viewportHeight),
+            display: "flex",
+          }}
+        >
+          <div
+            style={{ width: p(listWidth), height: "100%", overflow: "hidden" }}
+            onWheel={(e) => {
+              if (!scrollable) {
+                return;
+              }
+              e.stopPropagation();
+              setScrollTop((prev) =>
+                Math.max(
+                  0,
+                  Math.min(maxScroll, prev + Math.sign(e.deltaY) * M.rowHeight)
+                )
+              );
+            }}
+          >
+            <div
+              style={{
+                transform: `translateY(${p(-clampedScroll)}px)`,
+                willChange: "transform",
+              }}
+            >
+              {visible.map((spell, index) => (
+                <SpellRow
+                  key={spell.spellId}
+                  spell={spell}
+                  index={index}
+                  selected={spell.spellId === selectedSpellId}
+                  spellPoints={spellPoints}
+                  width={listWidth}
+                  zoom={zoom}
+                  onSelect={onSelectSpell}
+                  onUpgrade={onUpgradeSpell}
+                />
+              ))}
+            </div>
+          </div>
+
+          {scrollable && (
+            <Scrollbar
+              zoom={zoom}
+              width={M.scrollbarWidth}
+              scrollTop={clampedScroll}
+              maxScroll={maxScroll}
+              viewportHeight={viewportHeight}
+              contentHeight={contentHeight}
+              step={M.rowHeight}
+              onScroll={setScrollTop}
+            />
+          )}
         </div>
       </div>
     </Panel>
   );
+}
+
+function Row({
+  centerY,
+  gutter,
+  children,
+}: {
+  centerY: number;
+  gutter: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: gutter,
+        right: gutter,
+        top: centerY,
+        transform: "translateY(-50%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface SpellRowProps {
+  spell: SpellEntry;
+  index: number;
+  selected: boolean;
+  spellPoints: number;
+  width: number;
+  zoom: number;
+  onSelect: (spellId: number) => void;
+  onUpgrade: (spellId: number) => void;
+}
+
+function SpellRow({
+  spell,
+  index,
+  selected,
+  spellPoints,
+  width,
+  zoom,
+  onSelect,
+  onUpgrade,
+}: SpellRowProps) {
+  const p = (n: number) => n * zoom;
+  const [hovered, setHovered] = useState(false);
+
+  const atMax = spell.level >= MAX_SPELL_LEVEL;
+  const cost = spellUpgradeCost(spell.level);
+  // The character-level requirement is only known once the detail panel
+  // has fetched the level table, so the row gates on affordability alone
+  // and lets the server reject the rest — exactly what retail does, where
+  // clicking `+` on a too-low character produces an error message.
+  const canAfford = !atMax && spellPoints >= cost;
+
+  const background = selected
+    ? C.rowSelected
+    : hovered
+      ? C.rowHover
+      : index % 2 === 0
+        ? C.rowEven
+        : C.rowOdd;
+
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: the row holds the + button, and a <button> cannot legally nest one.
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(spell.spellId)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(spell.spellId);
+        }
+      }}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        width: p(width),
+        height: p(M.rowHeight),
+        background,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: p(6),
+        paddingLeft: p(3),
+        paddingRight: p(3),
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: p(M.iconSize),
+          height: p(M.iconSize),
+          flexShrink: 0,
+        }}
+      >
+        <SpellIconMount spellId={spell.spellId} label={spell.name} />
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: p(4),
+          }}
+        >
+          <span
+            style={{
+              fontSize: p(9),
+              fontWeight: "bold",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {spell.name}
+          </span>
+          <span
+            style={{
+              fontSize: p(9),
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            Niv. {spell.level}
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: p(4),
+            color: C.textMuted,
+            fontSize: p(8),
+            marginTop: p(1),
+          }}
+        >
+          <span style={{ whiteSpace: "nowrap" }}>
+            {spell.apCost} PA
+            <span
+              style={{ display: "inline-block", width: p(M.costRangeGap) }}
+            />
+            {formatRange(spell.rangeMin, spell.rangeMax)} PO
+          </span>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: p(3),
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {!atMax && <>Coût du niveau suivant : {cost}</>}
+            {canAfford && (
+              <PlusButton
+                zoom={zoom}
+                label={`Améliorer ${spell.name} au niveau ${spell.level + 1}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpgrade(spell.spellId);
+                }}
+              />
+            )}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlusButton({
+  zoom,
+  label,
+  onClick,
+}: {
+  zoom: number;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const p = (n: number) => n * zoom;
+  const [pressed, setPressed] = useState(false);
+  const size = p(12);
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onPointerLeave={() => setPressed(false)}
+      style={{
+        width: size,
+        height: size,
+        padding: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: C.plus,
+        border: `${Math.max(1, p(1))}px solid ${C.plusBorder}`,
+        boxSizing: "border-box",
+        cursor: "pointer",
+        filter: pressed ? "brightness(0.85)" : "none",
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width={size * 0.7}
+        height={size * 0.7}
+        viewBox="0 0 10 10"
+        aria-hidden="true"
+      >
+        <path d="M4 0h2v4h4v2H6v4H4V6H0V4h4z" fill={C.plusText} />
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * Range as the book prints it: `1-8`, or just the maximum when the
+ * minimum is 0. Retail keeps `1-1` (La Bloqueuse) but writes a 0..5
+ * range as plain `5` — the zero is what it elides, not the repetition.
+ */
+function formatRange(min: number, max: number): string {
+  return min === 0 ? String(max) : `${min}-${max}`;
 }

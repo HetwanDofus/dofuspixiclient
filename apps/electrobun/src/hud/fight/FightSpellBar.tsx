@@ -32,12 +32,15 @@ export function FightSpellBar({ onSelect }: FightSpellBarProps) {
 
   // All castable spells the player knows. Positioned ones come first
   // (sorted by slot), then unpositioned by spell id so the bar stays
-  // populated even before the 0037 seed assigns positions. The
-  // `spellId >= 100` guard keeps internal ids (0 = weapon attack,
-  // 1..99 = server/meta spells with no atlas) out of the bar —
-  // actual breed spells in Dofus 1.29 all live in the 100..3000 range.
+  // populated even before the 0037 seed assigns positions.
+  //
+  // Only spell 0 (the weapon attack) is filtered out. An earlier
+  // `spellId >= 100` guard assumed breed spells started at 100, but the
+  // classes bundle puts Féca at 1..20, Osamodas at 21..40 and so on
+  // through Pandawa at 686..705 — that guard emptied the bar for the
+  // first five breeds.
   const slotted = spells
-    .filter((s) => s.spellId >= 100)
+    .filter((s) => s.spellId > 0)
     .sort((a, b) => {
       const aPos = a.position > 0 ? a.position : Number.POSITIVE_INFINITY;
       const bPos = b.position > 0 ? b.position : Number.POSITIVE_INFINITY;

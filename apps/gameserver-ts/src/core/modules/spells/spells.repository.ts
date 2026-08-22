@@ -18,6 +18,21 @@ export class SpellsRepository {
       .executeTakeFirst();
   }
 
+  /**
+   * Every level row of one spell, ordered 1..6 — what the spell book's
+   * detail panel paginates through. Separate from `findLevel` because
+   * the panel needs all levels at once (the player can preview a level
+   * they have not bought yet).
+   */
+  findAllLevels(spellId: number) {
+    return this.txHost.tx
+      .selectFrom("spellLevels")
+      .selectAll()
+      .where("spellId", "=", spellId)
+      .orderBy("level", "asc")
+      .execute();
+  }
+
   findTemplate(spellId: number) {
     return this.txHost.tx
       .selectFrom("spellTemplates")
@@ -50,11 +65,7 @@ export class SpellsRepository {
           .onRef("spellLevels.spellId", "=", "playerSpells.spellId")
           .onRef("spellLevels.level", "=", "playerSpells.level")
       )
-      .innerJoin(
-        "spellTemplates",
-        "spellTemplates.id",
-        "playerSpells.spellId"
-      )
+      .innerJoin("spellTemplates", "spellTemplates.id", "playerSpells.spellId")
       .select([
         "playerSpells.spellId",
         "playerSpells.level",
@@ -80,6 +91,35 @@ export class SpellsRepository {
       ])
       .where("playerSpells.playerId", "=", playerId)
       .execute();
+  }
+
+  findPlayerSpell(playerId: string, spellId: number) {
+    return this.txHost.tx
+      .selectFrom("playerSpells")
+      .selectAll()
+      .where("playerId", "=", playerId)
+      .where("spellId", "=", spellId)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Bumps one player spell to `newLevel`. Returns the number of rows
+   * touched so the caller can treat a concurrent upgrade (same spell,
+   * two frames in flight) as a no-op rather than double-charging.
+   */
+  async setPlayerSpellLevel(
+    playerId: string,
+    spellId: number,
+    newLevel: number
+  ): Promise<number> {
+    const res = await this.txHost.tx
+      .updateTable("playerSpells")
+      .set({ level: newLevel })
+      .where("playerId", "=", playerId)
+      .where("spellId", "=", spellId)
+      .where("level", "<", newLevel)
+      .executeTakeFirst();
+    return Number(res.numUpdatedRows);
   }
 
   async playerHasSpell(playerId: string, spellId: number): Promise<boolean> {

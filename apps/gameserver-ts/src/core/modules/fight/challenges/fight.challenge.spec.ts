@@ -85,6 +85,8 @@ function makeCastContext(
       castPerTarget: 0,
       cooldown: 0,
       lineOnly: false,
+      minPlayerLevel: 1,
+      critFailureEndsTurn: false,
       visualGfxId: 0,
     },
     critical: false,

@@ -152,3 +152,17 @@ export function tickCooldowns(): void {
 export function spellLevel(spellId: number): number {
   return spellsStore.getSnapshot().byId.get(spellId)?.level ?? 1;
 }
+
+/** Highest level any spell can reach. */
+export const MAX_SPELL_LEVEL = 6;
+
+/**
+ * Spell points it costs to raise a spell from `currentLevel` to the next
+ * one — the "Coût du niveau suivant" the spell book prints on every row.
+ *
+ * Mirrors the server's `spell-upgrade-cost.ts`, which is the authority:
+ * this copy only decides whether the row draws its `+` button.
+ */
+export function spellUpgradeCost(currentLevel: number): number {
+  return Math.max(1, currentLevel);
+}

@@ -91,7 +91,12 @@ export class CharacterHandler {
 
         characterStore.setState({
           name: payload.characterName,
-          classId: 0, // class comes from pre-game CharacterListEntry; refine later
+          // 1.29 encodes the breed in the sprite id as `classId * 10 + sex`
+          // (dev-seed: class 1, sex 0 → gfx 10). The selection frame has no
+          // class field of its own, and the spell book's "Classe" filter
+          // needs one — a hard-coded 0 matches no breed in the classes
+          // bundle, which silently turns that filter into a no-op.
+          classId: Math.floor(payload.gfxId / 10),
           level: payload.level,
         });
 
@@ -160,5 +165,6 @@ function accountStatsToCharacterStats(s: AccountStats): CharacterStats {
     discernment: s.discernment,
     range: s.range?.base ?? 0,
     summonLimit: s.maxSummons?.base ?? 0,
+    criticalHit: flat(s.criticalHit).base + flat(s.criticalHit).items,
   };
 }

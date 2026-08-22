@@ -133,4 +133,37 @@ export class PlayersRepository {
       .where("id", "=", playerId)
       .execute();
   }
+
+  /**
+   * Debits `cost` spell points ("capital sorts"), returning the number of
+   * rows it touched — 0 when the player could no longer afford it.
+   *
+   * This is the *gate* on a spell upgrade, not a bookkeeping step after
+   * one: the `spellPoints >= cost` predicate and the subtraction happen
+   * in the same statement, so two upgrade frames racing over the same
+   * balance cannot both pass. Callers must treat 0 as a refusal and
+   * grant nothing.
+   */
+  async spendSpellPoints(playerId: string, cost: number): Promise<number> {
+    const res = await this.txHost.tx
+      .updateTable("players")
+      .set((eb) => ({ spellPoints: eb("spellPoints", "-", cost) }))
+      .where("id", "=", playerId)
+      .where("spellPoints", ">=", cost)
+      .executeTakeFirst();
+    return Number(res.numUpdatedRows);
+  }
+
+  /**
+   * Gives `cost` spell points back. Only for unwinding a debit whose
+   * matching level grant turned out to be a no-op — see the upgrade
+   * handler; there is no gameplay path that refunds points.
+   */
+  async refundSpellPoints(playerId: string, cost: number): Promise<void> {
+    await this.txHost.tx
+      .updateTable("players")
+      .set((eb) => ({ spellPoints: eb("spellPoints", "+", cost) }))
+      .where("id", "=", playerId)
+      .execute();
+  }
 }

@@ -336,6 +336,15 @@ export interface SpellLevelsTable {
    * canonical values come from the StarLoco `sorts` import.
    */
   visualGfxId: number | null;
+  /**
+   * Character level required to own this spell level. Display-only for
+   * the spell book ("Niveau requis") and the gate the spell-upgrade
+   * handler checks; the cast path never reads it. Seeded from the lang
+   * bundle by migration 0045.
+   */
+  minPlayerLevel: number;
+  /** "EC fini le tour" — a critical failure ends the caster's turn. */
+  critFailureEndsTurn: boolean;
 }
 
 export type SpellLevelRow = Selectable<SpellLevelsTable>;
