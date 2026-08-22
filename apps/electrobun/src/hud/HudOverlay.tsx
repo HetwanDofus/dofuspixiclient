@@ -17,7 +17,7 @@ import { GuildPanel } from "./guild/GuildPanel";
 import { InventoryPanel } from "./inventory/InventoryPanel";
 import { MountPanel } from "./mount/MountPanel";
 import { QuestsPanel } from "./quests/QuestsPanel";
-import { SpellsPanel } from "./spells/SpellsPanel";
+import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
 import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
@@ -94,7 +94,11 @@ export function HudOverlay({
 
         {activePanel === "spells" && (
           <div style={panelWrapStyle}>
-            <SpellsPanel zoom={baseZoom} onClose={() => closeAllPanels()} />
+            <SpellBook
+              zoom={baseZoom}
+              gameClient={gameClient}
+              onClose={() => closeAllPanels()}
+            />
           </div>
         )}
 

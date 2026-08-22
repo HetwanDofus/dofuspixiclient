@@ -111,6 +111,7 @@ message ClientMessage {
     SpellUpgradeRequest            spell_upgrade                   = 400; // SU
     SpellForgetRequest             spell_forget                    = 401; // SF
     SpellMoveRequest               spell_move                      = 402; // SM
+    SpellDetailsRequest            spell_details                   = 403; // Sd
 
     // --- Chat / Basics (B/c) ---
     ChatSendMessage                chat_send_message               = 500; // BM

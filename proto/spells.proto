@@ -51,6 +51,57 @@ message SpellRemove {
   int32 position = 1;
 }
 
+// One effect line of a spell level, as the spell book renders it.
+// `effect_id` keys into the client's `effects` lang bundle for the
+// description template; min/max/special fill its #1/#2/#3 slots.
+message SpellEffectData {
+  int32  effect_id = 1;
+  int32  min = 2;
+  int32  max = 3;
+  int32  special = 4;
+  int32  duration = 5;     // Turns the effect lasts (0 = instant)
+  int32  probability = 6;  // Random gate, 0-100 (0 = always)
+  int32  area_kind = 7;
+  int32  area_size = 8;
+  string param = 9;        // Raw lang `param` slot (target filter, state name...)
+}
+
+// Everything the spell book needs about ONE level of a spell. Mirrors a
+// `spell_levels` row plus the two display-only columns (`min_player_level`,
+// `crit_failure_ends_turn`) the cast path never reads.
+message SpellLevelDetail {
+  int32 level = 1;
+  int32 ap_cost = 2;
+  int32 range_min = 3;
+  int32 range_max = 4;
+  int32 critical_rate = 5;   // 1/x, 0 = spell cannot crit
+  int32 failure_rate = 6;    // 1/x, 0 = spell cannot fail
+  bool  line_of_sight = 7;
+  bool  empty_cell = 8;
+  bool  modifiable_range = 9;
+  bool  line_only = 10;
+  int32 cast_per_turn = 11;    // 0 = unlimited
+  int32 cast_per_target = 12;  // 0 = unlimited
+  int32 cooldown = 13;         // Turns between two casts, 0 = none
+  int32 min_player_level = 14; // Character level required to reach this level
+  bool  crit_failure_ends_turn = 15;
+  repeated SpellEffectData effects = 16;
+  repeated SpellEffectData critical_effects = 17;
+}
+
+// Sd - Spell details: every level of one spell, sent on demand when the
+// player opens a spell in the spell book. Not part of the SpellList
+// snapshot — a full spellbook's worth of level data is ~50x the size of
+// the list and the panel only ever shows one spell at a time.
+message SpellDetails {
+  int32  spell_id = 1;
+  string name = 2;
+  string description = 3;
+  // Level the player currently owns (0 when they don't know the spell).
+  int32  player_level = 4;
+  repeated SpellLevelDetail levels = 5;
+}
+
 // SC - Spell cooldown
 message SpellCooldown {
   int32 spell_id = 1;
@@ -75,4 +126,9 @@ message SpellForgetRequest {
 message SpellMoveRequest {
   int32 spell_id = 1;
   int32 new_slot = 2;
+}
+
+// Client sends Sd<spellId> to open a spell in the spell book.
+message SpellDetailsRequest {
+  int32 spell_id = 1;
 }

@@ -42,6 +42,8 @@ import {
   ItemDropRequestSchema,
   ItemMoveRequestSchema,
   ItemUseRequestSchema,
+  SpellDetailsRequestSchema,
+  SpellUpgradeRequestSchema,
 } from "@/game/network/protocol";
 import { HighlightType } from "@/game/scene/overlays/cell-highlighter";
 import { PlayerAnimation } from "@/game/scene/player/animation";
@@ -53,6 +55,10 @@ import {
   markReconnecting,
 } from "@/game/stores/connection-store";
 import { fightActor, fightStore } from "@/game/stores/fight-store";
+import {
+  markSpellDetailsPending,
+  spellDetailsStore,
+} from "@/game/stores/spell-details-store";
 import { spellsStore, tickCooldowns } from "@/game/stores/spells-store";
 import { HoverPreview } from "@/hud/fight/hover-preview";
 import { createLogger } from "@/utils/logger";
@@ -1087,6 +1093,41 @@ export class GameClient {
       encodeClient(
         "itemDestroy",
         create(ItemDestroyRequestSchema, { itemUnicId: unicId, quantity })
+      )
+    );
+  }
+
+  /**
+   * Asks for a spell's full level table (Sd) — what the spell book's
+   * detail panel renders. Cached client-side, so this is a no-op once a
+   * spell has been opened; `force` bypasses the cache after an upgrade
+   * changed the owned level.
+   */
+  requestSpellDetails(spellId: number, force = false): void {
+    const state = spellDetailsStore.getSnapshot();
+    if (!force && (state.byId.has(spellId) || state.pending.has(spellId))) {
+      return;
+    }
+    markSpellDetailsPending(spellId);
+    this.connection.send(
+      encodeClient(
+        "spellDetails",
+        create(SpellDetailsRequestSchema, { spellId })
+      )
+    );
+  }
+
+  /**
+   * Spends capital sorts to raise a spell one level (SU). The server is
+   * the authority on affordability and on the required character level;
+   * it answers with SpellUpgrade, then a fresh SpellList and As frame.
+   */
+  upgradeSpell(spellId: number): void {
+    markSpellDetailsPending(spellId);
+    this.connection.send(
+      encodeClient(
+        "spellUpgrade",
+        create(SpellUpgradeRequestSchema, { spellId })
       )
     );
   }

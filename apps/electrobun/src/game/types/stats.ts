@@ -28,6 +28,12 @@ export interface CharacterStats {
   discernment: number;
   range: number;
   summonLimit: number;
+  /**
+   * Critical-hit bonus from gear ("Coups Critiques"). Subtracted from a
+   * spell's 1/x critical rate to give the "CC actuels" the spell book
+   * shows — see `effectiveCriticalRate` in the spells HUD.
+   */
+  criticalHit: number;
 }
 
 export const STAT_IDS = {

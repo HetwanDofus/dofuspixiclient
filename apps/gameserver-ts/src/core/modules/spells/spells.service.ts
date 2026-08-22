@@ -1,14 +1,20 @@
+import type { SpellData } from "@dofus/proto/common_pb";
+import type { SpellDetails, SpellEffectData } from "@dofus/proto/spells_pb";
 import type { SpellPort } from "@modules/fight/cast/fight.cast.types";
 import type {
   SpellEffect,
   SpellLevel,
 } from "@modules/fight/cast/fight.spell.types";
 import type { AreaKind } from "@modules/fight/fight.types";
+import { create } from "@bufbuild/protobuf";
+import { SpellDataSchema } from "@dofus/proto/common_pb";
+import {
+  SpellDetailsSchema,
+  SpellEffectDataSchema,
+  SpellLevelDetailSchema,
+} from "@dofus/proto/spells_pb";
 import { LangsService } from "@modules/langs/langs.service";
 import { SpellsRepository } from "@modules/spells/spells.repository";
-import type { SpellData } from "@dofus/proto/common_pb";
-import { SpellDataSchema } from "@dofus/proto/common_pb";
-import { create } from "@bufbuild/protobuf";
 import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
@@ -112,6 +118,75 @@ export class SpellsService implements SpellPort {
     );
     return out;
   }
+
+  /**
+   * Every level of one spell, for the spell book's detail panel.
+   *
+   * The panel lets the player page through levels 1..6 including ones
+   * they have not bought, so this ignores `player_spells.level` for the
+   * payload and reports it separately as `playerLevel` — the panel uses
+   * it to mark the owned level and to price the next one.
+   *
+   * Sent on demand (one spell at a time) rather than folded into
+   * SpellList: six levels of effects per spell is roughly fifty times
+   * the SpellList payload for data the HUD shows one spell at a time.
+   */
+  async buildSpellDetails(
+    playerId: string,
+    spellId: number
+  ): Promise<SpellDetails | undefined> {
+    const rows = await this.repo.findAllLevels(spellId);
+    if (rows.length === 0) {
+      return undefined;
+    }
+    const owned = await this.repo.findPlayerSpell(playerId, spellId);
+    const lang = this.langs.getSpellSync(spellId);
+    const template = lang ? undefined : await this.repo.findTemplate(spellId);
+
+    return create(SpellDetailsSchema, {
+      spellId,
+      name: lang?.name ?? template?.name ?? `Spell ${spellId}`,
+      description: lang?.description ?? "",
+      playerLevel: owned?.level ?? 0,
+      levels: rows.map((row) =>
+        create(SpellLevelDetailSchema, {
+          level: row.level,
+          apCost: row.apCost,
+          rangeMin: row.rangeMin,
+          rangeMax: row.rangeMax,
+          criticalRate: row.criticalRate,
+          failureRate: row.failureRate,
+          lineOfSight: row.lineOfSight,
+          emptyCell: row.emptyCell,
+          modifiableRange: row.modifiableRange,
+          lineOnly: row.lineOnly,
+          castPerTurn: row.castPerTurn,
+          castPerTarget: row.castPerTarget,
+          cooldown: row.cooldown,
+          minPlayerLevel: row.minPlayerLevel,
+          critFailureEndsTurn: row.critFailureEndsTurn,
+          effects: toEffectData(parseEffects(row.effects)),
+          criticalEffects: toEffectData(parseEffects(row.criticalEffects)),
+        })
+      ),
+    });
+  }
+}
+
+function toEffectData(effects: readonly SpellEffect[]): SpellEffectData[] {
+  return effects.map((e) =>
+    create(SpellEffectDataSchema, {
+      effectId: e.id,
+      min: e.min,
+      max: e.max,
+      special: e.special,
+      duration: e.duration,
+      probability: e.probability,
+      areaKind: e.areaKind,
+      areaSize: e.areaSize,
+      param: e.param ?? "",
+    })
+  );
 }
 
 function parseEffects(raw: unknown): SpellEffect[] {
@@ -131,6 +206,7 @@ function parseEffects(raw: unknown): SpellEffect[] {
   // random gate 0-100). Re-running the migration will eventually do
   // this at the source.
   return raw.map((e) => ({
+    param: typeof e?.param === "string" ? e.param : "",
     id: Number(e?.id ?? 0),
     min: Number(e?.min ?? 0),
     max: Number(e?.max ?? 0),

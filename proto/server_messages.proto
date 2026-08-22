@@ -125,6 +125,7 @@ message DofusMessage {
     SpellMove                    spell_move                     = 305; // SM
     SpellRemove                  spell_remove                   = 306; // SR
     SpellCooldown                spell_cooldown                 = 307; // SC
+    SpellDetails                 spell_details                  = 308; // Sd
 
     // --- Items (O) ---
     ItemAccessories              item_accessories               = 400; // Oa

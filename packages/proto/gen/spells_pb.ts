@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file spells.proto.
  */
 export const file_spells: GenFile = /*@__PURE__*/
-  fileDesc("CgxzcGVsbHMucHJvdG8SBWRvZnVzIi0KCVNwZWxsTGlzdBIgCgZzcGVsbHMYASADKAsyEC5kb2Z1cy5TcGVsbERhdGEiMgoRU3BlbGxDaGFuZ2VPcHRpb24SHQoVY2FuX3VzZV9zZWVfYWxsX3NwZWxsGAEgASgIIkQKDFNwZWxsVXBncmFkZRIPCgdzdWNjZXNzGAEgASgIEhAKCHNwZWxsX2lkGAIgASgFEhEKCW5ld19sZXZlbBgDIAEoBSJGCgpTcGVsbEJvb3N0EhAKCHNwZWxsX2lkGAEgASgFEhEKCW1vZGlmaWVycxgCIAMoBRITCgtib29zdF92YWx1ZRgDIAEoBSIeCgtTcGVsbEZvcmdldBIPCgdzaG93X3VpGAEgASgIIjcKCVNwZWxsTW92ZRIUCgxvbGRfcG9zaXRpb24YASABKAUSFAoMbmV3X3Bvc2l0aW9uGAIgASgFIh8KC1NwZWxsUmVtb3ZlEhAKCHBvc2l0aW9uGAEgASgFIjoKDVNwZWxsQ29vbGRvd24SEAoIc3BlbGxfaWQYASABKAUSFwoPcmVtYWluaW5nX3R1cm5zGAIgASgFIicKE1NwZWxsVXBncmFkZVJlcXVlc3QSEAoIc3BlbGxfaWQYASABKAUiJgoSU3BlbGxGb3JnZXRSZXF1ZXN0EhAKCHNwZWxsX2lkGAEgASgFIjYKEFNwZWxsTW92ZVJlcXVlc3QSEAoIc3BlbGxfaWQYASABKAUSEAoIbmV3X3Nsb3QYAiABKAViBnByb3RvMw", [file_common]);
+  fileDesc("CgxzcGVsbHMucHJvdG8SBWRvZnVzIi0KCVNwZWxsTGlzdBIgCgZzcGVsbHMYASADKAsyEC5kb2Z1cy5TcGVsbERhdGEiMgoRU3BlbGxDaGFuZ2VPcHRpb24SHQoVY2FuX3VzZV9zZWVfYWxsX3NwZWxsGAEgASgIIkQKDFNwZWxsVXBncmFkZRIPCgdzdWNjZXNzGAEgASgIEhAKCHNwZWxsX2lkGAIgASgFEhEKCW5ld19sZXZlbBgDIAEoBSJGCgpTcGVsbEJvb3N0EhAKCHNwZWxsX2lkGAEgASgFEhEKCW1vZGlmaWVycxgCIAMoBRITCgtib29zdF92YWx1ZRgDIAEoBSIeCgtTcGVsbEZvcmdldBIPCgdzaG93X3VpGAEgASgIIjcKCVNwZWxsTW92ZRIUCgxvbGRfcG9zaXRpb24YASABKAUSFAoMbmV3X3Bvc2l0aW9uGAIgASgFIh8KC1NwZWxsUmVtb3ZlEhAKCHBvc2l0aW9uGAEgASgFIqsBCg9TcGVsbEVmZmVjdERhdGESEQoJZWZmZWN0X2lkGAEgASgFEgsKA21pbhgCIAEoBRILCgNtYXgYAyABKAUSDwoHc3BlY2lhbBgEIAEoBRIQCghkdXJhdGlvbhgFIAEoBRITCgtwcm9iYWJpbGl0eRgGIAEoBRIRCglhcmVhX2tpbmQYByABKAUSEQoJYXJlYV9zaXplGAggASgFEg0KBXBhcmFtGAkgASgJIrQDChBTcGVsbExldmVsRGV0YWlsEg0KBWxldmVsGAEgASgFEg8KB2FwX2Nvc3QYAiABKAUSEQoJcmFuZ2VfbWluGAMgASgFEhEKCXJhbmdlX21heBgEIAEoBRIVCg1jcml0aWNhbF9yYXRlGAUgASgFEhQKDGZhaWx1cmVfcmF0ZRgGIAEoBRIVCg1saW5lX29mX3NpZ2h0GAcgASgIEhIKCmVtcHR5X2NlbGwYCCABKAgSGAoQbW9kaWZpYWJsZV9yYW5nZRgJIAEoCBIRCglsaW5lX29ubHkYCiABKAgSFQoNY2FzdF9wZXJfdHVybhgLIAEoBRIXCg9jYXN0X3Blcl90YXJnZXQYDCABKAUSEAoIY29vbGRvd24YDSABKAUSGAoQbWluX3BsYXllcl9sZXZlbBgOIAEoBRIeChZjcml0X2ZhaWx1cmVfZW5kc190dXJuGA8gASgIEicKB2VmZmVjdHMYECADKAsyFi5kb2Z1cy5TcGVsbEVmZmVjdERhdGESMAoQY3JpdGljYWxfZWZmZWN0cxgRIAMoCzIWLmRvZnVzLlNwZWxsRWZmZWN0RGF0YSKCAQoMU3BlbGxEZXRhaWxzEhAKCHNwZWxsX2lkGAEgASgFEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFAoMcGxheWVyX2xldmVsGAQgASgFEicKBmxldmVscxgFIAMoCzIXLmRvZnVzLlNwZWxsTGV2ZWxEZXRhaWwiOgoNU3BlbGxDb29sZG93bhIQCghzcGVsbF9pZBgBIAEoBRIXCg9yZW1haW5pbmdfdHVybnMYAiABKAUiJwoTU3BlbGxVcGdyYWRlUmVxdWVzdBIQCghzcGVsbF9pZBgBIAEoBSImChJTcGVsbEZvcmdldFJlcXVlc3QSEAoIc3BlbGxfaWQYASABKAUiNgoQU3BlbGxNb3ZlUmVxdWVzdBIQCghzcGVsbF9pZBgBIAEoBRIQCghuZXdfc2xvdBgCIAEoBSInChNTcGVsbERldGFpbHNSZXF1ZXN0EhAKCHNwZWxsX2lkGAEgASgFYgZwcm90bzM", [file_common]);
 
 /**
  * SL - Spell list
@@ -179,6 +179,230 @@ export const SpellRemoveSchema: GenMessage<SpellRemove> = /*@__PURE__*/
   messageDesc(file_spells, 6);
 
 /**
+ * One effect line of a spell level, as the spell book renders it.
+ * `effect_id` keys into the client's `effects` lang bundle for the
+ * description template; min/max/special fill its #1/#2/#3 slots.
+ *
+ * @generated from message dofus.SpellEffectData
+ */
+export type SpellEffectData = Message<"dofus.SpellEffectData"> & {
+  /**
+   * @generated from field: int32 effect_id = 1;
+   */
+  effectId: number;
+
+  /**
+   * @generated from field: int32 min = 2;
+   */
+  min: number;
+
+  /**
+   * @generated from field: int32 max = 3;
+   */
+  max: number;
+
+  /**
+   * @generated from field: int32 special = 4;
+   */
+  special: number;
+
+  /**
+   * Turns the effect lasts (0 = instant)
+   *
+   * @generated from field: int32 duration = 5;
+   */
+  duration: number;
+
+  /**
+   * Random gate, 0-100 (0 = always)
+   *
+   * @generated from field: int32 probability = 6;
+   */
+  probability: number;
+
+  /**
+   * @generated from field: int32 area_kind = 7;
+   */
+  areaKind: number;
+
+  /**
+   * @generated from field: int32 area_size = 8;
+   */
+  areaSize: number;
+
+  /**
+   * Raw lang `param` slot (target filter, state name...)
+   *
+   * @generated from field: string param = 9;
+   */
+  param: string;
+};
+
+/**
+ * Describes the message dofus.SpellEffectData.
+ * Use `create(SpellEffectDataSchema)` to create a new message.
+ */
+export const SpellEffectDataSchema: GenMessage<SpellEffectData> = /*@__PURE__*/
+  messageDesc(file_spells, 7);
+
+/**
+ * Everything the spell book needs about ONE level of a spell. Mirrors a
+ * `spell_levels` row plus the two display-only columns (`min_player_level`,
+ * `crit_failure_ends_turn`) the cast path never reads.
+ *
+ * @generated from message dofus.SpellLevelDetail
+ */
+export type SpellLevelDetail = Message<"dofus.SpellLevelDetail"> & {
+  /**
+   * @generated from field: int32 level = 1;
+   */
+  level: number;
+
+  /**
+   * @generated from field: int32 ap_cost = 2;
+   */
+  apCost: number;
+
+  /**
+   * @generated from field: int32 range_min = 3;
+   */
+  rangeMin: number;
+
+  /**
+   * @generated from field: int32 range_max = 4;
+   */
+  rangeMax: number;
+
+  /**
+   * 1/x, 0 = spell cannot crit
+   *
+   * @generated from field: int32 critical_rate = 5;
+   */
+  criticalRate: number;
+
+  /**
+   * 1/x, 0 = spell cannot fail
+   *
+   * @generated from field: int32 failure_rate = 6;
+   */
+  failureRate: number;
+
+  /**
+   * @generated from field: bool line_of_sight = 7;
+   */
+  lineOfSight: boolean;
+
+  /**
+   * @generated from field: bool empty_cell = 8;
+   */
+  emptyCell: boolean;
+
+  /**
+   * @generated from field: bool modifiable_range = 9;
+   */
+  modifiableRange: boolean;
+
+  /**
+   * @generated from field: bool line_only = 10;
+   */
+  lineOnly: boolean;
+
+  /**
+   * 0 = unlimited
+   *
+   * @generated from field: int32 cast_per_turn = 11;
+   */
+  castPerTurn: number;
+
+  /**
+   * 0 = unlimited
+   *
+   * @generated from field: int32 cast_per_target = 12;
+   */
+  castPerTarget: number;
+
+  /**
+   * Turns between two casts, 0 = none
+   *
+   * @generated from field: int32 cooldown = 13;
+   */
+  cooldown: number;
+
+  /**
+   * Character level required to reach this level
+   *
+   * @generated from field: int32 min_player_level = 14;
+   */
+  minPlayerLevel: number;
+
+  /**
+   * @generated from field: bool crit_failure_ends_turn = 15;
+   */
+  critFailureEndsTurn: boolean;
+
+  /**
+   * @generated from field: repeated dofus.SpellEffectData effects = 16;
+   */
+  effects: SpellEffectData[];
+
+  /**
+   * @generated from field: repeated dofus.SpellEffectData critical_effects = 17;
+   */
+  criticalEffects: SpellEffectData[];
+};
+
+/**
+ * Describes the message dofus.SpellLevelDetail.
+ * Use `create(SpellLevelDetailSchema)` to create a new message.
+ */
+export const SpellLevelDetailSchema: GenMessage<SpellLevelDetail> = /*@__PURE__*/
+  messageDesc(file_spells, 8);
+
+/**
+ * Sd - Spell details: every level of one spell, sent on demand when the
+ * player opens a spell in the spell book. Not part of the SpellList
+ * snapshot — a full spellbook's worth of level data is ~50x the size of
+ * the list and the panel only ever shows one spell at a time.
+ *
+ * @generated from message dofus.SpellDetails
+ */
+export type SpellDetails = Message<"dofus.SpellDetails"> & {
+  /**
+   * @generated from field: int32 spell_id = 1;
+   */
+  spellId: number;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * Level the player currently owns (0 when they don't know the spell).
+   *
+   * @generated from field: int32 player_level = 4;
+   */
+  playerLevel: number;
+
+  /**
+   * @generated from field: repeated dofus.SpellLevelDetail levels = 5;
+   */
+  levels: SpellLevelDetail[];
+};
+
+/**
+ * Describes the message dofus.SpellDetails.
+ * Use `create(SpellDetailsSchema)` to create a new message.
+ */
+export const SpellDetailsSchema: GenMessage<SpellDetails> = /*@__PURE__*/
+  messageDesc(file_spells, 9);
+
+/**
  * SC - Spell cooldown
  *
  * @generated from message dofus.SpellCooldown
@@ -200,7 +424,7 @@ export type SpellCooldown = Message<"dofus.SpellCooldown"> & {
  * Use `create(SpellCooldownSchema)` to create a new message.
  */
 export const SpellCooldownSchema: GenMessage<SpellCooldown> = /*@__PURE__*/
-  messageDesc(file_spells, 7);
+  messageDesc(file_spells, 10);
 
 /**
  * Client sends SU<spellId>
@@ -219,7 +443,7 @@ export type SpellUpgradeRequest = Message<"dofus.SpellUpgradeRequest"> & {
  * Use `create(SpellUpgradeRequestSchema)` to create a new message.
  */
 export const SpellUpgradeRequestSchema: GenMessage<SpellUpgradeRequest> = /*@__PURE__*/
-  messageDesc(file_spells, 8);
+  messageDesc(file_spells, 11);
 
 /**
  * Client sends SF<spellId>
@@ -238,7 +462,7 @@ export type SpellForgetRequest = Message<"dofus.SpellForgetRequest"> & {
  * Use `create(SpellForgetRequestSchema)` to create a new message.
  */
 export const SpellForgetRequestSchema: GenMessage<SpellForgetRequest> = /*@__PURE__*/
-  messageDesc(file_spells, 9);
+  messageDesc(file_spells, 12);
 
 /**
  * Client sends SM<spellId>|<newSlot>
@@ -262,5 +486,24 @@ export type SpellMoveRequest = Message<"dofus.SpellMoveRequest"> & {
  * Use `create(SpellMoveRequestSchema)` to create a new message.
  */
 export const SpellMoveRequestSchema: GenMessage<SpellMoveRequest> = /*@__PURE__*/
-  messageDesc(file_spells, 10);
+  messageDesc(file_spells, 13);
+
+/**
+ * Client sends Sd<spellId> to open a spell in the spell book.
+ *
+ * @generated from message dofus.SpellDetailsRequest
+ */
+export type SpellDetailsRequest = Message<"dofus.SpellDetailsRequest"> & {
+  /**
+   * @generated from field: int32 spell_id = 1;
+   */
+  spellId: number;
+};
+
+/**
+ * Describes the message dofus.SpellDetailsRequest.
+ * Use `create(SpellDetailsRequestSchema)` to create a new message.
+ */
+export const SpellDetailsRequestSchema: GenMessage<SpellDetailsRequest> = /*@__PURE__*/
+  messageDesc(file_spells, 14);
 
