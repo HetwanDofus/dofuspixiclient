@@ -6,6 +6,7 @@ import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { PlayersRepository } from "@modules/players/players.repository";
+import { LifeRegenService } from "@modules/stats/life-regen.service";
 import {
   BASE_AP,
   BASE_MAX_SUMMONS,
@@ -125,7 +126,8 @@ export class StatsService {
     private readonly templateCache: ItemTemplateCacheService,
     private readonly inventory: InventoryRepository,
     private readonly players: PlayersRepository,
-    private readonly frames: GatewayFrameService
+    private readonly frames: GatewayFrameService,
+    private readonly lifeRegen: LifeRegenService
   ) {}
 
   async computeEquipmentStats(playerId: string): Promise<ComputedStats> {
@@ -187,6 +189,13 @@ export class StatsService {
     const totalVit = baseVit + equipStats.vitality;
     const maxHp = maxLifePoints(player.level, totalVit);
 
+    // Resolve regeneration here rather than at each of the five call
+    // sites: this is the only frame that ever carries life to a client,
+    // so every one of them — character select, entering the game,
+    // moving an item, spending a stat point, upgrading a spell —
+    // gets an up-to-date value for free.
+    const life = await this.lifeRegen.resolve(player, maxHp);
+
     const xpForLevel = player.level * player.level * 10;
     const xpForNext = (player.level + 1) * (player.level + 1) * 10;
 
@@ -210,7 +219,7 @@ export class StatsService {
             kama: BigInt(player.kamas),
             bonusPoints: player.statsPoints,
             bonusPointsSpell: player.spellPoints,
-            lp: Math.min(player.life, maxHp),
+            lp: life,
             lpMax: maxHp,
             energy: player.energy,
             energyMax: ENERGY_MAX,

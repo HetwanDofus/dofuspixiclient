@@ -125,6 +125,12 @@ export interface PlayersTable {
   koliseumPoints: number;
   activeTitleId: number;
   mountXpShare: number;
+  /**
+   * When `life` was last exact. Out-of-combat regeneration derives the
+   * points regained from this instant rather than from a timer, so it
+   * also applies to time spent logged out. NULL means never measured.
+   */
+  lifeUpdatedAt: TimestampTz | null;
 }
 
 export type PlayerRow = Selectable<PlayersTable>;
