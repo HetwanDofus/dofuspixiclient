@@ -20,6 +20,7 @@ import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { SpellsRepository } from "@modules/spells/spells.repository";
+import { maxLifePoints } from "@modules/stats/stats.constants";
 import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
@@ -269,16 +270,12 @@ export class FightStartService {
     const playerStats = await this.players.findStats(player.characterId);
     await this.players.loadPresence(player.characterId);
 
-    // Canonical Dofus 1.29 max-LP formula (mirrors
-    // StatsService.broadcastAccountStats:166): base 50 + 5 per level +
-    // total vitality. We intentionally use this rather than just
-    // `playerData.life` because the DB column stores CURRENT life, not
-    // the cap — a player walking into the fight at 200/1050 would
-    // otherwise spawn as 200/200 (lpMax=lp=200) and cap at the wrong
-    // ceiling for the rest of the fight.
-    const totalVit =
-      (playerStats?.vitality ?? 0) + (equipStats.vitality ?? 0);
-    const lifeMax = 50 + 5 * playerData.level + totalVit;
+    // Derive the cap rather than reading `playerData.life`: that column
+    // stores CURRENT life, so a player walking into the fight at
+    // 200/1050 would spawn as 200/200 and cap at the wrong ceiling for
+    // the rest of the fight.
+    const totalVit = (playerStats?.vitality ?? 0) + (equipStats.vitality ?? 0);
+    const lifeMax = maxLifePoints(playerData.level, totalVit);
 
     const fighter = Fighter.fromPlayer(sessionId, {
       id: Number(player.characterId),

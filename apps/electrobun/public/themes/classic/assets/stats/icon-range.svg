@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!--
+  Portée. Hand-drawn stand-in for the retail 1.29 glyph: the asset
+  pipeline cannot regenerate it here (it reads Dofus SWFs that are not
+  committed), so this traces the shape and palette off
+  screenshot-ui/carac.png. Same 15.4x15.4 box as the extracted icons.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="15.4px" height="15.4px" viewBox="0 0 15.4 15.4">
+  <path d="M1.1 8.6Q4.2 3.6 7.7 3.6Q11.2 3.6 14.3 8.6Q11.2 12.2 7.7 12.2Q4.2 12.2 1.1 8.6Z" fill="#ffffff" stroke="#3f9d81" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M5.6 8.2Q7.7 11.1 9.8 8.2Q7.7 9.3 5.6 8.2Z" fill="#2f7d66"/>
+</svg>

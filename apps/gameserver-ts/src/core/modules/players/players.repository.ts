@@ -1,3 +1,4 @@
+import type { BoostableStat } from "@modules/stats/boost-cost";
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
 import type { DB } from "@shared/db/schema";
 import { Injectable } from "@nestjs/common";
@@ -109,27 +110,51 @@ export class PlayersRepository {
       .execute();
   }
 
+  /**
+   * Grants `amount` points of one characteristic. Pure credit — the
+   * capital it costs is debited separately by `spendStatPoints`, which
+   * is what actually gates the boost.
+   */
   async boostStat(
     playerId: string,
-    stat:
-      | "strength"
-      | "vitality"
-      | "wisdom"
-      | "chance"
-      | "agility"
-      | "intelligence",
-    amount: number,
-    cost: number
-  ): Promise<void> {
-    await this.txHost.tx
+    stat: BoostableStat,
+    amount: number
+  ): Promise<number> {
+    const res = await this.txHost.tx
       .updateTable("playerStats")
       .set((eb) => ({ [stat]: eb(stat, "+", amount) }))
       .where("playerId", "=", playerId)
-      .execute();
+      .executeTakeFirst();
+    return Number(res.numUpdatedRows);
+  }
 
-    await this.txHost.tx
+  /**
+   * Debits `cost` characteristic points ("capital"), returning the rows
+   * it touched — 0 when the player could no longer afford it.
+   *
+   * Same contract as `spendSpellPoints`: the affordability predicate is
+   * in the UPDATE, not in a read before it, so two boost frames racing
+   * over the same balance cannot both pass and drive `stats_points`
+   * negative. Callers must treat 0 as a refusal and grant nothing.
+   */
+  async spendStatPoints(playerId: string, cost: number): Promise<number> {
+    const res = await this.txHost.tx
       .updateTable("players")
       .set((eb) => ({ statsPoints: eb("statsPoints", "-", cost) }))
+      .where("id", "=", playerId)
+      .where("statsPoints", ">=", cost)
+      .executeTakeFirst();
+    return Number(res.numUpdatedRows);
+  }
+
+  /**
+   * Gives `cost` characteristic points back, for unwinding a debit whose
+   * matching grant turned out to be a no-op.
+   */
+  async refundStatPoints(playerId: string, cost: number): Promise<void> {
+    await this.txHost.tx
+      .updateTable("players")
+      .set((eb) => ({ statsPoints: eb("statsPoints", "+", cost) }))
       .where("id", "=", playerId)
       .execute();
   }

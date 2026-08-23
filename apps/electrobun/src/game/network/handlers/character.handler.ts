@@ -1,11 +1,11 @@
-import { loginActor } from "@/game/machines/actors";
 import type { MessageHandler } from "@/game/network/message-handler";
 import type {
   AccountCharacterSelected,
   AccountStats,
 } from "@/game/network/protocol";
-import { characterStore } from "@/game/stores";
 import type { CharacterStats } from "@/game/types/stats";
+import { loginActor } from "@/game/machines/actors";
+import { characterStore } from "@/game/stores";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("CharacterHandler");
@@ -91,6 +91,10 @@ export class CharacterHandler {
 
         characterStore.setState({
           name: payload.characterName,
+          gfxId: payload.gfxId,
+          color1: payload.color1,
+          color2: payload.color2,
+          color3: payload.color3,
           // 1.29 encodes the breed in the sprite id as `classId * 10 + sex`
           // (dev-seed: class 1, sex 0 → gfx 10). The selection frame has no
           // class field of its own, and the spell book's "Classe" filter
@@ -110,7 +114,10 @@ export class CharacterHandler {
       this.currentStats = stats;
       characterStore.setState({
         stats,
-        level: stats.level,
+        // `showedLevel` is what the server puts here; a frame that
+        // somehow omits it must not knock the level back to 1 after
+        // AccountCharacterSelected already told us the real one.
+        ...(stats.level > 0 ? { level: stats.level } : {}),
         hp: { current: stats.hp, max: stats.maxHp },
         energy: { current: stats.energy, max: stats.maxEnergy },
         xp: { current: stats.xp, min: stats.xpLow, max: stats.xpHigh },
@@ -150,8 +157,8 @@ function accountStatsToCharacterStats(s: AccountStats): CharacterStats {
     intelligence: flat(s.intelligence),
     hp: s.lp,
     maxHp: s.lpMax,
-    ap: s.ap?.base ?? 0,
-    mp: s.mp?.base ?? 0,
+    ap: flat(s.ap),
+    mp: flat(s.mp),
     energy: s.energy,
     maxEnergy: s.energyMax,
     bonusPoints: s.bonusPoints,
@@ -159,12 +166,13 @@ function accountStatsToCharacterStats(s: AccountStats): CharacterStats {
     xp: Number(s.xp),
     xpLow: Number(s.xpLow),
     xpHigh: Number(s.xpHigh),
-    level: s.showedLevel || 1,
+    level: s.showedLevel,
     kama: Number(s.kama),
     initiative: s.initiative,
     discernment: s.discernment,
-    range: s.range?.base ?? 0,
-    summonLimit: s.maxSummons?.base ?? 0,
+    range: flat(s.range),
+    summonLimit: flat(s.maxSummons),
+    successPoints: s.successPoints,
     criticalHit: flat(s.criticalHit).base + flat(s.criticalHit).items,
   };
 }

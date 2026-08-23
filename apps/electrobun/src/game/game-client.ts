@@ -35,6 +35,7 @@ import {
   AccountSelectServerRequestSchema,
   AccountSendIdentitySchema,
   AccountSendTicketSchema,
+  AccountUseBoostSchema,
   encodeClient,
   GameActionRequestSchema,
   GameCreateRequestSchema,
@@ -60,6 +61,7 @@ import {
   spellDetailsStore,
 } from "@/game/stores/spell-details-store";
 import { spellsStore, tickCooldowns } from "@/game/stores/spells-store";
+import { BOOST_WIRE_STAT_IDS } from "@/game/types/stats";
 import { HoverPreview } from "@/hud/fight/hover-preview";
 import { createLogger } from "@/utils/logger";
 
@@ -1128,6 +1130,27 @@ export class GameClient {
       encodeClient(
         "spellUpgrade",
         create(SpellUpgradeRequestSchema, { spellId })
+      )
+    );
+  }
+
+  /**
+   * Spends capital to raise one characteristic by a point (AB).
+   *
+   * `statId` is the panel's own 0-5 id; the wire wants 10-15. The price
+   * is the server's business — it re-derives it from the breed and the
+   * current value, so a client that lies about the cost buys nothing.
+   * The panel redraws from the As frame that comes back.
+   */
+  boostStat(statId: number): void {
+    const wireStatId = BOOST_WIRE_STAT_IDS[statId];
+    if (wireStatId === undefined) {
+      return;
+    }
+    this.connection.send(
+      encodeClient(
+        "accountUseBoost",
+        create(AccountUseBoostSchema, { statId: wireStatId, quantity: 1 })
       )
     );
   }

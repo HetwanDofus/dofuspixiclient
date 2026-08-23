@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from "react";
 
 import type { GameClient } from "@/game/game-client";
-import { fightActor } from "@/game/stores/fight-store";
 import { DISPLAY_HEIGHT, FULL_HEIGHT } from "@/game/constants/battlefield";
 import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
+import { fightActor } from "@/game/stores/fight-store";
 
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
@@ -19,9 +19,9 @@ import { MountPanel } from "./mount/MountPanel";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
-import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 import { PlayerNameplate } from "./world/PlayerNameplate";
+import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 
 interface HudOverlayProps {
   baseZoom: number;
@@ -40,10 +40,8 @@ export function HudOverlay({
     hudStore.getSnapshot
   );
 
-  const { name, level, classId, stats } = useSyncExternalStore(
-    characterStore.subscribe,
-    characterStore.getSnapshot
-  );
+  const { name, level, classId, gfxId, color1, color2, color3, stats } =
+    useSyncExternalStore(characterStore.subscribe, characterStore.getSnapshot);
 
   // Use the measured canvas rect for width/height (CSS pixels, accounts for autoDensity).
   // Banner top is at DISPLAY_HEIGHT/FULL_HEIGHT fraction of the canvas height.
@@ -79,9 +77,11 @@ export function HudOverlay({
               name={name}
               level={level}
               classId={classId}
+              gfxId={gfxId}
+              colors={[color1, color2, color3]}
               zoom={baseZoom}
               onClose={() => closeAllPanels()}
-              onBoostStat={(stat) => console.log("Boost stat:", stat)}
+              onBoostStat={(statId) => gameClient?.boostStat(statId)}
             />
           </div>
         )}
@@ -153,7 +153,10 @@ export function HudOverlay({
 
         <BannerReact
           {...(gameClient
-            ? { onSelectSpell: (spellId) => gameClient.fightSelectSpell(spellId) }
+            ? {
+                onSelectSpell: (spellId) =>
+                  gameClient.fightSelectSpell(spellId),
+              }
             : {})}
         />
 

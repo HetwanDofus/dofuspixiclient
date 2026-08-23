@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  Invocation. Hand-drawn stand-in for the retail 1.29 glyph, traced off
+  screenshot-ui/carac.png for palette and silhouette — see icon-range.svg
+  for why it is not extracted. Same 15.4x15.4 box as the other icons.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="15.4px" height="15.4px" viewBox="0 0 15.4 15.4">
+  <g fill="#e8963a" stroke="#b8681c" stroke-width="0.8" stroke-linejoin="round">
+    <circle cx="7.7" cy="3.5" r="2.1"/>
+    <circle cx="2.6" cy="6.4" r="1.7"/>
+    <circle cx="12.8" cy="6.4" r="1.7"/>
+    <path d="M3.4 8.4Q7.7 6.6 12 8.4Q12.4 13.2 7.7 13.9Q3 13.2 3.4 8.4Z"/>
+  </g>
+  <path d="M6 10.4h3.4v2.2H6Z" fill="#f3d6a8" stroke="#b8681c" stroke-width="0.7"/>
+</svg>
