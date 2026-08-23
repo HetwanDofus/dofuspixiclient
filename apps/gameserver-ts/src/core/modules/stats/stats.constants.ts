@@ -29,3 +29,21 @@ export const ENERGY_MAX = 10_000;
 export function maxLifePoints(level: number, totalVitality: number): number {
   return 50 + 5 * level + totalVitality;
 }
+
+/**
+ * Prospection: the 100-point floor plus one point per ten points of
+ * chance, base and equipment alike.
+ *
+ * This used to be inlined in `StatsService.sendStats` as the character
+ * sheet's "discernment" figure and nothing else read it. The loot roll
+ * needs the same number, and a second copy of the formula would let the
+ * sheet and the actual drop rate drift apart silently — which is exactly
+ * the kind of divergence a player reports as "the drop rate is lying".
+ *
+ * Note that item effect 74 (prospection gear) is not mapped in
+ * `applyItemEffect` yet, so `equipChance` is the only equipment path
+ * into this number today.
+ */
+export function prospection(baseChance: number, equipChance: number): number {
+  return BASE_DISCERNMENT + Math.floor((baseChance + equipChance) / 10);
+}

@@ -48,6 +48,12 @@ export interface MonsterGroupInfo {
     color2: number;
     color3: number;
     spells?: Array<{ id?: number; spellId?: number; level?: number }>;
+    // Rewards, forwarded verbatim from `LiveMonsterMember`. Optional so
+    // the fight-start test fixtures, which build groups by hand, do not
+    // all have to be rewritten; missing means "pays nothing".
+    xp?: number;
+    kamasMin?: number;
+    kamasMax?: number;
   }>;
 }
 
@@ -322,6 +328,9 @@ export class FightStartService {
       monsterFighter.monsterColor1 = member.color1;
       monsterFighter.monsterColor2 = member.color2;
       monsterFighter.monsterColor3 = member.color3;
+      monsterFighter.monsterXp = member.xp ?? 0;
+      monsterFighter.monsterKamasMin = member.kamasMin ?? 0;
+      monsterFighter.monsterKamasMax = member.kamasMax ?? 0;
 
       if (member.spells) {
         const loadedSpells: MonsterSpell[] = [];

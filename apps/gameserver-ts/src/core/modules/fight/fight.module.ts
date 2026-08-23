@@ -5,6 +5,7 @@ import { FightFrameEmitter } from "@modules/fight/engine/fight.frame-emitter";
 import { FightHistoryRepository } from "@modules/fight/engine/fight.history.repository";
 import { FightLifecycleService } from "@modules/fight/engine/fight.lifecycle.service";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { InventoryModule } from "@modules/inventory/inventory.module";
 import { MapsModule } from "@modules/maps/maps.module";
 import { MonstersModule } from "@modules/monsters/monsters.module";
 import { PlayerPresenceModule } from "@modules/player-presence/player-presence.module";
@@ -22,6 +23,7 @@ import { Global, Module } from "@nestjs/common";
     MapsModule,
     SpellsModule,
     MonstersModule,
+    InventoryModule,
   ],
   providers: [
     FightRegistryService,

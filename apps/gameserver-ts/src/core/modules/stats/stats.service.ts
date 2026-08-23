@@ -3,15 +3,16 @@ import { AccountStatsSchema } from "@dofus/proto/account_pb";
 import { AlignmentInfoSchema, StatEntrySchema } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { InventoryRepository } from "@modules/inventory/inventory.repository";
+import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { PlayersRepository } from "@modules/players/players.repository";
 import {
   BASE_AP,
-  BASE_DISCERNMENT,
   BASE_MAX_SUMMONS,
   BASE_MP,
   ENERGY_MAX,
   maxLifePoints,
+  prospection,
 } from "@modules/stats/stats.constants";
 import { Injectable } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
@@ -132,26 +133,34 @@ export class StatsService {
     const stats = emptyComputedStats();
 
     for (const item of equipped) {
-      const template = await this.templateCache.load(item.templateId);
-      if (!template) {
-        continue;
-      }
+      // Prefer the instance's own rolled effects. Items created since
+      // QA-060 roll their jets once at creation (`rollItemEffects`) and
+      // store the result on the row; the template is only a recipe, and
+      // reading it back gives every player the same minimum roll. Items
+      // seeded by hand straight into SQL have an empty `effects` array —
+      // fall back to the template for those so nothing regresses.
+      const rolled = parseItemEffects(item.effects);
 
-      const effects = Array.isArray(template.effects) ? template.effects : [];
-      for (const effect of effects) {
-        if (typeof effect !== "object" || effect === null) {
+      let effects = rolled;
+
+      if (effects.length === 0) {
+        const template = await this.templateCache.load(item.templateId);
+
+        if (!template) {
           continue;
         }
-        const e = effect as Record<string, unknown>;
-        const id = Number(e.id ?? e.effectId ?? 0);
+
         // The world import writes 1.29's own effect shape,
         // `{id, param1, param2, param3}`, where param1 is the minimum
         // roll — never `min` or `value`. Reading only the latter two
         // meant every equipment bonus resolved to 0 and was dropped,
         // so no worn item moved a single stat.
-        const value = Number(e.min ?? e.value ?? e.param1 ?? 0);
-        if (id > 0 && value !== 0) {
-          applyItemEffect(stats, id, value);
+        effects = parseItemEffects(template.effects);
+      }
+
+      for (const effect of effects) {
+        if (effect.param1 !== 0) {
+          applyItemEffect(stats, effect.id, effect.param1);
         }
       }
     }
@@ -215,8 +224,7 @@ export class StatsService {
               equipStats.chance +
               equipStats.agility +
               player.level,
-            discernment:
-              BASE_DISCERNMENT + Math.floor((baseCha + equipStats.chance) / 10),
+            discernment: prospection(baseCha, equipStats.chance),
             ap: makeStat(BASE_AP, equipStats.ap),
             mp: makeStat(BASE_MP, equipStats.mp),
             strength: makeStat(baseStr, equipStats.strength),
