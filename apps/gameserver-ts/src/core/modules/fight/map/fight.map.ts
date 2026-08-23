@@ -31,15 +31,33 @@ export class FightMap {
     return this.walkableSet ? this.walkableSet.has(cell) : true;
   }
 
+  /**
+   * Fire whatever a fighter just walked onto.
+   *
+   * Matching used to be exact-cell equality, which meant a trap only
+   * ever fired on its own centre and its zone — drawn correctly on the
+   * client — did nothing. Objects now declare the cells they cover
+   * through `cellEligible`; the equality is kept as the fallback for an
+   * object that declares no zone.
+   */
   fireArrivalTriggers(fight: Fight, victim: Fighter, cell: number): void {
-    for (const obj of this.objects.atCell(cell)) {
+    this.objects.each((obj) => {
       if (!obj.onArrival) {
-        continue;
+        return;
       }
+
+      const covers = obj.cellEligible
+        ? obj.cellEligible(cell)
+        : obj.cell === cell;
+
+      if (!covers) {
+        return;
+      }
+
       if (obj.onArrival(fight, victim)) {
         this.objects.remove(obj.id);
       }
-    }
+    });
   }
 
   fireTurnStartTriggers(fight: Fight, owner: Fighter): void {

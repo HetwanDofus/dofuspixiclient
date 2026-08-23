@@ -217,11 +217,16 @@ export class CastSpellUseCase {
     castCtx.critical = critical;
 
     // Pre-resolve trigger spells for glyph/trap/summon effects. These
-    // effects encode the trigger spell ID in `effect.min`; handlers
-    // need its element to colour the deployed entity (e.g. fire glyphs
-    // = orange, water glyphs = blue). Doing this before apply() keeps
-    // the per-effect loop synchronous and lets us await spell loading
+    // effects encode the trigger spell ID in `effect.min`; handlers need
+    // it for the deployed entity's element AND its damage — the wrapper
+    // effect carries neither. Doing this before apply() keeps the
+    // per-effect loop synchronous and lets us await spell loading
     // outside the broadcast-sensitive critical section.
+    //
+    // The trigger is loaded at the level of the spell being cast, not at
+    // level 1: a Glyphe Enflammé cast at rank 5 must burn for rank 5.
+    // Trigger spells mirror their parent's level range, and the loader
+    // falls back to level 1 when a rank is missing from the data.
     const effects = critical ? spell.criticalEffects : spell.effects;
     const triggerCache = new Map<number, SpellLevel>();
     for (const eff of effects) {
@@ -233,7 +238,9 @@ export class CastSpellUseCase {
       if (triggerId <= 0 || triggerCache.has(triggerId)) {
         continue;
       }
-      const lvl = await this.spells.spellLevel(triggerId, 1);
+      const lvl =
+        (await this.spells.spellLevel(triggerId, spell.level)) ??
+        (await this.spells.spellLevel(triggerId, 1));
       if (lvl) {
         triggerCache.set(triggerId, lvl);
       }

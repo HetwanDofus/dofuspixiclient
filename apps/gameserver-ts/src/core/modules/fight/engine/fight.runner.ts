@@ -8,6 +8,7 @@ import type {
   TurnMiddlePayload,
   TurnObserver,
   TurnStartPayload,
+  ZoneRemovePayload,
 } from "@modules/fight/engine/fight.runner.types";
 import { Turn } from "@modules/fight/core/fight.turn";
 import { FighterKind } from "@modules/fight/fight.types";
@@ -95,10 +96,18 @@ export class Runner {
       this.stop();
       return;
     }
-    const { next: fighter } = this.active.turnList.advance();
+    const { next: fighter, rounded } = this.active.turnList.advance();
     if (!fighter) {
       this.sink.broadcast(this.fight, "GE", null);
       return;
+    }
+
+    // Deployed objects age by the round, not by the turn. Ticking them
+    // at every turn end burned a 3-round glyph in well under one round
+    // of a four-fighter fight, which read in play as "glyphs vanish
+    // immediately".
+    if (rounded) {
+      this.expireObjects();
     }
 
     this.refreshFighter(fighter);
@@ -164,13 +173,27 @@ export class Runner {
 
     this.fight.modules.fireTurnEnd(this.fight, turn.fighter);
 
-    this.fight.fightMap.objects.tickDown();
-
     this.sink.broadcast(this.fight, "GTF", {
       spriteId: String(turn.fighter.id),
     } satisfies TurnFinishPayload);
 
     this.advanceTurn();
+  }
+
+  /**
+   * Age deployed objects one round and tell the clients about the ones
+   * that died.
+   *
+   * The expired list used to be discarded, so an expired glyph stayed
+   * drawn on the battlefield for the rest of the fight — a zone the
+   * player could see and reason about that no longer did anything.
+   */
+  private expireObjects(): void {
+    for (const expired of this.fight.fightMap.objects.tickDown()) {
+      this.sink.broadcast(this.fight, "GDZ", {
+        cellId: expired.cell,
+      } satisfies ZoneRemovePayload);
+    }
   }
 
   private refreshFighter(f: Fighter): void {
