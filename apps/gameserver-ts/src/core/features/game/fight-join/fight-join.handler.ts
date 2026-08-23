@@ -14,6 +14,9 @@ import { StateName } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { PlayersRepository } from "@modules/players/players.repository";
+import { LifeRegenService } from "@modules/stats/life-regen.service";
+import { maxLifePoints } from "@modules/stats/stats.constants";
+import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
@@ -28,7 +31,9 @@ export class FightJoinHandler {
     private readonly presence: PlayerPresenceService,
     private readonly frames: GatewayFrameService,
     private readonly fightRegistry: FightRegistryService,
-    private readonly players: PlayersRepository
+    private readonly players: PlayersRepository,
+    private readonly stats: StatsService,
+    private readonly lifeRegen: LifeRegenService
   ) {}
 
   @MessageHandler(GameActionRequestSchema)
@@ -71,12 +76,27 @@ export class FightJoinHandler {
       return;
     }
 
+    // Derive the life cap the same way `fight-start` does. This path
+    // passed no `lifeMax` at all, so `Fighter.fromPlayer` fell back to
+    // `lpMax = life` — a player joining a fight at 200/1050 was capped at
+    // 200 for its whole duration and could never be healed past it.
+    const equipStats = await this.stats.computeEquipmentStats(
+      session.characterId
+    );
+    const totalVit = (stats?.vitality ?? 0) + (equipStats.vitality ?? 0);
+    const lifeMax = maxLifePoints(playerData.level, totalVit);
+
+    // Settle regeneration before the fight freezes the value; the stored
+    // column is only exact as of `life_updated_at`.
+    const life = await this.lifeRegen.resolve(playerData, lifeMax);
+
     // Create fighter from player
     const fighter = Fighter.fromPlayer(ctx.sessionId, {
       id: Number(session.characterId),
       name: player.name,
       level: player.level,
-      life: playerData.life,
+      life,
+      lifeMax,
       sex: player.sex,
       gfx: player.gfx,
       direction: player.direction,

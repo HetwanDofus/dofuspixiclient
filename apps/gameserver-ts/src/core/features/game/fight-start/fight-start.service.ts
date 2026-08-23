@@ -20,6 +20,7 @@ import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { SpellsRepository } from "@modules/spells/spells.repository";
+import { LifeRegenService } from "@modules/stats/life-regen.service";
 import { maxLifePoints } from "@modules/stats/stats.constants";
 import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
@@ -48,6 +49,12 @@ export interface MonsterGroupInfo {
     color2: number;
     color3: number;
     spells?: Array<{ id?: number; spellId?: number; level?: number }>;
+    // Rewards, forwarded verbatim from `LiveMonsterMember`. Optional so
+    // the fight-start test fixtures, which build groups by hand, do not
+    // all have to be rewritten; missing means "pays nothing".
+    xp?: number;
+    kamasMin?: number;
+    kamasMax?: number;
   }>;
 }
 
@@ -73,7 +80,8 @@ export class FightStartService {
     private readonly challenges: FightChallengeService,
     private readonly presence: PlayerPresenceService,
     private readonly stats: StatsService,
-    private readonly mapMonsters: MapMonsterService
+    private readonly mapMonsters: MapMonsterService,
+    private readonly lifeRegen: LifeRegenService
   ) {}
 
   async startPvM(
@@ -277,11 +285,17 @@ export class FightStartService {
     const totalVit = (playerStats?.vitality ?? 0) + (equipStats.vitality ?? 0);
     const lifeMax = maxLifePoints(playerData.level, totalVit);
 
+    // Settle out-of-combat regeneration before the fight freezes the
+    // value. `playerData.life` is exact only as of `life_updated_at`;
+    // entering a fight on the raw column would silently discard every
+    // point regained since the last time the stats frame was sent.
+    const life = await this.lifeRegen.resolve(playerData, lifeMax);
+
     const fighter = Fighter.fromPlayer(sessionId, {
       id: Number(player.characterId),
       name: player.name,
       level: playerData.level,
-      life: playerData.life,
+      life,
       lifeMax,
       direction: player.direction,
       sex: playerData.sex,
@@ -322,6 +336,9 @@ export class FightStartService {
       monsterFighter.monsterColor1 = member.color1;
       monsterFighter.monsterColor2 = member.color2;
       monsterFighter.monsterColor3 = member.color3;
+      monsterFighter.monsterXp = member.xp ?? 0;
+      monsterFighter.monsterKamasMin = member.kamasMin ?? 0;
+      monsterFighter.monsterKamasMax = member.kamasMax ?? 0;
 
       if (member.spells) {
         const loadedSpells: MonsterSpell[] = [];

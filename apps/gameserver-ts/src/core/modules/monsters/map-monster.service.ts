@@ -31,6 +31,21 @@ export interface LiveMonsterMember {
   color2: number;
   color3: number;
   spells: Array<{ spellId: number; level: number }>;
+  /**
+   * Fight rewards, carried from `monster_levels` all the way to
+   * `Fighter.monsterXp` / `monsterKamasMin` / `monsterKamasMax`, which
+   * `FightEndService` reads to build the end-of-fight payout.
+   *
+   * `monsters.repository.level()` already `selectAll()`s these three
+   * columns — before QA-059 they were loaded from the database and then
+   * dropped right here, so every PvM fight paid out zero.
+   *
+   * `xp` is a bigint in postgres and reaches us as a string; it is
+   * narrowed to a number once, here, rather than at every read site.
+   */
+  xp: number;
+  kamasMin: number;
+  kamasMax: number;
 }
 
 interface MapMonsterState {
@@ -199,6 +214,9 @@ export class MapMonsterService {
         color2: template.color2,
         color3: template.color3,
         spells: parseSpells(levelData?.spells),
+        xp: Number(levelData?.xp ?? 0),
+        kamasMin: levelData?.kamasMin ?? 0,
+        kamasMax: levelData?.kamasMax ?? 0,
       });
     }
 

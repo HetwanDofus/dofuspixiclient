@@ -11,6 +11,7 @@ import {
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { SpellListSchema } from "@dofus/proto/spells_pb";
 import { AccessoriesService } from "@modules/inventory/accessories.service";
+import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
@@ -40,7 +41,8 @@ export class EnterGameHandler {
     private readonly frames: GatewayFrameService,
     private readonly stats: StatsService,
     private readonly spells: SpellsService,
-    private readonly accessories: AccessoriesService
+    private readonly accessories: AccessoriesService,
+    private readonly items: InventoryFramesService
   ) {}
 
   @MessageHandler(GameCreateRequestSchema)
@@ -112,6 +114,12 @@ export class EnterGameHandler {
 
     await this.stats.sendStats(ctx.sessionId, session.characterId);
     const tStats = performance.now();
+
+    // Without this, an item looted in one session is invisible in the
+    // next: it sits in `player_items` and the client's inventory store
+    // is never told it exists, which reads exactly like the loot never
+    // worked. The server emitted no `item*` frame at all before QA-060.
+    await this.items.sendInventory(ctx.sessionId, session.characterId);
 
     const spellData = await this.spells.buildSpellList(session.characterId);
     const tSpells = performance.now();

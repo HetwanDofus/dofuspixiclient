@@ -81,6 +81,27 @@ export class PlayersRepository {
       .execute();
   }
 
+  /**
+   * Write a character's life and the instant it was exact.
+   *
+   * Nothing wrote `players.life` at all before QA-070 — combat damage
+   * never left memory, so every character was permanently at the seed
+   * value. The timestamp travels with the value on purpose: writing one
+   * without the other is what makes regeneration either grant free life
+   * or silently stop.
+   */
+  async setLife(
+    playerId: string,
+    life: number,
+    lifeUpdatedAt: Date
+  ): Promise<void> {
+    await this.txHost.tx
+      .updateTable("players")
+      .set({ life, lifeUpdatedAt })
+      .where("id", "=", playerId)
+      .execute();
+  }
+
   findById(playerId: string) {
     return this.txHost.tx
       .selectFrom("players")

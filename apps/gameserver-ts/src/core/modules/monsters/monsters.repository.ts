@@ -33,4 +33,27 @@ export class MonstersRepository {
       .where("level", "=", level)
       .executeTakeFirst();
   }
+
+  /**
+   * Drop table for a set of monster templates, in one query.
+   *
+   * A fight resolves loot for every defeated monster at once, so this
+   * takes the whole id set rather than being called per monster —
+   * a 8-mob group would otherwise issue 8 round-trips at the exact
+   * moment the client is waiting on the end-of-fight frame.
+   *
+   * `rate` is a percentage (a double), not a 0..1 probability: the world
+   * importer writes StarLoco's `percentGradeN` straight through.
+   */
+  dropsFor(monsterIds: readonly number[]) {
+    if (monsterIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.txHost.tx
+      .selectFrom("monsterDrops")
+      .selectAll()
+      .where("monsterId", "in", [...monsterIds])
+      .execute();
+  }
 }
