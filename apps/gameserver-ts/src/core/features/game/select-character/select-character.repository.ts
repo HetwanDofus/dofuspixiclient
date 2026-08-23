@@ -12,7 +12,6 @@ export class SelectCharacterRepository {
   load(characterId: string, accountId: string, serverId: number) {
     return this.txHost.tx
       .selectFrom("players")
-      .innerJoin("playerStats", "playerStats.playerId", "players.id")
       .leftJoin("playerColors", "playerColors.playerId", "players.id")
       .where("players.id", "=", characterId)
       .where("players.accountId", "=", accountId)
@@ -24,18 +23,6 @@ export class SelectCharacterRepository {
         "players.level",
         "players.sex",
         "players.gfx",
-        "players.experience",
-        "players.kamas",
-        "players.life",
-        "players.energy",
-        "players.statsPoints",
-        "players.spellPoints",
-        "playerStats.strength",
-        "playerStats.vitality",
-        "playerStats.wisdom",
-        "playerStats.intelligence",
-        "playerStats.chance",
-        "playerStats.agility",
         "playerColors.color1",
         "playerColors.color2",
         "playerColors.color3",

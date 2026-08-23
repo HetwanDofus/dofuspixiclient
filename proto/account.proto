@@ -250,6 +250,13 @@ message AccountStats {
 
   // Showed level (optional, field 52 in original)
   int32 showed_level = 56;
+
+  // Achievement points ("points de succès"), the trophy line in the
+  // characteristics window. Distinct from the alignment honour points
+  // carried by `alignment`. No achievement system exists server-side
+  // yet, so this is 0 until one does — the window reads the wire either
+  // way rather than hard-coding a placeholder.
+  int32 success_points = 57;
 }
 
 // AN - New level

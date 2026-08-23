@@ -5,21 +5,13 @@ import {
   AccountCharacterSelectedSchema,
   type AccountSelectCharacter,
   AccountSelectCharacterSchema,
-  AccountStatsSchema,
 } from "@dofus/proto/account_pb";
-import { StatEntrySchema } from "@dofus/proto/common_pb";
 import {
   type DofusMessage,
   DofusMessageSchema,
 } from "@dofus/proto/server_messages_pb";
-import {
-  DEFAULT_AP,
-  DEFAULT_DISCERNMENT,
-  DEFAULT_MAX_SUMMONS,
-  DEFAULT_MP,
-  ENERGY_MAX,
-} from "@features/game/select-character/select-character.constants";
 import { SelectCharacterRepository } from "@features/game/select-character/select-character.repository";
+import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
@@ -41,7 +33,8 @@ export class SelectCharacterHandler {
     config: ConfigService<GameEnv, true>,
     private readonly repo: SelectCharacterRepository,
     private readonly sessions: SessionRegistry,
-    private readonly frames: GatewayFrameService
+    private readonly frames: GatewayFrameService,
+    private readonly stats: StatsService
   ) {
     this.gameServerId = config.get("GAME_SERVER_ID", { infer: true });
   }
@@ -80,7 +73,13 @@ export class SelectCharacterHandler {
     );
 
     this.frames.broadcast([ctx.sessionId], buildSelected(player));
-    this.frames.broadcast([ctx.sessionId], buildStats(player));
+
+    // The As frame is StatsService's job, not ours. This slice used to
+    // hand-roll a degraded one — no equipment bonuses, `lpMax = life`,
+    // xp bounds of 0, initiative 0, AP/MP hard-coded — which duplicated
+    // the derivation formulas and made the characteristics window show
+    // wrong numbers until enter-game pushed the real frame over the top.
+    await this.stats.sendStats(ctx.sessionId, player.id);
   }
 
   private reject(ctx: HandlerContext): void {
@@ -110,40 +109,6 @@ function buildSelected(p: CharacterRow): DofusMessage {
         color1: p.color1 ?? DEFAULT_COLOR,
         color2: p.color2 ?? DEFAULT_COLOR,
         color3: p.color3 ?? DEFAULT_COLOR,
-      }),
-    },
-  });
-}
-
-function buildStats(p: CharacterRow): DofusMessage {
-  const stat = (base: number) => create(StatEntrySchema, { base });
-
-  return create(DofusMessageSchema, {
-    payload: {
-      case: "accountStats",
-      value: create(AccountStatsSchema, {
-        xp: BigInt(p.experience),
-        xpLow: 0n,
-        xpHigh: 0n,
-        kama: BigInt(p.kamas),
-        bonusPoints: p.statsPoints,
-        bonusPointsSpell: p.spellPoints,
-        lp: p.life,
-        lpMax: p.life,
-        energy: p.energy,
-        energyMax: ENERGY_MAX,
-        initiative: 0,
-        discernment: DEFAULT_DISCERNMENT,
-        ap: stat(DEFAULT_AP),
-        mp: stat(DEFAULT_MP),
-        strength: stat(p.strength),
-        vitality: stat(p.vitality),
-        wisdom: stat(p.wisdom),
-        intelligence: stat(p.intelligence),
-        chance: stat(p.chance),
-        agility: stat(p.agility),
-        maxSummons: stat(DEFAULT_MAX_SUMMONS),
-        showedLevel: p.level,
       }),
     },
   });

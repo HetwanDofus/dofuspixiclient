@@ -1,10 +1,18 @@
 import { create } from "@bufbuild/protobuf";
 import { AccountStatsSchema } from "@dofus/proto/account_pb";
-import { StatEntrySchema } from "@dofus/proto/common_pb";
+import { AlignmentInfoSchema, StatEntrySchema } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { PlayersRepository } from "@modules/players/players.repository";
+import {
+  BASE_AP,
+  BASE_DISCERNMENT,
+  BASE_MAX_SUMMONS,
+  BASE_MP,
+  ENERGY_MAX,
+  maxLifePoints,
+} from "@modules/stats/stats.constants";
 import { Injectable } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 
@@ -136,7 +144,12 @@ export class StatsService {
         }
         const e = effect as Record<string, unknown>;
         const id = Number(e.id ?? e.effectId ?? 0);
-        const value = Number(e.min ?? e.value ?? 0);
+        // The world import writes 1.29's own effect shape,
+        // `{id, param1, param2, param3}`, where param1 is the minimum
+        // roll — never `min` or `value`. Reading only the latter two
+        // meant every equipment bonus resolved to 0 and was dropped,
+        // so no worn item moved a single stat.
+        const value = Number(e.min ?? e.value ?? e.param1 ?? 0);
         if (id > 0 && value !== 0) {
           applyItemEffect(stats, id, value);
         }
@@ -163,7 +176,7 @@ export class StatsService {
     const baseInt = baseStats?.intelligence ?? 0;
 
     const totalVit = baseVit + equipStats.vitality;
-    const maxHp = 50 + 5 * player.level + totalVit;
+    const maxHp = maxLifePoints(player.level, totalVit);
 
     const xpForLevel = player.level * player.level * 10;
     const xpForNext = (player.level + 1) * (player.level + 1) * 10;
@@ -191,7 +204,7 @@ export class StatsService {
             lp: Math.min(player.life, maxHp),
             lpMax: maxHp,
             energy: player.energy,
-            energyMax: 10000,
+            energyMax: ENERGY_MAX,
             initiative:
               baseStr +
               baseInt +
@@ -202,9 +215,10 @@ export class StatsService {
               equipStats.chance +
               equipStats.agility +
               player.level,
-            discernment: 100 + Math.floor((baseCha + equipStats.chance) / 10),
-            ap: makeStat(6, equipStats.ap),
-            mp: makeStat(3, equipStats.mp),
+            discernment:
+              BASE_DISCERNMENT + Math.floor((baseCha + equipStats.chance) / 10),
+            ap: makeStat(BASE_AP, equipStats.ap),
+            mp: makeStat(BASE_MP, equipStats.mp),
             strength: makeStat(baseStr, equipStats.strength),
             vitality: makeStat(baseVit, equipStats.vitality),
             wisdom: makeStat(baseWis, equipStats.wisdom),
@@ -212,13 +226,26 @@ export class StatsService {
             agility: makeStat(baseAgi, equipStats.agility),
             intelligence: makeStat(baseInt, equipStats.intelligence),
             range: makeStat(0, equipStats.range),
-            maxSummons: makeStat(1, equipStats.summons),
+            maxSummons: makeStat(BASE_MAX_SUMMONS, equipStats.summons),
             damagePhysical: makeStat(0, equipStats.damageBonus),
             damagePercent: makeStat(0, equipStats.damagePct),
             heals: makeStat(0, equipStats.healBonus),
             criticalHit: makeStat(0, equipStats.criticalHit),
             dodgeAp: makeStat(0, equipStats.dodgeAp),
             dodgeMp: makeStat(0, equipStats.dodgeMp),
+            alignment: create(AlignmentInfoSchema, {
+              alignment: player.alignment,
+              grade: player.alignmentGrade,
+              rankValue: player.alignmentValue,
+              enabled: player.pvpEnabled,
+            }),
+            // The characteristics window reads its "Niveau" from here.
+            // Leaving it at 0 made the client fall back to 1 and clobber
+            // the level it had already learned from AccountCharacterSelected.
+            showedLevel: player.level,
+            // No achievement system yet — see the field's comment in
+            // account.proto.
+            successPoints: 0,
           }),
         },
       })
