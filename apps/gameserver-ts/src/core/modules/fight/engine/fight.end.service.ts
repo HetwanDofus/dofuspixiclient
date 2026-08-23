@@ -412,11 +412,33 @@ export class FightEndService {
           leftFight: false,
         });
 
-        if (!isWinner || !fighter.player) {
+        if (!fighter.player) {
           continue;
         }
 
         const playerId = String(fighter.player.id);
+
+        // Persist the life the fighter walked out with — QA-070. Nothing
+        // wrote `players.life` before this: combat damage never left
+        // memory, so every character sat permanently at their seed value
+        // and out-of-combat regeneration had nothing to regenerate. Both
+        // sides get it, not just the winners: a losing team that
+        // survived (a leaver, a timed-out fight) has taken real damage
+        // too.
+        //
+        // A defeated player revives with a single point, the 1.29
+        // convention, and is teleported to their savepoint further down.
+        // The timestamp restarts here so regeneration is counted from
+        // the end of the fight and not from whenever life was last read.
+        await this.players.setLife(
+          playerId,
+          fighter.dead ? 1 : Math.max(1, fighter.lp),
+          new Date()
+        );
+
+        if (!isWinner) {
+          continue;
+        }
 
         await this.players.addXpAndKamas(playerId, xpGained, kamasGained);
 

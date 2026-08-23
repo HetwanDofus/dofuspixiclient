@@ -8,6 +8,7 @@ import type { InventoryRepository } from "@modules/inventory/inventory.repositor
 import type { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import type { PlayersRepository } from "@modules/players/players.repository";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
+import { LifeRegenService } from "@modules/stats/life-regen.service";
 import {
   BASE_AP,
   BASE_DISCERNMENT,
@@ -34,6 +35,7 @@ let equipped: { templateId: number }[];
 let templates: Record<number, ItemEffect[]>;
 let sent: DofusMessage[];
 let service: StatsService;
+let persistedLife: { life: number; at: Date } | null;
 
 function lastStats(): AccountStats {
   const frame = sent.at(-1);
@@ -58,10 +60,12 @@ beforeEach(() => {
     alignmentValue: 333,
     alignmentGrade: 4,
     pvpEnabled: true,
+    lifeUpdatedAt: null,
   };
   equipped = [];
   templates = {};
   sent = [];
+  persistedLife = null;
 
   const players = {
     findById: async () => player,
@@ -91,7 +95,22 @@ beforeEach(() => {
     },
   } as unknown as GatewayFrameService;
 
-  service = new StatsService(templateCache, inventory, players, frames);
+  // A real LifeRegenService over a stub repository: the regeneration is
+  // now part of what `sendStats` reports, so stubbing it out would hide
+  // the very interaction these tests exist to pin down.
+  const lifeRegen = new LifeRegenService({
+    setLife: async (_id: string, life: number, at: Date) => {
+      persistedLife = { life, at };
+    },
+  } as unknown as PlayersRepository);
+
+  service = new StatsService(
+    templateCache,
+    inventory,
+    players,
+    frames,
+    lifeRegen
+  );
 });
 
 describe("StatsService.sendStats", () => {
@@ -99,6 +118,29 @@ describe("StatsService.sendStats", () => {
     await service.sendStats(SESSION, CHARACTER);
 
     expect(lastStats().showedLevel).toBe(20);
+  });
+
+  test("regeneration owed since the last read reaches the frame", async () => {
+    // 20 seconds at one point per two seconds: ten points owed.
+    player.life = 300;
+    player.lifeUpdatedAt = new Date(Date.now() - 20_000);
+
+    await service.sendStats(SESSION, CHARACTER);
+
+    expect(lastStats().lp).toBe(310);
+    // And it is written back, not merely displayed: anything that reads
+    // the column without resolving must see the same number.
+    expect(persistedLife?.life).toBe(310);
+  });
+
+  test("a character at full life triggers no write", async () => {
+    player.life = maxLifePoints(20, 200);
+    player.lifeUpdatedAt = new Date(Date.now() - 3_600_000);
+
+    await service.sendStats(SESSION, CHARACTER);
+
+    expect(lastStats().lp).toBe(maxLifePoints(20, 200));
+    expect(persistedLife).toBeNull();
   });
 
   test("derives max life rather than echoing the current-life column", async () => {
