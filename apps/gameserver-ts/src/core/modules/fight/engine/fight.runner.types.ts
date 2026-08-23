@@ -24,6 +24,16 @@ export interface TurnFinishPayload {
   spriteId: string;
 }
 
+/**
+ * A deployed object (glyph, trap) leaving the battlefield.
+ *
+ * The client keys its zone overlay by cell, so the cell is all it needs
+ * to erase the disc it drew when the object was laid down.
+ */
+export interface ZoneRemovePayload {
+  cellId: number;
+}
+
 export interface TurnMiddleEntry {
   spriteId: string;
   cell: number;

@@ -6,6 +6,8 @@ import {
   GameTurnListSchema,
   GameTurnMiddleSchema,
   GameTurnStartSchema,
+  GameZoneData_Operation,
+  GameZoneDataSchema,
   TurnMiddleEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
@@ -163,6 +165,24 @@ export class FightLifecycleService {
                 payload: {
                   case: "gameTurnFinish",
                   value: create(GameTurnFinishSchema, { spriteId: p.spriteId }),
+                },
+              })
+            );
+          })
+          .with("GDZ", () => {
+            // A deployed object expired. The client keys its zone
+            // overlay by cell, so erasing the disc it drew needs
+            // nothing more than the cell.
+            const p = payload as { cellId: number };
+            this.frames.broadcast(
+              targets,
+              create(DofusMessageSchema, {
+                payload: {
+                  case: "gameZoneData",
+                  value: create(GameZoneDataSchema, {
+                    operation: GameZoneData_Operation.REMOVE,
+                    cellId: p.cellId,
+                  }),
                 },
               })
             );
