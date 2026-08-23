@@ -38,6 +38,14 @@ db-up:
     @until docker compose exec -T postgres pg_isready -U {{db_user}} -d {{db_name}} >/dev/null 2>&1; do sleep 1; done
     @echo "Database ready."
 
+# Ouvre un psql sur la base de dev (ou exécute une requête : just psql "select 1").
+psql query="":
+    @if [ -z "{{query}}" ]; then \
+        docker compose exec postgres psql -U {{db_user}} -d {{db_name}}; \
+    else \
+        docker compose exec -T postgres psql -U {{db_user}} -d {{db_name}} -c "{{query}}"; \
+    fi
+
 # Point `assets/dist/langs` at the published lang bundles.
 #
 # Migration 0039 and the gameserver both read `assets/dist/langs/<locale>/
@@ -209,6 +217,18 @@ sprites-build:
 clean-assets:
     rm -rf assets/cache assets/dist
     @echo "✓ Cleaned asset-pipeline caches (assets/cache, assets/dist)"
+
+# =============================================================================
+# Suivi des issues
+# =============================================================================
+
+# Régénère l'index de doc/issues/README.md depuis les frontmatter.
+issues:
+    @cd "{{root}}" && bun run scripts/issues.ts
+
+# Valide doc/issues/ sans rien écrire (ids, enums, domaines, liens, index).
+issues-check:
+    @cd "{{root}}" && bun run scripts/issues.ts --check
 
 # =============================================================================
 # UI Builder
