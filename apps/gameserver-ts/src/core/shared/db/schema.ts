@@ -291,6 +291,7 @@ export interface ItemTemplatesTable {
   category: number;
   sellPrice: number;
   maxPerTarget: number;
+  description: string;
 }
 
 export type ItemTemplateRow = Selectable<ItemTemplatesTable>;
@@ -306,6 +307,32 @@ export interface ItemSetsTable {
 export type ItemSetRow = Selectable<ItemSetsTable>;
 export type NewItemSet = Insertable<ItemSetsTable>;
 export type ItemSetUpdate = Updateable<ItemSetsTable>;
+
+/** An item *type* (Amulette, Epée, …) — `items.json`'s `I.t`. */
+export interface ItemTypesTable {
+  id: number;
+  name: string;
+  superType: number;
+  effectZone: string | null;
+}
+
+export type ItemTypeRow = Selectable<ItemTypesTable>;
+export type NewItemType = Insertable<ItemTypesTable>;
+export type ItemTypeUpdate = Updateable<ItemTypesTable>;
+
+/**
+ * superType → legal equipment positions — `items.json`'s `I.ss`. An empty
+ * array means the superType is not equippable at all (resources, quest
+ * objects, souls, …).
+ */
+export interface ItemSuperTypesTable {
+  id: number;
+  positions: number[];
+}
+
+export type ItemSuperTypeRow = Selectable<ItemSuperTypesTable>;
+export type NewItemSuperType = Insertable<ItemSuperTypesTable>;
+export type ItemSuperTypeUpdate = Updateable<ItemSuperTypesTable>;
 
 export interface SpellTemplatesTable {
   id: number;
@@ -1737,6 +1764,8 @@ export type DB = {
   scriptedNpcs: ScriptedNpcsTable;
   itemTemplates: ItemTemplatesTable;
   itemSets: ItemSetsTable;
+  itemTypes: ItemTypesTable;
+  itemSuperTypes: ItemSuperTypesTable;
   spellTemplates: SpellTemplatesTable;
   spellLevels: SpellLevelsTable;
   monsterAiProfiles: MonsterAiProfilesTable;

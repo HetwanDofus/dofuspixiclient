@@ -39,6 +39,9 @@ assets/dist
 
 # Docker
 pgdata/
+
+# StarLoco world dump — downloaded locally per doc/data-seeding.md, never committed
+apps/gameserver-ts/game.sql
 # Local env
 .env
 .env.*

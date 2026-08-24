@@ -26,10 +26,11 @@
  */
 import { basename } from "node:path";
 
-import { decodeCells } from "../src/core/modules/maps/maps.cells-codec.ts";
-
 import { CamelCasePlugin, Kysely, PostgresDialect, sql } from "kysely";
 import pg from "pg";
+
+import { decodeCells } from "../src/core/modules/maps/maps.cells-codec.ts";
+import { insertRows, langBundlePath, toRecord } from "./starloco-dump.ts";
 
 const dumpPath = process.argv[2];
 
@@ -40,10 +41,7 @@ if (!dumpPath) {
   process.exit(1);
 }
 
-const LANG_MAPS = new URL(
-  "../../../apps/electrobun/public/assets/langs/fr/maps.json",
-  import.meta.url
-).pathname;
+const LANG_MAPS = langBundlePath("maps");
 
 const connectionString =
   process.env.DATABASE_URL ?? "postgres://dofus:dofus@localhost:5432/dofus";
@@ -98,7 +96,9 @@ function checksumKey(key: string): number {
  */
 function decryptMapData(data: string, rawKey: string): string {
   const key = prepareKey(rawKey);
-  if (key.length === 0) return "";
+  if (key.length === 0) {
+    return "";
+  }
 
   const checksum = checksumKey(key) * 2;
   let out = "";
@@ -142,92 +142,6 @@ function plainCells(
   }
 
   return null;
-}
-
-// ── MySQL dump parsing ──────────────────────────────────────────────────────
-
-/**
- * Splits one `INSERT ... VALUES (...)` tuple into raw column values. A regex
- * cannot do this safely: the cell payload and the names both contain commas
- * and escaped quotes.
- */
-function splitTuple(body: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuote = false;
-  let escaped = false;
-
-  for (const ch of body) {
-    if (escaped) {
-      cur += ch;
-      escaped = false;
-      continue;
-    }
-    if (inQuote && ch === "\\") {
-      cur += ch;
-      escaped = true;
-      continue;
-    }
-    if (ch === "'") {
-      inQuote = !inQuote;
-      cur += ch;
-      continue;
-    }
-    if (!inQuote && ch === ",") {
-      out.push(cur);
-      cur = "";
-      continue;
-    }
-    cur += ch;
-  }
-  out.push(cur);
-
-  return out;
-}
-
-function unquote(raw: string): string {
-  const v = raw.trim();
-  if (!v.startsWith("'")) return v;
-  return v
-    .slice(1, -1)
-    .replace(/\\'/g, "'")
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "\r")
-    .replace(/\\\\/g, "\\");
-}
-
-/** Yields the value tuples of every `INSERT INTO \`table\`` row in the dump. */
-function* insertRows(dump: string, table: string): Generator<string[]> {
-  const marker = `INSERT INTO \`${table}\` VALUES `;
-  let at = dump.indexOf(marker);
-
-  while (at !== -1) {
-    const open = dump.indexOf("(", at);
-    let i = open + 1;
-    let inQuote = false;
-    let escaped = false;
-
-    for (; i < dump.length; i++) {
-      const ch = dump[i]!;
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (inQuote && ch === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (ch === "'") {
-        inQuote = !inQuote;
-        continue;
-      }
-      if (!inQuote && ch === ")") break;
-    }
-
-    yield splitTuple(dump.slice(open + 1, i)).map(unquote);
-    at = dump.indexOf(marker, i);
-  }
 }
 
 // ── 1.29 map metadata from the lang bundle ──────────────────────────────────
@@ -276,13 +190,28 @@ console.log(
 // ── Read the dump ───────────────────────────────────────────────────────────
 
 const dump = await Bun.file(dumpPath).text();
-console.log(`read ${basename(dumpPath)} (${(dump.length / 1e6).toFixed(1)} MB)`);
+console.log(
+  `read ${basename(dumpPath)} (${(dump.length / 1e6).toFixed(1)} MB)`
+);
 
 /** Column order of StarLoco's `maps` table (note the `heigth` typo). */
 const MAP_COLUMNS = [
-  "id", "date", "width", "heigth", "places", "key", "mapData", "monsters",
-  "capabilities", "mappos", "numgroup", "minSize", "fixSize", "maxSize",
-  "forbidden", "sniffed",
+  "id",
+  "date",
+  "width",
+  "heigth",
+  "places",
+  "key",
+  "mapData",
+  "monsters",
+  "capabilities",
+  "mappos",
+  "numgroup",
+  "minSize",
+  "fixSize",
+  "maxSize",
+  "forbidden",
+  "sniffed",
 ] as const;
 
 interface MapRow {
@@ -310,9 +239,7 @@ const usedSubareas = new Set<number>();
 let skipped = 0;
 
 for (const values of insertRows(dump, "maps")) {
-  const row = Object.fromEntries(
-    MAP_COLUMNS.map((c, i) => [c, values[i] ?? ""])
-  ) as Record<(typeof MAP_COLUMNS)[number], string>;
+  const row = toRecord(MAP_COLUMNS, values);
 
   const id = Number(row.id);
   const width = Number(row.width);
@@ -455,19 +382,21 @@ console.log(`upserted ${places.length} fight-placement rows`);
  *    position is elected to represent it — see `electionScore`.
  */
 const DIRECTION_DELTAS: ReadonlyArray<readonly [number, number, number]> = [
-  [0, 1, 0],   // E
-  [1, 1, 1],   // SE
-  [2, 0, 1],   // S
-  [3, -1, 1],  // SW
-  [4, -1, 0],  // W
+  [0, 1, 0], // E
+  [1, 1, 1], // SE
+  [2, 0, 1], // S
+  [3, -1, 1], // SW
+  [4, -1, 0], // W
   [5, -1, -1], // NW
-  [6, 0, -1],  // N
-  [7, 1, -1],  // NE
+  [6, 0, -1], // N
+  [7, 1, -1], // NE
 ];
 
 function superareaOf(subareaId: number): number | undefined {
   const areaId = langSubareas[String(subareaId)]?.a;
-  if (areaId === undefined) return undefined;
+  if (areaId === undefined) {
+    return undefined;
+  }
   return langAreas[String(areaId)]?.sua;
 }
 
@@ -500,7 +429,9 @@ function electionScore(m: MapRow): Election {
   let ground = 0;
 
   for (const cell of decodeCells(m.cells)) {
-    if (cell.ground > 0) ground++;
+    if (cell.ground > 0) {
+      ground++;
+    }
   }
 
   return {
@@ -512,16 +443,22 @@ function electionScore(m: MapRow): Election {
 }
 
 function beats(a: Election, b: Election): boolean {
-  if (a.outdoor !== b.outdoor) return a.outdoor;
-  if (a.area !== b.area) return a.area > b.area;
-  if (a.ground !== b.ground) return a.ground > b.ground;
+  if (a.outdoor !== b.outdoor) {
+    return a.outdoor;
+  }
+  if (a.area !== b.area) {
+    return a.area > b.area;
+  }
+  if (a.ground !== b.ground) {
+    return a.ground > b.ground;
+  }
   return a.id < b.id;
 }
 
 const outdoorFlags = new Map<number, boolean | null>(
-  (
-    await db.selectFrom("maps").select(["id", "outdoor"]).execute()
-  ).map((r: { id: number; outdoor: boolean | null }) => [r.id, r.outdoor])
+  (await db.selectFrom("maps").select(["id", "outdoor"]).execute()).map(
+    (r: { id: number; outdoor: boolean | null }) => [r.id, r.outdoor]
+  )
 );
 
 console.log(
@@ -535,7 +472,9 @@ const positionOf = new Map<number, string>();
 
 for (const m of maps) {
   const sua = superareaOf(m.subareaId);
-  if (sua === undefined) continue;
+  if (sua === undefined) {
+    continue;
+  }
 
   const key = `${sua}:${m.x}:${m.y}`;
   positionOf.set(m.id, key);
@@ -548,14 +487,19 @@ for (const m of maps) {
   }
 }
 
-const neighbours: { mapId: number; direction: number; neighborMapId: number }[] =
-  [];
+const neighbours: {
+  mapId: number;
+  direction: number;
+  neighborMapId: number;
+}[] = [];
 let notElected = 0;
 let indoor = 0;
 
 for (const m of maps) {
   const sua = superareaOf(m.subareaId);
-  if (sua === undefined) continue;
+  if (sua === undefined) {
+    continue;
+  }
 
   const key = positionOf.get(m.id);
   if (!key || byPosition.get(key)?.id !== m.id) {
@@ -576,7 +520,9 @@ for (const m of maps) {
     // not. Walking into a known interior is refused outright though — that is
     // the trap that stranded players inside houses.
     const target = byPosition.get(`${sua}:${m.x + dx}:${m.y + dy}`);
-    if (!target || outdoorFlags.get(target.id) === false) continue;
+    if (!target || outdoorFlags.get(target.id) === false) {
+      continue;
+    }
 
     neighbours.push({ mapId: m.id, direction, neighborMapId: target.id });
   }

@@ -84,6 +84,15 @@ import-map-swf maps_dir:
 import-maps dump:
     cd apps/gameserver-ts && bun run scripts/import-starloco-maps.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
 
+# Needs `import-maps` to have run first: NPC placements reference `maps.id`.
+
+# Import what lives *in* the world: monsters, drops, items, item sets, NPCs
+import-content dump:
+    cd apps/gameserver-ts && bun run scripts/import-starloco-content.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
+
+# The whole world in one go — geometry, then contents.
+import-world dump: (import-maps dump) (import-content dump)
+
 # Build the Vello WASM renderer.
 # `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —
 # its own package.json calls itself `dofus-vello-custom-format`, which is the

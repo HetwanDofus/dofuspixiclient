@@ -44,9 +44,9 @@ bun install
 just wasm      # build the Vello WASM renderer
 just db        # postgres container + migrations + dev seed (dev / dev)
 
-# the world — maps have no in-repo source, import them once:
+# the world — maps and their contents have no in-repo source, import once:
 curl -LO https://raw.githubusercontent.com/StarLoco/StarLoco-Game/master/game.sql
-just import-maps game.sql
+just import-world game.sql
 SPAWN_MAP_ID=7365 just db-seed
 
 just gateway   # terminal 1 — WS front door on :8080
@@ -67,7 +67,9 @@ just client-web  # terminal 4 — http://localhost:5173 (needs WebGPU)
 | `just db` | Start PostgreSQL, migrate, seed a dev account |
 | `just db-migrate` / `just db-status` | Run / list migrations |
 | `just db-seed` | Seed one server, account, and character |
-| `just import-maps <game.sql>` | Import the world from a StarLoco dump |
+| `just import-world <game.sql>` | Import the world **and** its contents from a StarLoco dump |
+| `just import-maps <game.sql>` | Maps, subareas, fight places, neighbours only |
+| `just import-content <game.sql>` | Monsters, drops, items, item sets, NPCs only |
 | `just gateway` / `just gamed` / `just authd` | The three server processes |
 | `just docker-up` / `just docker-down` | Whole server stack in containers |
 | `just client-web` | Client in a WebGPU browser (Vite, :5173) |
