@@ -265,8 +265,8 @@ class ExtractAccessoriesCommand extends Command
 
         $minX = PHP_FLOAT_MAX;
         $minY = PHP_FLOAT_MAX;
-        $maxX = PHP_FLOAT_MIN;
-        $maxY = PHP_FLOAT_MIN;
+        $maxX = -PHP_FLOAT_MAX;
+        $maxY = -PHP_FLOAT_MAX;
         $found = false;
 
         if (preg_match_all(
@@ -283,15 +283,21 @@ class ExtractAccessoriesCommand extends Command
                 $tx = (float) $m[7];
                 $ty = (float) $m[8];
 
-                $scaleX = sqrt($a * $a + $b * $b);
-                $scaleY = sqrt($c * $c + $d * $d);
-                $sw = $w * $scaleX;
-                $sh = $h * $scaleY;
-
-                $minX = min($minX, $tx, $tx + $sw);
-                $maxX = max($maxX, $tx, $tx + $sw);
-                $minY = min($minY, $ty, $ty + $sh);
-                $maxY = max($maxY, $ty, $ty + $sh);
+                // Transform all four corners of the symbol's own
+                // (0,0,w,h) box. Deriving the extent from sqrt(a^2+b^2)
+                // and growing rightwards/downwards from (tx,ty) assumes
+                // the matrix neither mirrors nor rotates: a mirrored
+                // placement (a < 0) actually runs *leftwards* from tx, so
+                // the box was computed on the wrong side of the origin and
+                // the crop cut the whole drawing away.
+                foreach ([[0.0, 0.0], [$w, 0.0], [0.0, $h], [$w, $h]] as $corner) {
+                    $px = $a * $corner[0] + $c * $corner[1] + $tx;
+                    $py = $b * $corner[0] + $d * $corner[1] + $ty;
+                    $minX = min($minX, $px);
+                    $maxX = max($maxX, $px);
+                    $minY = min($minY, $py);
+                    $maxY = max($maxY, $py);
+                }
                 $found = true;
             }
         }

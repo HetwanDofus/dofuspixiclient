@@ -222,6 +222,14 @@ sprites-build:
     @{{pipeline}} compile sprites.accessories
     @{{pipeline}} publish sprites.accessories
 
+# Fixes the PHP extractor's crop bug on mirrored symbols (QA-080). Idempotent:
+# an SVG whose viewBox already contains its drawing is left alone. `--check`
+# only reports, and exits 1 if anything is still off.
+
+# Re-crop published SVGs whose drawing falls outside their viewBox
+recrop-svg *args:
+    @cd "{{root}}" && bun run scripts/recrop-svg-viewbox.ts {{args}}
+
 # Wipe every cache + dist + public/assets spritesheets artifact.
 clean-assets:
     rm -rf assets/cache assets/dist
