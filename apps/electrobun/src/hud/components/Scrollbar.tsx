@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { SPELL_BOOK_COLORS } from "./spell-book-theme";
-
-const C = SPELL_BOOK_COLORS;
-
 interface ScrollbarProps {
   zoom: number;
   /** Track width in base units. */
@@ -15,12 +11,17 @@ interface ScrollbarProps {
   /** How far one arrow click scrolls, in base units. */
   step: number;
   onScroll: (next: number) => void;
+  /** Track background. Caller supplies its own theme's color. */
+  trackColor: string;
+  /** Thumb and arrow-glyph color. Caller supplies its own theme's color. */
+  thumbColor: string;
 }
 
 /**
- * The spell book's scrollbar: a dark track with a triangle button at
- * each end and a draggable thumb, matching the 1.29 window rather than
- * the host browser's native bar.
+ * The 1.29 scrollbar: a dark track with a triangle button at each end and
+ * a draggable thumb, matching the retail window rather than the host
+ * browser's native bar. Shared by the spell book and the inventory bag
+ * grid — colors are caller-supplied so each keeps its own theme.
  *
  * Everything is expressed in the same base units as the list it scrolls,
  * so `scrollTop` here is directly the list's offset — no pixel/unit
@@ -35,6 +36,8 @@ export function Scrollbar({
   contentHeight,
   step,
   onScroll,
+  trackColor,
+  thumbColor,
 }: ScrollbarProps) {
   const p = (n: number) => n * zoom;
   const trackRef = useRef<HTMLDivElement>(null);
@@ -89,7 +92,7 @@ export function Scrollbar({
         height: p(viewportHeight),
         display: "flex",
         flexDirection: "column",
-        background: C.scrollTrack,
+        background: trackColor,
         flexShrink: 0,
       }}
     >
@@ -97,6 +100,7 @@ export function Scrollbar({
         zoom={zoom}
         size={arrow}
         direction="up"
+        color={thumbColor}
         onClick={() => onScroll(clamp(scrollTop - step))}
       />
       <div
@@ -134,7 +138,7 @@ export function Scrollbar({
             right: p(1),
             top: p(thumbTop),
             height: p(thumbHeight),
-            background: C.header,
+            background: thumbColor,
             border: "none",
             padding: 0,
             cursor: "pointer",
@@ -145,6 +149,7 @@ export function Scrollbar({
         zoom={zoom}
         size={arrow}
         direction="down"
+        color={thumbColor}
         onClick={() => onScroll(clamp(scrollTop + step))}
       />
     </div>
@@ -155,11 +160,13 @@ function ArrowButton({
   zoom,
   size,
   direction,
+  color,
   onClick,
 }: {
   zoom: number;
   size: number;
   direction: "up" | "down";
+  color: string;
   onClick: () => void;
 }) {
   const px = size * zoom;
@@ -191,7 +198,7 @@ function ArrowButton({
       >
         <path
           d={direction === "up" ? "M5 0 10 8H0z" : "M5 8 0 0h10z"}
-          fill={C.header}
+          fill={color}
         />
       </svg>
     </button>

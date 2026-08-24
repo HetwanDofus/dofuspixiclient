@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Stand-in for the retail kamas rune (KamaSymbol.dofasset): an angular
+     white/steel "K"-like glyph crossed by a horizontal blue-grey band,
+     traced off screenshot-ui/inventaire.png. The real dofasset needs the
+     Vello UiAssetRenderer canvas mount, which is only initialized in the
+     battlefield bootstrap — unavailable where the inventory opens. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="26" height="32" viewBox="0 0 26 32">
+  <path
+    d="M4 2 L10 2 L10 12 L18 2 L24 2 L14 15 L24 30 L18 30 L10 18 L10 30 L4 30 Z"
+    fill="#f2f1ea"
+    stroke="#8d8a7c"
+    stroke-width="0.6"
+  />
+  <path d="M2 13.5 L23 13.5 L23 18.5 L2 18.5 Z" fill="#4d7ea8" fill-opacity="0.85" />
+</svg>

@@ -2,11 +2,13 @@ import { create } from "@bufbuild/protobuf";
 import { AccountStatsSchema } from "@dofus/proto/account_pb";
 import { AlignmentInfoSchema, StatEntrySchema } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
+import { currentPods, maxPods } from "@modules/inventory/pods";
+import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import { PlayersRepository } from "@modules/players/players.repository";
-import { LifeRegenService } from "@modules/stats/life-regen.service";
 import {
   BASE_AP,
   BASE_MAX_SUMMONS,
@@ -46,6 +48,8 @@ export interface ComputedStats {
   resistAirPct: number;
   resistFire: number;
   resistFirePct: number;
+  /** Bonus carrying capacity from equipment (effect 158, minus 159). */
+  pods: number;
 }
 
 function emptyComputedStats(): ComputedStats {
@@ -77,6 +81,7 @@ function emptyComputedStats(): ComputedStats {
     resistAirPct: 0,
     resistFire: 0,
     resistFirePct: 0,
+    pods: 0,
   };
 }
 
@@ -113,10 +118,18 @@ function applyItemEffect(
     247: "resistAirPct",
     248: "resistFire",
     249: "resistFirePct",
+    158: "pods",
   };
   const field = mapping[effectId];
   if (field) {
     stats[field] += value;
+    return;
+  }
+  // 159 ("Réduit le poids portable de …") is the one subtractive effect
+  // this service handles — everything else here is additive-only, which
+  // is a known gap for the SUB_* effect family in general.
+  if (effectId === 159) {
+    stats.pods -= value;
   }
 }
 
@@ -127,7 +140,8 @@ export class StatsService {
     private readonly inventory: InventoryRepository,
     private readonly players: PlayersRepository,
     private readonly frames: GatewayFrameService,
-    private readonly lifeRegen: LifeRegenService
+    private readonly lifeRegen: LifeRegenService,
+    private readonly inventoryFrames: InventoryFramesService
   ) {}
 
   async computeEquipmentStats(playerId: string): Promise<ComputedStats> {
@@ -188,6 +202,17 @@ export class StatsService {
 
     const totalVit = baseVit + equipStats.vitality;
     const maxHp = maxLifePoints(player.level, totalVit);
+
+    // Every call site of `sendStats` is also a moment the carrying
+    // capacity could have changed (new gear, a new stat point, a level
+    // up), so — same reasoning as life regen above — this is resolved
+    // here once rather than at each of the five call sites.
+    await this.sendWeight(
+      sessionId,
+      characterId,
+      baseStr + equipStats.strength,
+      equipStats.pods
+    );
 
     // Resolve regeneration here rather than at each of the five call
     // sites: this is the only frame that ever carries life to a client,
@@ -266,6 +291,40 @@ export class StatsService {
           }),
         },
       })
+    );
+  }
+
+  /**
+   * Resolves and broadcasts the `ItemWeight` (`Ow`) frame.
+   *
+   * Weight sums the *whole* inventory — bag and equipped alike, per 1.29 —
+   * so this reads every row via `InventoryRepository.findByPlayer` rather
+   * than reusing `computeEquipmentStats`'s equipped-only fetch.
+   */
+  private async sendWeight(
+    sessionId: string,
+    characterId: string,
+    totalStrength: number,
+    podsBonus: number
+  ): Promise<void> {
+    const items = await this.inventory.findByPlayer(characterId);
+    const templateIds = [...new Set(items.map((item) => item.templateId))];
+    const templates = await Promise.all(
+      templateIds.map((id) => this.templateCache.load(id))
+    );
+
+    const weightByTemplate = new Map<number, number>();
+    templateIds.forEach((id, i) => {
+      const template = templates[i];
+      if (template) {
+        weightByTemplate.set(id, template.weight);
+      }
+    });
+
+    this.inventoryFrames.sendWeight(
+      sessionId,
+      currentPods(items, weightByTemplate),
+      maxPods(totalStrength, podsBonus)
     );
   }
 }

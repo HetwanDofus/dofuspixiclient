@@ -29,6 +29,11 @@ interface EffectTemplate {
   /** Characteristic id the effect boosts; 0 for effects with no stat. */
   characteristic: number;
   element: EffectElement | null;
+  /** Display order (the bundle's `p`), higher first. Not independently
+   * verified against a retail source beyond matching the one reference
+   * capture's row order (800 → 124 → 983, i.e. 987 → 90 → −11); treat as
+   * a working deduction, not a confirmed rule. */
+  priority: number;
 }
 
 let templates: Map<number, EffectTemplate> | null = null;
@@ -39,6 +44,7 @@ interface RawEntry {
   d?: unknown;
   c?: unknown;
   e?: unknown;
+  p?: unknown;
 }
 
 function parseBundle(json: unknown): Map<number, EffectTemplate> {
@@ -57,6 +63,7 @@ function parseBundle(json: unknown): Map<number, EffectTemplate> {
       description: raw.d,
       characteristic: typeof raw.c === "number" ? raw.c : 0,
       element: ELEMENT_BY_LETTER[letter] ?? null,
+      priority: typeof raw.p === "number" ? raw.p : 0,
     });
   }
   return out;
@@ -115,6 +122,8 @@ export interface FormattedEffect {
   text: string;
   element: EffectElement | null;
   characteristic: number;
+  /** Display-order hint — see `EffectTemplate.priority`. */
+  priority: number;
 }
 
 export interface EffectValues {
@@ -164,6 +173,7 @@ export function formatEffect(effect: EffectValues): FormattedEffect | null {
     text,
     element: template.element,
     characteristic: template.characteristic,
+    priority: template.priority,
   };
 }
 

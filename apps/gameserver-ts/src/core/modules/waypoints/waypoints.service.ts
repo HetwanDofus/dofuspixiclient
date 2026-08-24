@@ -121,15 +121,15 @@ export class WaypointsService {
             Math.abs(targetMap.y - currentMap.y) -
             1);
 
-    // Check kamas
-    const playerData = await this.players.findById(characterId);
-    if (!playerData || Number(playerData.kamas) < cost) {
+    // Deduct kamas. The affordability check lives inside the debit itself
+    // (`kamas >= cost` in the same UPDATE) rather than a read beforehand,
+    // so two zaap uses racing the same balance cannot both pass — the
+    // read-then-write this replaced could.
+    const paid = await this.players.spendKamas(characterId, cost);
+    if (paid === 0) {
       this.sendUseError(sessionId);
       return;
     }
-
-    // Deduct kamas
-    await this.players.addXpAndKamas(characterId, 0, -cost);
 
     // Teleport
     await this.transition.teleport(

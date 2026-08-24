@@ -10,6 +10,7 @@ export type {
 export type { ContextMenuOption, ContextMenuState } from "./context-menu-store";
 export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
+export type { InventoryState, InventoryWeight } from "./inventory-store";
 export { characterStore } from "./character-store";
 export {
   appendChatMessage,
@@ -40,3 +41,11 @@ export {
   togglePanel,
   toggleWorldMap,
 } from "./hud-store";
+export {
+  clearInventory,
+  getBagItems,
+  getEquippedAt,
+  getEquippedItems,
+  getTemplate,
+  inventoryStore,
+} from "./inventory-store";

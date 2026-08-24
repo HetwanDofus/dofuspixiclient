@@ -10,7 +10,7 @@ import {
 } from "@/game/stores/spells-store";
 
 import { Panel } from "../components/Panel";
-import { Scrollbar } from "./Scrollbar";
+import { Scrollbar } from "../components/Scrollbar";
 import { SpellIconMount } from "./SpellIconMount";
 import { type SpellTypeFilter, SpellTypeSelect } from "./SpellTypeSelect";
 import { SPELL_BOOK_COLORS, SPELL_LIST_METRICS } from "./spell-book-theme";
@@ -229,6 +229,8 @@ export function SpellsPanel({
               contentHeight={contentHeight}
               step={M.rowHeight}
               onScroll={setScrollTop}
+              trackColor={SPELL_BOOK_COLORS.scrollTrack}
+              thumbColor={SPELL_BOOK_COLORS.header}
             />
           )}
         </div>

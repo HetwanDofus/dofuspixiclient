@@ -9,21 +9,25 @@ import { match, P } from "ts-pattern";
  * five accessory slots in this order: weapon, hat, cape, pet, shield.
  *
  *   position 1  = weapon  → ordinal 0
- *   position 5  = hat     → ordinal 1
- *   position 6  = cape    → ordinal 2
- *   position 7  = pet     → ordinal 3
- *   position 14 = shield  → ordinal 4
+ *   position 6  = hat     → ordinal 1
+ *   position 7  = cape    → ordinal 2
+ *   position 8  = pet     → ordinal 3
+ *   position 15 = shield  → ordinal 4
  *
- * Anything outside those five positions is a worn piece with no client look
- * representation (amulet/ring/belt/boots/dofus/mount) and is skipped here.
+ * These positions come from `EquipmentPosition` / `items.json`'s `I.ss`
+ * (see `packages/protocol/src/item-types.ts` — the values there were wrong
+ * for hat/cape/pet/shield until they were re-derived from that bundle; this
+ * table must stay in lockstep with it). Anything outside those five
+ * positions is a worn piece with no client look representation
+ * (amulet/ring/belt/boots/dofus/mount) and is skipped here.
  */
 function positionToOrdinal(position: number): number | null {
   return match(position)
     .with(1, () => 0)
-    .with(5, () => 1)
-    .with(6, () => 2)
-    .with(7, () => 3)
-    .with(14, () => 4)
+    .with(6, () => 1)
+    .with(7, () => 2)
+    .with(8, () => 3)
+    .with(15, () => 4)
     .otherwise(() => null);
 }
 
@@ -50,7 +54,9 @@ export class AccessoriesService {
       const ordinal = positionToOrdinal(item.position);
       return ordinal === null ? [] : [{ item, ordinal }];
     });
-    if (visible.length === 0) return [];
+    if (visible.length === 0) {
+      return [];
+    }
 
     // Templates fetch in parallel — cache hits are sync anyway and misses
     // shouldn't serialize since a player rarely has more than five look
@@ -62,11 +68,13 @@ export class AccessoriesService {
     const out: PlayerAccessoryPresence[] = [];
     for (let i = 0; i < visible.length; i++) {
       const template = rows[i];
-      if (!template || template.gfxId <= 0) continue;
+      if (!template || template.gfxId <= 0) {
+        continue;
+      }
       out.push({
         itemType: template.type,
         gfxId: template.gfxId,
-        ordinal: visible[i]!.ordinal,
+        ordinal: visible[i]?.ordinal ?? 0,
       });
     }
 

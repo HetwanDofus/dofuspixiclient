@@ -3,7 +3,6 @@ import { AreaKind, cellsInArea, hasLineOfSight } from "@dofus/grid";
 import { match } from "ts-pattern";
 
 import type { Battlefield } from "@/game/scene";
-import type { InventoryStore } from "@/game/stores/inventory-store";
 import type { CharacterStats } from "@/game/types/stats";
 import { AudioManager } from "@/game/audio/audio-manager";
 import { derivePasswordKey } from "@/game/auth/pbkdf2";
@@ -89,7 +88,6 @@ export class GameClient {
 
   private readonly authHandler: AuthHandler;
   private readonly characterHandler: CharacterHandler;
-  private readonly inventoryHandler: InventoryHandler;
   private readonly fightHandler: FightHandler;
   private readonly mapHandler: MapHandler;
   private readonly spellHandler: SpellHandler;
@@ -138,7 +136,9 @@ export class GameClient {
         this.battlefield?.setDebugPlayerId(character.id);
       },
     });
-    this.inventoryHandler = new InventoryHandler(this.messageHandler);
+    // Registers itself against `messageHandler` and writes straight into
+    // `inventoryStore` — nothing here needs to hold a reference to it.
+    new InventoryHandler(this.messageHandler);
     this.fightHandler = new FightHandler(
       this.messageHandler,
       this.connection,
@@ -1442,10 +1442,6 @@ export class GameClient {
 
   getAudioManager(): AudioManager {
     return this.audioManager;
-  }
-
-  getInventory(): InventoryStore {
-    return this.inventoryHandler.store;
   }
 
   getAuthState() {

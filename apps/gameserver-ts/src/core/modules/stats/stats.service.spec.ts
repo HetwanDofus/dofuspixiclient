@@ -35,10 +35,15 @@ function applyItemEffect(
     247: "resistAirPct",
     248: "resistFire",
     249: "resistFirePct",
+    158: "pods",
   };
   const field = mapping[effectId];
   if (field) {
     stats[field] += value;
+    return;
+  }
+  if (effectId === 159) {
+    stats.pods -= value;
   }
 }
 
@@ -71,6 +76,7 @@ function emptyComputedStats(): ComputedStats {
     resistAirPct: 0,
     resistFire: 0,
     resistFirePct: 0,
+    pods: 0,
   };
 }
 
@@ -147,6 +153,19 @@ describe("applyItemEffect", () => {
     expect(stats.resistNeutralPct).toBe(5);
   });
 
+  test("maps effect 158 to pods", () => {
+    const stats = emptyComputedStats();
+    applyItemEffect(stats, 158, 50);
+    expect(stats.pods).toBe(50);
+  });
+
+  test("effect 159 subtracts from pods instead of adding", () => {
+    const stats = emptyComputedStats();
+    applyItemEffect(stats, 158, 50);
+    applyItemEffect(stats, 159, 20);
+    expect(stats.pods).toBe(30);
+  });
+
   test("ignores unknown effect id", () => {
     const stats = emptyComputedStats();
     applyItemEffect(stats, 9999, 50);
@@ -200,5 +219,6 @@ describe("emptyComputedStats", () => {
     expect(stats.resistAirPct).toBe(0);
     expect(stats.resistFire).toBe(0);
     expect(stats.resistFirePct).toBe(0);
+    expect(stats.pods).toBe(0);
   });
 });

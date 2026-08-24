@@ -22,6 +22,7 @@
 		"@dofus/dofasset-format": "workspace:*",
 		"@dofus/grid": "workspace:*",
 		"@dofus/proto": "workspace:*",
+		"@dofus/protocol": "workspace:*",
 		"@dofus/spell-runtime": "workspace:*",
 		"@fontsource-variable/geist": "^5.2.8",
 		"@lingui/babel-plugin-lingui-macro": "^5.9.3",

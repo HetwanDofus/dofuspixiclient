@@ -1,6 +1,6 @@
 import type { PlayerRow } from "@shared/db/schema";
+import { resolveLife } from "@modules/life-regen/life-regen";
 import { PlayersRepository } from "@modules/players/players.repository";
-import { resolveLife } from "@modules/stats/life-regen";
 import { Injectable } from "@nestjs/common";
 
 /**
