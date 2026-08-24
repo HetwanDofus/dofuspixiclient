@@ -141,6 +141,7 @@ message DofusMessage {
     ItemUseCondition             item_use_condition             = 410; // OK
     ItemFound                    item_found                     = 411; // OF
     ItemDeletion                 item_deletion                  = 412; // Od
+    ItemTemplates                 item_templates                  = 413; // (custom)
 
     // --- Inventory Shortcuts (Or) ---
     InventoryShortcutAdd         inventory_shortcut_add         = 420; // OrA

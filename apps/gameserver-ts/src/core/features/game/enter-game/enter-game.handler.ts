@@ -120,6 +120,10 @@ export class EnterGameHandler {
     // is never told it exists, which reads exactly like the loot never
     // worked. The server emitted no `item*` frame at all before QA-060.
     await this.items.sendInventory(ctx.sessionId, session.characterId);
+    // The client only ever learns a template id from `ItemData.item_id`;
+    // this is what resolves it to a name, description, icon and legal
+    // equip positions, same as `sendInventory` above must precede it.
+    await this.items.sendTemplatesForPlayer(ctx.sessionId, session.characterId);
 
     const spellData = await this.spells.buildSpellList(session.characterId);
     const tSpells = performance.now();

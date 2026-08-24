@@ -57,12 +57,32 @@ export function parseItemEffects(raw: unknown): ItemEffect[] {
 }
 
 /**
+ * `param3` for a real jet ("j": true in `assets/dist/langs/fr/effects.json`
+ * — every stat boost, weapon damage, resistance…) is always a dice formula
+ * like `1d7+0` or `0d0+2`, min-populated by the importer from the same
+ * `#param1#param2#param3` triple `param1`/`param2` come from. An effect
+ * the bundle does *not* mark as a jet — pet bookkeeping (800/806/807/808),
+ * "Lié au compte" (983), a tool's `Résistance : #2 / #3` (812) — never
+ * carries that shape: it's a bare number ("64", "a", "ca") or an id-typed
+ * flag. That difference is already sitting in the data the server has on
+ * hand, so this is what tells a roll from a non-roll, without loading the
+ * lang bundle just to read one boolean.
+ *
+ * QA-079: this was previously unconditional on `param2 > param1`, which
+ * also matched effect 800 ("Points de vie : #3", param1=5, param2=72 on
+ * some pets) and produced a random, permanently-wrong pet HP display.
+ */
+const DICE_NOTATION = /^\d+d\d+[+-]\d+$/;
+
+/**
  * Roll one instance from a template's effect list.
  *
  * Each effect lands somewhere in `[param1, param2]` inclusive. A
- * template whose `param2` is zero or below `param1` is a fixed effect,
- * not a range — the 1.29 data uses that for everything from a set bonus
- * to a weapon's own damage line — and is copied through untouched.
+ * template whose `param2` is zero or below `param1`, or whose `param3`
+ * isn't a dice formula (see `DICE_NOTATION` above), is not a range to
+ * roll — the 1.29 data uses "param2 > param1" for things as different as
+ * a weapon's own damage spread and a pet's untouched bookkeeping bounds —
+ * and is copied through untouched.
  *
  * The rolled value is written into **both** `param1` and `param2` so the
  * stored row reads as a fixed effect, which is what an instance is: the
@@ -73,7 +93,7 @@ export function rollItemEffects(
   random: () => number = Math.random
 ): ItemEffect[] {
   return parseItemEffects(templateEffects).map((effect) => {
-    if (effect.param2 <= effect.param1) {
+    if (effect.param2 <= effect.param1 || !DICE_NOTATION.test(effect.param3)) {
       return effect;
     }
 

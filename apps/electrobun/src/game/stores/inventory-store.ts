@@ -5,134 +5,146 @@ import type {
   ItemMovement,
   ItemQuantity,
   ItemRemove,
+  ItemTemplateData,
+  ItemTemplates,
   ItemWeight,
 } from "@/game/network/protocol";
-import { createLogger } from "@/utils/logger";
 
-const log = createLogger("InventoryStore");
-
-export type InventoryChangeListener = () => void;
+import { ExternalStore } from "./game-store";
 
 export interface InventoryWeight {
   current: number;
   max: number;
 }
 
+export interface InventoryState {
+  /** Keyed by `ItemData.unicId`, the per-instance id the server assigns. */
+  items: Map<number, ItemData>;
+  /**
+   * Presentation for every template the player currently owns, keyed by
+   * `ItemTemplateData.id`. Populated by the `ItemTemplates` frame
+   * (`InventoryFramesService.sendTemplates`, server-side) rather than any
+   * bundle the client loads itself — an `ItemData.item_id` on its own is
+   * just a number until its template arrives here.
+   */
+  templates: Map<number, ItemTemplateData>;
+  weight: InventoryWeight;
+}
+
+const initialState: InventoryState = {
+  items: new Map(),
+  templates: new Map(),
+  weight: { current: 0, max: 1000 },
+};
+
 /**
- * Client-side inventory store. Holds the current character's items,
- * kamas, and weight. Indexed by proto ItemData.unicId (the per-instance
- * unique id assigned by the server).
+ * Client-side inventory store: the current character's items and their
+ * templates. Kamas live in `characterStore` instead — they arrive on the
+ * `AccountStats` frame the same as every other character-sheet number, and
+ * duplicating them here would give two answers to "how many kamas".
+ *
+ * `ExternalStore`, like every other store in this project, rather than the
+ * previous hand-rolled class: `useSyncExternalStore` needs a `getSnapshot`
+ * that returns a new reference when — and only when — something changed,
+ * which is what `replaceState`/`setState` give for free.
  */
-export class InventoryStore {
-  private items: Map<number, ItemData> = new Map();
-  private _kamas = 0;
-  private _weight: InventoryWeight = { current: 0, max: 1000 };
-  private listeners: InventoryChangeListener[] = [];
+export const inventoryStore = new ExternalStore<InventoryState>(initialState);
 
-  get kamas(): number {
-    return this._kamas;
-  }
+/** Bag items (position === -1). */
+export function getBagItems(state: InventoryState): ItemData[] {
+  return Array.from(state.items.values()).filter((i) => i.position === -1);
+}
 
-  get weight(): InventoryWeight {
-    return this._weight;
-  }
+/** Equipped items (position >= 0). */
+export function getEquippedItems(state: InventoryState): ItemData[] {
+  return Array.from(state.items.values()).filter((i) => i.position >= 0);
+}
 
-  getItems(): ItemData[] {
-    return Array.from(this.items.values());
-  }
+export function getEquippedAt(
+  state: InventoryState,
+  position: number
+): ItemData | undefined {
+  return Array.from(state.items.values()).find((i) => i.position === position);
+}
 
-  getItem(unicId: number): ItemData | undefined {
-    return this.items.get(unicId);
-  }
+export function getTemplate(
+  state: InventoryState,
+  templateId: number
+): ItemTemplateData | undefined {
+  return state.templates.get(templateId);
+}
 
-  /** Bag items (position === -1). */
-  getBagItems(): ItemData[] {
-    return this.getItems().filter((i) => i.position === -1);
+/** Replace/add every item in an `ItemAdd` frame (initial load, or a grant). */
+export function handleItemAdd(payload: ItemAdd): void {
+  const { items } = inventoryStore.getSnapshot();
+  const next = new Map(items);
+  for (const item of payload.items) {
+    next.set(item.unicId, item);
   }
+  inventoryStore.setState({ items: next });
+}
 
-  /** Equipped items (position >= 0). */
-  getEquippedItems(): ItemData[] {
-    return this.getItems().filter((i) => i.position >= 0);
+export function handleItemChange(payload: ItemChange): void {
+  const { items } = inventoryStore.getSnapshot();
+  const next = new Map(items);
+  for (const item of payload.items) {
+    next.set(item.unicId, item);
   }
+  inventoryStore.setState({ items: next });
+}
 
-  getEquippedAt(position: number): ItemData | undefined {
-    return this.getItems().find((i) => i.position === position);
+export function handleItemRemove(payload: ItemRemove): void {
+  const { items } = inventoryStore.getSnapshot();
+  if (!items.has(payload.itemUnicId)) {
+    return;
   }
+  const next = new Map(items);
+  next.delete(payload.itemUnicId);
+  inventoryStore.setState({ items: next });
+}
 
-  onChange(listener: InventoryChangeListener): () => void {
-    this.listeners.push(listener);
-    return () => {
-      const idx = this.listeners.indexOf(listener);
-      if (idx !== -1) this.listeners.splice(idx, 1);
-    };
+export function handleItemQuantity(payload: ItemQuantity): void {
+  const { items } = inventoryStore.getSnapshot();
+  const item = items.get(payload.itemUnicId);
+  if (!item) {
+    return;
   }
+  const next = new Map(items);
+  next.set(payload.itemUnicId, { ...item, quantity: payload.newQuantity });
+  inventoryStore.setState({ items: next });
+}
 
-  private notify(): void {
-    for (const listener of this.listeners) {
-      try {
-        listener();
-      } catch (e) {
-        log.error("Listener error:", e);
-      }
-    }
+export function handleItemMovement(payload: ItemMovement): void {
+  const { items } = inventoryStore.getSnapshot();
+  const item = items.get(payload.itemUnicId);
+  if (!item) {
+    return;
   }
+  const next = new Map(items);
+  next.set(payload.itemUnicId, { ...item, position: payload.position });
+  inventoryStore.setState({ items: next });
+}
 
-  /** Replace entire inventory (initial load via ItemAdd with many items). */
-  handleItemAdd(payload: ItemAdd): void {
-    for (const item of payload.items) {
-      this.items.set(item.unicId, item);
-    }
-    if (payload.kamaReceived) {
-      this._kamas += Number(payload.kamaReceived);
-    }
-    log.debug(`Items added: ${payload.items.length}`);
-    this.notify();
-  }
+export function handleWeightUpdate(payload: ItemWeight): void {
+  inventoryStore.setState({
+    weight: { current: payload.currentWeight, max: payload.maxWeight },
+  });
+}
 
-  handleItemChange(payload: ItemChange): void {
-    for (const item of payload.items) {
-      this.items.set(item.unicId, item);
-    }
-    log.debug(`Items changed: ${payload.items.length}`);
-    this.notify();
+/** Merge in newly-described templates; never removes one already known. */
+export function handleItemTemplates(payload: ItemTemplates): void {
+  const { templates } = inventoryStore.getSnapshot();
+  const next = new Map(templates);
+  for (const template of payload.templates) {
+    next.set(template.id, template);
   }
+  inventoryStore.setState({ templates: next });
+}
 
-  handleItemRemove(payload: ItemRemove): void {
-    this.items.delete(payload.itemUnicId);
-    log.debug(`Item removed: unicId=${payload.itemUnicId}`);
-    this.notify();
-  }
-
-  handleItemQuantity(payload: ItemQuantity): void {
-    const item = this.items.get(payload.itemUnicId);
-    if (item) {
-      item.quantity = payload.newQuantity;
-      this.notify();
-    }
-  }
-
-  handleItemMovement(payload: ItemMovement): void {
-    const item = this.items.get(payload.itemUnicId);
-    if (item) {
-      item.position = payload.position;
-      this.notify();
-    }
-  }
-
-  handleWeightUpdate(payload: ItemWeight): void {
-    this._weight = { current: payload.currentWeight, max: payload.maxWeight };
-    this.notify();
-  }
-
-  setKamas(kamas: number): void {
-    this._kamas = kamas;
-    this.notify();
-  }
-
-  clear(): void {
-    this.items.clear();
-    this._kamas = 0;
-    this._weight = { current: 0, max: 1000 };
-    this.notify();
-  }
+export function clearInventory(): void {
+  inventoryStore.replaceState({
+    items: new Map(),
+    templates: new Map(),
+    weight: { current: 0, max: 1000 },
+  });
 }

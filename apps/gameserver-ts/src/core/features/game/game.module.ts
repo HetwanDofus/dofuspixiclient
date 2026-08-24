@@ -11,6 +11,7 @@ import { FightStartModule } from "@features/game/fight-start/fight-start.module"
 import { FightTurnModule } from "@features/game/fight-turn/fight-turn.module";
 import { GetMapDataModule } from "@features/game/get-map-data/get-map-data.module";
 import { ItemMoveModule } from "@features/game/item-move/item-move.module";
+import { ItemUseModule } from "@features/game/item-use/item-use.module";
 import { MoveModule } from "@features/game/move/move.module";
 import { MoveAckModule } from "@features/game/move-ack/move-ack.module";
 import { SelectCharacterModule } from "@features/game/select-character/select-character.module";
@@ -34,6 +35,7 @@ import { Module } from "@nestjs/common";
     MoveModule,
     MoveAckModule,
     ItemMoveModule,
+    ItemUseModule,
     StatBoostModule,
     ChatModule,
     FightStartModule,

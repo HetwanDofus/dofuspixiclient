@@ -4,11 +4,12 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { AccountStats } from "@dofus/proto/account_pb";
 import type { DofusMessage } from "@dofus/proto/server_messages_pb";
+import type { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import type { InventoryRepository } from "@modules/inventory/inventory.repository";
 import type { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import type { PlayersRepository } from "@modules/players/players.repository";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
-import { LifeRegenService } from "@modules/stats/life-regen.service";
+import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import {
   BASE_AP,
   BASE_DISCERNMENT,
@@ -31,7 +32,7 @@ interface ItemEffect {
 }
 
 let player: Record<string, unknown>;
-let equipped: { templateId: number }[];
+let equipped: { templateId: number; quantity: number }[];
 let templates: Record<number, ItemEffect[]>;
 let sent: DofusMessage[];
 let service: StatsService;
@@ -81,6 +82,10 @@ beforeEach(() => {
 
   const inventory = {
     findEquipped: async () => equipped,
+    // `sendStats` also sums the whole inventory for `ItemWeight` — the
+    // equipped fixture doubles as "everything owned" here since no test
+    // in this file asserts on weight.
+    findByPlayer: async () => equipped,
   } as unknown as InventoryRepository;
 
   const templateCache = {
@@ -104,12 +109,19 @@ beforeEach(() => {
     },
   } as unknown as PlayersRepository);
 
+  // `sendStats` also broadcasts `ItemWeight` through here; no test in
+  // this file asserts on it, so the stub only needs to not throw.
+  const inventoryFrames = {
+    sendWeight: () => {},
+  } as unknown as InventoryFramesService;
+
   service = new StatsService(
     templateCache,
     inventory,
     players,
     frames,
-    lifeRegen
+    lifeRegen,
+    inventoryFrames
   );
 });
 
@@ -153,7 +165,7 @@ describe("StatsService.sendStats", () => {
 
   test("AP, MP, range and summons carry their equipment bonus separately", async () => {
     // 111 = +AP, 128 = +MP, 117 = +range, 182 = +summons.
-    equipped = [{ templateId: 1 }];
+    equipped = [{ templateId: 1, quantity: 1 }];
     templates[1] = [
       { id: 111, min: 1 },
       { id: 128, min: 2 },
@@ -173,7 +185,7 @@ describe("StatsService.sendStats", () => {
   test("reads the world import's own effect shape, not just min/value", async () => {
     // item_templates rows carry {id, param1, param2, param3} — reading
     // only `min`/`value` silently dropped every equipment bonus.
-    equipped = [{ templateId: 1 }];
+    equipped = [{ templateId: 1, quantity: 1 }];
     templates[1] = [
       { id: 111, param1: 1 },
       { id: 117, param1: 1 },

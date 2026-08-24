@@ -212,4 +212,36 @@ export class PlayersRepository {
       .where("id", "=", playerId)
       .execute();
   }
+
+  /**
+   * Debits `amount` kamas, returning the rows touched — 0 when the
+   * balance could no longer cover it. Same contract as `spendStatPoints`
+   * and `spendSpellPoints`: the `kamas >= amount` predicate lives in the
+   * `UPDATE` itself, so two debits racing the same balance cannot both
+   * pass and drive it negative.
+   *
+   * This is the one gate every kamas-consuming feature should share
+   * (waypoints today; merchants, trades, the bank and the auction house
+   * tomorrow) instead of each hand-rolling its own read-then-write, which
+   * is what `addXpAndKamas` below invites when called with a negative
+   * amount and no check at all.
+   */
+  async spendKamas(playerId: string, amount: number): Promise<number> {
+    const res = await this.txHost.tx
+      .updateTable("players")
+      .set((eb) => ({ kamas: eb("kamas", "-", String(amount)) }))
+      .where("id", "=", playerId)
+      .where("kamas", ">=", String(amount))
+      .executeTakeFirst();
+    return Number(res.numUpdatedRows);
+  }
+
+  /** Credits `amount` kamas. Unconditional — there is no way to fail a gain. */
+  async earnKamas(playerId: string, amount: number): Promise<void> {
+    await this.txHost.tx
+      .updateTable("players")
+      .set((eb) => ({ kamas: eb("kamas", "+", String(amount)) }))
+      .where("id", "=", playerId)
+      .execute();
+  }
 }

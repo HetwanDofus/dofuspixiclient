@@ -98,6 +98,35 @@ message ItemDeletion {
   int32 item_unic_id = 1;
 }
 
+// (custom, no 1.29 equivalent) — presentation data for the templates a
+// player currently owns (bag + equipped). The retail client shipped
+// items.json itself and read templates straight out of it; this server
+// resolves item presentation the same way it already resolves spells —
+// server-side — so the browser never has to load the full ~11 000-item
+// bundle. Sent once after ItemAdd on entering the game, and again
+// whenever a new template a player has never owned before is granted.
+message ItemTemplateData {
+  int32           id = 1;
+  string          name = 2;
+  string          description = 3;
+  int32           type_id = 4;
+  string          type_name = 5;
+  int32           super_type = 6;
+  int32           level = 7;
+  int32           weight = 8;
+  int32           gfx_id = 9;
+  bool            usable = 10;
+  bool            targetable = 11;
+  bool            two_handed = 12;
+  int32           item_set_id = 13;
+  repeated int32  positions = 14;   // legal equipment positions, from the item's superType
+  string          criteria = 15;
+}
+
+message ItemTemplates {
+  repeated ItemTemplateData templates = 1;
+}
+
 // --- Inventory Shortcuts ---
 
 // OrA - Shortcut added

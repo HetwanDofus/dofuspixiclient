@@ -10,9 +10,10 @@
  *
  *   DATABASE_URL=... bun run scripts/dev-seed.ts [username] [password] [character]
  *
- * Re-running is safe: every row is upserted.
+ * Re-running is safe: every row is upserted, except the spellbook, which is
+ * rewritten from `class_starter_spells` (see below).
  *
- * Three details are easy to get wrong here:
+ * Four details are easy to get wrong here:
  *
  *  - `game_servers.state` must be 1 (online) or the server list comes back
  *    empty and login dead-ends on the server-select screen.
@@ -21,6 +22,11 @@
  *  - the schema's default spawn `cell_id = 319` is NOT walkable on the
  *    default map 10300. We decode `maps.cells` and pick a walkable cell when
  *    the map is present.
+ *  - the spellbook is the class starter set, not the whole catalogue — three
+ *    spells in 1.29, not 2 091.
+ *  - the item grants below need `item_templates` populated — run the world
+ *    content importer first (`bun run scripts/import-starloco-content.ts
+ *    game.sql`) or the character starts with kamas but an empty bag.
  */
 import { createHash, pbkdf2 as pbkdf2Cb } from "node:crypto";
 import { promisify } from "node:util";
@@ -28,6 +34,7 @@ import { promisify } from "node:util";
 import { CamelCasePlugin, Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 
+import { rollItemEffects } from "../src/core/modules/inventory/item-effects.ts";
 import { decodeCells } from "../src/core/modules/maps/maps.cells-codec.ts";
 
 /**
@@ -48,7 +55,7 @@ const HASH_CELL =
  *   d3..d9 = 0 (no ground/object graphics)         → index 0
  */
 const BLANK_WALKABLE_CELL =
-  HASH_CELL[33]! + HASH_CELL[7]! + HASH_CELL[32]! + HASH_CELL[0]!.repeat(7);
+  HASH_CELL[33]! + HASH_CELL[7]! + HASH_CELL[32]! + HASH_CELL[0]?.repeat(7);
 
 const pbkdf2 = promisify(pbkdf2Cb);
 
@@ -91,8 +98,103 @@ const characterName = process.argv[4] ?? "Dev";
  * see the warning `spawnCell` prints.
  */
 const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 10_300);
+/**
+ * Feca. Drives both `players.class` and which `class_starter_spells` rows the
+ * character gets; `players.gfx` below is hard-coded to match.
+ */
+const CHARACTER_CLASS = 1;
 /** Used only when the spawn map has no row yet — see the walkability note. */
 const FALLBACK_SPAWN_CELL = 311;
+
+/**
+ * Kamas the dev character starts with — the exact balance shown in
+ * `screenshot-ui/inventaire.png`, so a side-by-side comparison lines up.
+ */
+const STARTING_KAMAS = 16_161;
+
+/**
+ * One entry per item the dev character starts with. `templateId`s are real
+ * 1.29 items (verified against `assets/dist/langs/fr/items.json`), chosen to
+ * exercise the inventory window end to end:
+ *
+ *  - one piece per equipment slot, including a dofus, a pet and a shield,
+ *    so every paperdoll slot in the reference screenshot has something in it;
+ *  - "Épée de l'initié" (one-handed) equipped alongside the shield, and
+ *    "Arc de l'initié" (two-handed, unequipped) in the bag — try equipping
+ *    the bow to see the shield get displaced in the same move;
+ *  - "Petite Epée de Boisaille" needs `CS>4` and this character has 0
+ *    strength, so equipping it must be refused — the fail-closed criteria
+ *    path has something real to bite on;
+ *  - a stack of "Potion de Mini Soin" (heals, effect 110) to exercise `use`;
+ *  - three resources at different quantities, to fill the bag grid the way
+ *    the screenshot's "Ressources" panel is filled.
+ *
+ * `position` is an `EquipmentPosition` value (`packages/protocol/src/
+ * item-types.ts`) or -1 for the bag.
+ */
+const ITEM_GRANTS: Array<{
+  templateId: number;
+  name: string;
+  quantity: number;
+  position: number;
+}> = [
+  {
+    templateId: 39,
+    name: "Petite Amulette du Hibou",
+    quantity: 1,
+    position: 0,
+  },
+  { templateId: 6780, name: "Épée de l'initié", quantity: 1, position: 1 },
+  {
+    templateId: 100,
+    name: "Petit Anneau de Sagesse",
+    quantity: 1,
+    position: 2,
+  },
+  {
+    templateId: 252,
+    name: "Petite Ceinture Vitalesque",
+    quantity: 1,
+    position: 3,
+  },
+  { templateId: 109, name: "Petit Anneau de Chance", quantity: 1, position: 4 },
+  {
+    templateId: 297,
+    name: "Bottes du Petit Bouftou",
+    quantity: 1,
+    position: 5,
+  },
+  { templateId: 940, name: "Louffeur", quantity: 1, position: 6 },
+  { templateId: 677, name: "Cape du Pirate", quantity: 1, position: 7 },
+  { templateId: 7708, name: "Pioute bleu", quantity: 1, position: 8 },
+  { templateId: 7043, name: "Dofus des Glaces", quantity: 1, position: 9 },
+  {
+    templateId: 7097,
+    name: "Bouclier d'entraînement",
+    quantity: 1,
+    position: 15,
+  },
+  { templateId: 6783, name: "Arc de l'initié", quantity: 1, position: -1 },
+  {
+    templateId: 40,
+    name: "Petite Epée de Boisaille",
+    quantity: 1,
+    position: -1,
+  },
+  { templateId: 1182, name: "Potion de Mini Soin", quantity: 5, position: -1 },
+  { templateId: 289, name: "Blé", quantity: 25, position: -1 },
+  { templateId: 303, name: "Bois de Frêne", quantity: 8, position: -1 },
+  { templateId: 312, name: "Fer", quantity: 3, position: -1 },
+  // Chienchien, unequipped (the pet slot is already taken by the Pioute
+  // above): the reference capture's own familier. Its template effects are
+  // `[800 "Points de vie", 124 "+20 en sagesse"]` — no 983 "Lié au compte"
+  // (that row in the capture is the *instance*'s account-bound flag, not
+  // template data, and this project doesn't stamp one on creation) and 800
+  // is filtered by `HIDDEN_EFFECT_IDS` (its param3 is a constant sentinel,
+  // not a real per-pet HP value — see that constant's doc comment). So
+  // this item renders one clean, real effect row: "+20 en sagesse", green.
+  { templateId: 1711, name: "Chienchien", quantity: 1, position: -1 },
+];
 
 const connectionString =
   process.env.DATABASE_URL ?? "postgres://dofus:dofus@localhost:5432/dofus";
@@ -191,7 +293,9 @@ async function spawnCell(): Promise<number> {
   let best: { id: number; d: number } | null = null;
 
   for (const cell of cells) {
-    if (!cell.active || !cell.walkable) continue;
+    if (!cell.active || !cell.walkable) {
+      continue;
+    }
 
     const pair = Math.floor(cell.id / stride);
     const offset = cell.id % stride;
@@ -199,7 +303,9 @@ async function spawnCell(): Promise<number> {
     const col = offset < map2.width ? offset : offset - map2.width;
     const d = Math.abs(row - centreRow) + Math.abs(col - centreCol);
 
-    if (!best || d < best.d) best = { id: cell.id, d };
+    if (!best || d < best.d) {
+      best = { id: cell.id, d };
+    }
   }
 
   if (!best) {
@@ -260,9 +366,10 @@ const character = await db
     serverId: server.id,
     name: characterName,
     sex: 0,
-    class: 1, // Feca
+    class: CHARACTER_CLASS,
     gfx: 10, // class 1, sex 0 → sprite 10
     level: 1,
+    kamas: String(STARTING_KAMAS),
     mapId: SPAWN_MAP_ID,
     cellId,
     savepointMapId: SPAWN_MAP_ID,
@@ -270,7 +377,11 @@ const character = await db
     direction: 3,
   })
   .onConflict((oc) =>
-    oc.columns(["serverId", "name"]).doUpdateSet({ mapId: SPAWN_MAP_ID, cellId })
+    oc.columns(["serverId", "name"]).doUpdateSet({
+      mapId: SPAWN_MAP_ID,
+      cellId,
+      kamas: String(STARTING_KAMAS),
+    })
   )
   .returning(["id", "name"])
   .executeTakeFirstOrThrow();
@@ -287,23 +398,107 @@ await db
   .onConflict((oc) => oc.column("playerId").doNothing())
   .execute();
 
-// Migration 0036 cross-joins players × spell_templates, but it runs before any
-// player exists, so a hand-seeded character starts with an empty spellbook.
-await db
-  .insertInto("playerSpells")
-  .columns(["playerId", "spellId", "level", "position"])
-  .expression((eb) =>
-    eb
-      .selectFrom("spellTemplates")
-      .select([
-        eb.val(character.id).as("playerId"),
-        "spellTemplates.id as spellId",
-        eb.val(1).as("level"),
-        eb.val(-1).as("position"),
-      ])
+/**
+ * `ITEM_GRANTS` re-seeded from scratch on every run, same reasoning as the
+ * spellbook below: re-running with a shorter or different list must not
+ * leave orphaned rows from a previous run behind.
+ *
+ * Each grant rolls its own effects via `rollItemEffects` — the same
+ * function `FightEndService.grantLoot` uses for real drops — rather than
+ * copying the template's effects verbatim, so a seeded weapon looks like
+ * an actually-looted one (a jet, not the minimum of every range).
+ */
+const templates = await db
+  .selectFrom("itemTemplates")
+  .selectAll()
+  .where(
+    "id",
+    "in",
+    ITEM_GRANTS.map((g) => g.templateId)
   )
-  .onConflict((oc) => oc.columns(["playerId", "spellId"]).doNothing())
   .execute();
+const templateById = new Map(templates.map((t) => [t.id, t]));
+
+const missing = ITEM_GRANTS.filter((g) => !templateById.has(g.templateId));
+if (missing.length === ITEM_GRANTS.length) {
+  console.warn(
+    "item_templates is empty — run the content importer " +
+      "(`bun run scripts/import-starloco-content.ts game.sql`) to give the " +
+      "dev character a starting inventory. Kamas were still granted."
+  );
+} else if (missing.length > 0) {
+  console.warn(
+    `${missing.length} seeded item template(s) not found, skipping: ` +
+      missing.map((g) => `${g.templateId} (${g.name})`).join(", ")
+  );
+}
+
+await db
+  .deleteFrom("playerItems")
+  .where("playerId", "=", character.id)
+  .execute();
+
+const itemRows = ITEM_GRANTS.filter((g) => templateById.has(g.templateId)).map(
+  (grant) => ({
+    playerId: character.id,
+    templateId: grant.templateId,
+    position: grant.position,
+    quantity: grant.quantity,
+    effects: JSON.stringify(
+      rollItemEffects(templateById.get(grant.templateId).effects)
+    ),
+  })
+);
+
+if (itemRows.length > 0) {
+  await db.insertInto("playerItems").values(itemRows).execute();
+}
+
+/**
+ * Migration 0036 cross-joins players × spell_templates, but it runs before any
+ * player exists, so a hand-seeded character starts with an empty spellbook.
+ *
+ * The spellbook is the *class* starter set (three spells in 1.29), seeded per
+ * class by migration 0044. Copying `spell_templates` wholesale — which is what
+ * this used to do — hands a level-1 character all 2 091 spells in the game and
+ * makes the server rebuild that list on every map change.
+ *
+ * The delete is what makes re-seeding meaningful: a character seeded before
+ * 0044 still has the whole catalogue, and upserting three rows on top of it
+ * would not take any away.
+ */
+const starters = await db
+  .selectFrom("classStarterSpells")
+  .select(["spellId", "level", "position"])
+  .where("classId", "=", CHARACTER_CLASS)
+  .orderBy("position")
+  .execute();
+
+if (starters.length === 0) {
+  console.warn(
+    `no class_starter_spells rows for class ${CHARACTER_CLASS} — run ` +
+      `\`just db-migrate\` (migration 0044) or the character starts mute.`
+  );
+} else {
+  await db
+    .deleteFrom("playerSpells")
+    .where("playerId", "=", character.id)
+    .execute();
+
+  await db
+    .insertInto("playerSpells")
+    .values(
+      starters.map(
+        (s: { spellId: number; level: number; position: number }) => ({
+          playerId: character.id,
+          spellId: s.spellId,
+          level: s.level,
+          position: s.position,
+        })
+      )
+    )
+    .execute();
+}
 
 await db
   .updateTable("accountServers")

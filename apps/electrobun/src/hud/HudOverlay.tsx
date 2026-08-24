@@ -14,7 +14,7 @@ import { FightOverlay } from "./fight/FightOverlay";
 import { FriendsPanel } from "./friends/FriendsPanel";
 import { GameContextMenu } from "./GameContextMenu";
 import { GuildPanel } from "./guild/GuildPanel";
-import { InventoryPanel } from "./inventory/InventoryPanel";
+import { InventoryWindow } from "./inventory/InventoryWindow";
 import { MountPanel } from "./mount/MountPanel";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
@@ -88,7 +88,11 @@ export function HudOverlay({
 
         {activePanel === "inventory" && (
           <div style={panelWrapStyle}>
-            <InventoryPanel zoom={baseZoom} onClose={() => closeAllPanels()} />
+            <InventoryWindow
+              zoom={baseZoom}
+              onClose={() => closeAllPanels()}
+              gameClient={gameClient}
+            />
           </div>
         )}
 

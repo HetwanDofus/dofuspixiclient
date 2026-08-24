@@ -84,6 +84,15 @@ import-map-swf maps_dir:
 import-maps dump:
     cd apps/gameserver-ts && bun run scripts/import-starloco-maps.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
 
+# Needs `import-maps` to have run first: NPC placements reference `maps.id`.
+
+# Import what lives *in* the world: monsters, drops, items, item sets, NPCs
+import-content dump:
+    cd apps/gameserver-ts && bun run scripts/import-starloco-content.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
+
+# The whole world in one go — geometry, then contents.
+import-world dump: (import-maps dump) (import-content dump)
+
 # Build the Vello WASM renderer.
 # `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —
 # its own package.json calls itself `dofus-vello-custom-format`, which is the
@@ -212,6 +221,14 @@ sprites-build:
     @{{pipeline}} run sprites.accessories
     @{{pipeline}} compile sprites.accessories
     @{{pipeline}} publish sprites.accessories
+
+# Fixes the PHP extractor's crop bug on mirrored symbols (QA-080). Idempotent:
+# an SVG whose viewBox already contains its drawing is left alone. `--check`
+# only reports, and exits 1 if anything is still off.
+
+# Re-crop published SVGs whose drawing falls outside their viewBox
+recrop-svg *args:
+    @cd "{{root}}" && bun run scripts/recrop-svg-viewbox.ts {{args}}
 
 # Wipe every cache + dist + public/assets spritesheets artifact.
 clean-assets:

@@ -7,21 +7,25 @@
  * -1 = not equipped (in inventory bag).
  */
 /**
- * Equipment slot positions — from EquipmentPosition.java ordinals.
- * Position = ordinal - 1. The server sends this value, and the client
- * places items via `this["_ctr" + position]` (Inventory.as line 508).
+ * Equipment slot positions.
  *
- * The _ctrN FLA containers are NOT numbered sequentially by slot type —
- * e.g. hat=6 maps to _ctr6 which is visually top-right, while _ctr15
- * is the shield alias slot.
+ * Canonical source is `I.ss` in the 1.29 lang bundle
+ * (`assets/langs/fr/items.json`, `data.I.ss`), which lists the equipment
+ * positions each superType may occupy — e.g. superType 4 (belt) → `[3]`,
+ * superType 3 (ring) → `[4, 2]`. That is verifiable against the retail
+ * client's own data; the previous version of this table cited
+ * `EquipmentPosition.java`/`Inventory.as:508` without those files in the
+ * repo and had BELT and RING_RIGHT swapped (3 and 4) as a result. If this
+ * table is ever "corrected" again, re-derive it from `I.ss`, not from
+ * memory of the Java enum.
  */
 export const EquipmentPosition = {
   NOT_EQUIPPED: -1,
   AMULET: 0,
   WEAPON: 1,
   RING_LEFT: 2,
-  RING_RIGHT: 3,
-  BELT: 4,
+  BELT: 3,
+  RING_RIGHT: 4,
   BOOTS: 5,
   HAT: 6,
   CAPE: 7,
@@ -33,13 +37,34 @@ export const EquipmentPosition = {
   DOFUS_5: 13,
   DOFUS_6: 14,
   SHIELD: 15,
+  MOUNT: 16,
 } as const;
 
 export type EquipmentPositionValue =
   (typeof EquipmentPosition)[keyof typeof EquipmentPosition];
 
 /**
- * Item super-types — broad classification for filtering.
+ * Which look ordinal (the client's accessory slot, `Inventory.as`'s
+ * `_ctrN`) an equipped position renders into. Only worn pieces with a
+ * visible representation on the character appear here; amulet/ring/belt/
+ * boots/dofus/mount have none and are absent.
+ */
+export const LOOK_ORDINAL_BY_POSITION: Record<number, number> = {
+  [EquipmentPosition.WEAPON]: 0,
+  [EquipmentPosition.HAT]: 1,
+  [EquipmentPosition.CAPE]: 2,
+  [EquipmentPosition.PET]: 3,
+  [EquipmentPosition.SHIELD]: 4,
+};
+
+/**
+ * Item super-types — broad classification for filtering and for equip
+ * position lookup (`I.ss[superType]`).
+ *
+ * Values are `I.t[*].t` in the lang bundle, i.e. what an item's *type*
+ * declares as its super-type. The previous version of this table invented
+ * its own numbering starting the non-equippable block at 6; it did not
+ * match the bundle at all past AMULET/WEAPON/RING/BELT/BOOT.
  */
 export const ItemSuperType = {
   NONE: 0,
@@ -48,19 +73,23 @@ export const ItemSuperType = {
   RING: 3,
   BELT: 4,
   BOOT: 5,
-  // 6 unused
-  HAT: 7,
-  CAPE: 8,
-  PET: 9,
-  DOFUS: 10,
-  SHIELD: 11,
-  CONSUMABLE: 12,
-  RESOURCE: 13,
+  CONSUMABLE: 6,
+  SHIELD: 7,
+  SOUL: 8,
+  RESOURCE: 9,
+  HAT: 10,
+  CAPE: 11,
+  PET: 12,
+  DOFUS: 13,
   QUEST: 14,
-  SOUL: 15,
+  DOCUMENT: 15,
   RUNE: 16,
-  CARD: 17,
-  MOUNT: 18,
+  BOOST_FOOD: 17,
+  BENEDICTION: 18,
+  MALEDICTION: 19,
+  ROLEPLAY_BUFF: 20,
+  MOUNT: 21,
+  CARD: 24,
 } as const;
 
 export type ItemSuperTypeValue =

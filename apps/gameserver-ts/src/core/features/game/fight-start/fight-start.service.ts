@@ -16,11 +16,11 @@ import {
 } from "@modules/fight/core/fight.states";
 import { FighterKind, FightType, TeamSide } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { SpellsRepository } from "@modules/spells/spells.repository";
-import { LifeRegenService } from "@modules/stats/life-regen.service";
 import { maxLifePoints } from "@modules/stats/stats.constants";
 import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";

@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   REGEN_MS_PER_LIFE_STANDING,
   resolveLife,
-} from "@modules/stats/life-regen";
+} from "@modules/life-regen/life-regen";
 
 const T0 = new Date("2026-08-23T10:00:00.000Z");
 const NOW = T0.getTime();

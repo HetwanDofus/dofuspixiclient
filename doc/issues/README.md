@@ -91,27 +91,28 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**75 entrées**, dont **72 encore ouvertes**.
+**82 entrées**, dont **78 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 26 | 26 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 25 | 25 |
-| P3 — finition, confort, cosmétique | 17 | 17 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 29 | 29 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 29 | 29 |
+| P3 — finition, confort, cosmétique | 16 | 17 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
 ## Par statut
 
 | Statut | Entrées |
 |---|---|
-| `open` — observé, non reproduit méthodiquement | 36 |
+| `open` — observé, non reproduit méthodiquement | 33 |
 | `confirmed` — reproduit, preuve au dossier | 18 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 5 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 14 |
 | `closed` — vérifié, clos | 3 |
+| `wontfix` — écarté, avec la raison en fiche | 1 |
 
 ## Par domaine
 
@@ -123,14 +124,15 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`chat/`](chat/) | 5 | 5 |
 | [`fight/`](fight/) | 13 | 13 |
 | [`hud-banner/`](hud-banner/) | 9 | 9 |
-| [`hud-panels/`](hud-panels/) | 11 | 11 |
+| [`hud-panels/`](hud-panels/) | 13 | 14 |
 | [`input/`](input/) | 2 | 3 |
+| [`inventory/`](inventory/) | 3 | 3 |
 | [`network/`](network/) | 4 | 4 |
 | [`progression/`](progression/) | 2 | 2 |
 | [`server-runtime/`](server-runtime/) | 3 | 3 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 3 | 3 |
-| [`world-render/`](world-render/) | 5 | 5 |
+| [`world-render/`](world-render/) | 6 | 6 |
 | [`worldmap/`](worldmap/) | 7 | 8 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -172,6 +174,9 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-068](network/QA-068-aucune-resynchronisation-d-etat-de-map.md) | P1 | network | gap | confirmed | Aucune resynchronisation d'état de map — une trame perdue est définitive |
 | [QA-069](fight/QA-069-combattant-fantome-a-la-deconnexion.md) | P1 | fight | bug | confirmed | Une session qui se ferme en plein combat laisse un combattant fantôme |
 | [QA-070](progression/QA-070-vie-jamais-persistee-apres-un-combat.md) | P1 | progression | gap | in-progress | Les PV restants ne sont jamais écrits en base après un combat |
+| [QA-076](inventory/QA-076-positions-equipement-fausses.md) | P1 | inventory | bug | fixed | La table des positions d'équipement était fausse, dans trois fichiers différents |
+| [QA-079](inventory/QA-079-familier-mal-gere.md) | P1 | inventory | bug | fixed | Le familier était mal géré — jet sur des effets non aléatoires, #3 jamais transmis |
+| [QA-080](world-render/QA-080-viewbox-des-svg-hors-cadre.md) | P1 | world-render | bug | fixed | Le recadrage de l'extracteur coupe tout dessin miroir ou pivoté hors de son viewBox |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -181,7 +186,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-006](hud-banner/QA-006-ni-xp-ni-pods-ni-energie.md) | P2 | hud-banner | gap | open | Ni barre d'XP, ni pods, ni énergie, ni nom/niveau en bannière |
 | [QA-007](hud-banner/QA-007-slots-de-raccourcis-vides-et-inertes.md) | P2 | hud-banner | gap | open | Les 14 slots de raccourcis sont vides et inertes |
 | [QA-009](worldmap/QA-009-marqueur-minimap-rectangle-rouge.md) | P2 | worldmap | bug | open | Marqueur de position de la minimap = rectangle rouge plein |
-| [QA-013](hud-panels/QA-013-inventaire-450-pods-pour-zero-objet.md) | P2 | hud-panels | bug | open | Inventaire : 450/1000 pods pour zéro objet |
+| [QA-013](hud-panels/QA-013-inventaire-450-pods-pour-zero-objet.md) | P2 | hud-panels | bug | fixed | Inventaire : 450/1000 pods pour zéro objet |
 | [QA-014](hud-panels/QA-014-apercu-personnage-remplace-par-silhouette.md) | P2 | hud-panels | gap | open | Inventaire : aperçu du personnage remplacé par une silhouette |
 | [QA-017](hud-panels/QA-017-panneau-guilde-sans-guilde.md) | P2 | hud-panels | bug | open | Le panneau Guilde s'ouvre avec des données pour un personnage sans guilde |
 | [QA-018](hud-panels/QA-018-initiative-a-1.md) | P2 | hud-panels | bug | open | Initiative à 1 dans le panneau Caractéristiques |
@@ -202,6 +207,10 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-071](fight/QA-071-glyphe-declenche-a-chaque-tour.md) | P2 | fight | bug | in-progress | Un glyphe se déclenche au début du tour de chaque combattant |
 | [QA-072](fight/QA-072-glyphe-expire-reste-dessine.md) | P2 | fight | bug | in-progress | Un glyphe expiré reste dessiné chez le client |
 | [QA-074](fight/QA-074-pieges-declenches-sur-la-seule-case-centrale.md) | P2 | fight | bug | in-progress | Les pièges ne se déclenchent que sur leur case centrale |
+| [QA-077](inventory/QA-077-debit-kamas-non-atomique.md) | P2 | inventory | bug | fixed | Le débit de kamas du zaap n'était pas atomique |
+| [QA-078](hud-panels/QA-078-inventaire-sans-skin-1-29.md) | P2 | hud-panels | bug | fixed | L'inventaire n'utilisait aucun des assets du skin 1.29 déjà en dépôt |
+| [QA-081](hud-panels/QA-081-fiche-objet-onglets-et-description.md) | P2 | hud-panels | bug | fixed | Barre de défilement parasite sur la fenêtre d'inventaire, onglet « Conditions » débordant, description écrasée |
+| [QA-082](hud-panels/QA-082-icones-de-caracteristique-mal-nommees.md) | P2 | hud-panels | bug | fixed | Les icônes de caractéristique venaient du mauvais jeu d'assets |
 
 ## P3 — finition, confort, cosmétique
 
@@ -211,8 +220,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-004](hud-banner/QA-004-badge-connected-debug.md) | P3 | hud-banner | bug | open | Badge « Connected » de debug en haut à droite |
 | [QA-008](hud-banner/QA-008-filtres-de-canaux-en-checkbox-html.md) | P3 | hud-banner | bug | open | Filtres de canaux de chat rendus en cases à cocher HTML brutes |
 | [QA-011](hud-panels/QA-011-onglets-type-sans-icones.md) | P3 | hud-panels | bug | open | Onglets « Type » du panneau Sorts sans icônes |
-| [QA-015](hud-panels/QA-015-slots-equipement-sans-icone-de-type.md) | P3 | hud-panels | bug | open | Slots d'équipement sans icône de type |
-| [QA-016](hud-panels/QA-016-all-types-en-anglais.md) | P3 | hud-panels | bug | open | « All types » en anglais dans le panneau Inventaire |
+| [QA-015](hud-panels/QA-015-slots-equipement-sans-icone-de-type.md) | P3 | hud-panels | bug | wontfix | ~~Slots d'équipement sans icône de type~~ |
+| [QA-016](hud-panels/QA-016-all-types-en-anglais.md) | P3 | hud-panels | bug | fixed | « All types » en anglais dans le panneau Inventaire |
 | [QA-023](chat/QA-023-libelles-de-canaux-en-anglais.md) | P3 | chat | bug | open | Libellés des filtres de canaux en anglais |
 | [QA-024](chat/QA-024-chat-lateral-force-theme-clair.md) | P3 | chat | bug | open | Le chat latéral force `data-theme="light"` |
 | [QA-028](worldmap/QA-028-titre-categories-en-anglais.md) | P3 | worldmap | bug | open | Titre « Categories » en anglais dans un panneau français |
