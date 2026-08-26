@@ -10,8 +10,11 @@
  *
  *   DATABASE_URL=... bun run scripts/dev-seed.ts [username] [password] [character]
  *
- * Re-running is safe: every row is upserted, except the spellbook, which is
- * rewritten from `class_starter_spells` (see below).
+ * Re-running is safe, and no longer destructive to a character you have
+ * played: it keeps the position (pass `RESET_POSITION=1` to move the
+ * character back to the spawn) and adds missing spells rather than
+ * rewriting the spellbook. Items and kamas are still re-seeded from
+ * scratch — the grants below are a fixture, not a save.
  *
  * Four details are easy to get wrong here:
  *
@@ -22,8 +25,9 @@
  *  - the schema's default spawn `cell_id = 319` is NOT walkable on the
  *    default map 10300. We decode `maps.cells` and pick a walkable cell when
  *    the map is present.
- *  - the spellbook is the class starter set, not the whole catalogue — three
- *    spells in 1.29, not 2 091.
+ *  - the spellbook is what the class knows at the character's level, from
+ *    `class_spells` — three spells at level 1, twenty for a Féca 101, never
+ *    the whole 2 091-spell catalogue.
  *  - the item grants below need `item_templates` populated — run the world
  *    content importer first (`bun run scripts/import-starloco-content.ts
  *    game.sql`) or the character starts with kamas but an empty bag.
@@ -99,7 +103,7 @@ const characterName = process.argv[4] ?? "Dev";
  */
 const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 10_300);
 /**
- * Feca. Drives both `players.class` and which `class_starter_spells` rows the
+ * Feca. Drives both `players.class` and which `class_spells` rows the
  * character gets; `players.gfx` below is hard-coded to match.
  */
 const CHARACTER_CLASS = 1;
@@ -359,6 +363,14 @@ async function seedPlaceholderMap(): Promise<void> {
 
 const cellId = await spawnCell();
 
+/**
+ * Re-running the seed used to teleport an existing character back to the
+ * spawn map, which is how a character ends up standing somewhere it
+ * never walked to. Position now belongs to the character once it exists;
+ * pass `RESET_POSITION=1` to ask for the old behaviour explicitly.
+ */
+const resetPosition = process.env.RESET_POSITION === "1";
+
 const character = await db
   .insertInto("players")
   .values({
@@ -378,12 +390,11 @@ const character = await db
   })
   .onConflict((oc) =>
     oc.columns(["serverId", "name"]).doUpdateSet({
-      mapId: SPAWN_MAP_ID,
-      cellId,
       kamas: String(STARTING_KAMAS),
+      ...(resetPosition ? { mapId: SPAWN_MAP_ID, cellId } : {}),
     })
   )
-  .returning(["id", "name"])
+  .returning(["id", "name", "level", "mapId", "cellId"])
   .executeTakeFirstOrThrow();
 
 await db
@@ -458,46 +469,65 @@ if (itemRows.length > 0) {
  * Migration 0036 cross-joins players × spell_templates, but it runs before any
  * player exists, so a hand-seeded character starts with an empty spellbook.
  *
- * The spellbook is the *class* starter set (three spells in 1.29), seeded per
- * class by migration 0044. Copying `spell_templates` wholesale — which is what
- * this used to do — hands a level-1 character all 2 091 spells in the game and
- * makes the server rebuild that list on every map change.
+ * The spellbook is what the class knows *at this character's level*, from
+ * `class_spells` (migration 0048) — three spells for a fresh level 1, twenty
+ * for a Féca 101. Copying `spell_templates` wholesale, which this did before
+ * 0044, hands a level-1 character all 2 091 spells in the game; seeding only
+ * the three starters, which it did between 0044 and 0048, leaves a levelled
+ * character mute.
  *
- * The delete is what makes re-seeding meaningful: a character seeded before
- * 0044 still has the whole catalogue, and upserting three rows on top of it
- * would not take any away.
+ * Two deliberate asymmetries:
+ *
+ *  - the grant is an upsert that does nothing on conflict, so a spell the
+ *    character has upgraded keeps its level and its bar slot;
+ *  - the delete is scoped to spells that are *not* the class's, which is what
+ *    still trims a character seeded before 0044 (the whole catalogue) without
+ *    touching anything legitimately learned.
  */
-const starters = await db
-  .selectFrom("classStarterSpells")
-  .select(["spellId", "level", "position"])
+const classSpells = await db
+  .selectFrom("classSpells")
+  .select(["spellId", "position", "learnLevel"])
   .where("classId", "=", CHARACTER_CLASS)
   .orderBy("position")
   .execute();
 
-if (starters.length === 0) {
+if (classSpells.length === 0) {
   console.warn(
-    `no class_starter_spells rows for class ${CHARACTER_CLASS} — run ` +
-      `\`just db-migrate\` (migration 0044) or the character starts mute.`
+    `no class_spells rows for class ${CHARACTER_CLASS} — run ` +
+      `\`just db-migrate\` (migration 0048) or the character starts mute.`
   );
 } else {
+  const known = classSpells.filter(
+    (s: { learnLevel: number }) => s.learnLevel <= character.level
+  );
+
   await db
     .deleteFrom("playerSpells")
     .where("playerId", "=", character.id)
+    .where(
+      "spellId",
+      "not in",
+      classSpells.map((s: { spellId: number }) => s.spellId)
+    )
     .execute();
 
   await db
     .insertInto("playerSpells")
     .values(
-      starters.map(
-        (s: { spellId: number; level: number; position: number }) => ({
-          playerId: character.id,
-          spellId: s.spellId,
-          level: s.level,
-          position: s.position,
-        })
-      )
+      known.map((s: { spellId: number; position: number }) => ({
+        playerId: character.id,
+        spellId: s.spellId,
+        level: 1,
+        position: s.position,
+      }))
     )
+    .onConflict((oc) => oc.columns(["playerId", "spellId"]).doNothing())
     .execute();
+
+  console.log(
+    `spellbook: ${known.length}/${classSpells.length} class ` +
+      `${CHARACTER_CLASS} spells granted at level ${character.level}`
+  );
 }
 
 await db
@@ -510,7 +540,12 @@ await db
 console.log(
   `seeded account ${account.username} (id=${account.id}) on server ` +
     `${server.name} (id=${server.id}) with character ${character.name} ` +
-    `(id=${character.id}) at map ${SPAWN_MAP_ID} cell ${cellId}`
+    `(id=${character.id}, level ${character.level}) at map ` +
+    `${character.mapId} cell ${character.cellId}` +
+    (character.mapId === SPAWN_MAP_ID && character.cellId === cellId
+      ? ""
+      : ` (kept — re-run with RESET_POSITION=1 to move it back to ` +
+        `map ${SPAWN_MAP_ID} cell ${cellId})`)
 );
 
 await db.destroy();

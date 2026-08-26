@@ -599,16 +599,22 @@ export type LivingObjectTemplateRow = Selectable<LivingObjectTemplatesTable>;
 export type NewLivingObjectTemplate = Insertable<LivingObjectTemplatesTable>;
 export type LivingObjectTemplateUpdate = Updateable<LivingObjectTemplatesTable>;
 
-export interface ClassStarterSpellsTable {
+/**
+ * The spell progression of a breed: which spells it owns and the player
+ * level each one is learned at (`learn_level = 1` is a starter spell).
+ * Seeded from the 1.29 lang bundles by migration 0048, which replaced
+ * the starters-only `class_starter_spells`.
+ */
+export interface ClassSpellsTable {
   classId: number;
   spellId: number;
-  level: number;
+  learnLevel: number;
   position: number;
 }
 
-export type ClassStarterSpellRow = Selectable<ClassStarterSpellsTable>;
-export type NewClassStarterSpell = Insertable<ClassStarterSpellsTable>;
-export type ClassStarterSpellUpdate = Updateable<ClassStarterSpellsTable>;
+export type ClassSpellRow = Selectable<ClassSpellsTable>;
+export type NewClassSpell = Insertable<ClassSpellsTable>;
+export type ClassSpellUpdate = Updateable<ClassSpellsTable>;
 
 export interface SpellCooldownsTable {
   playerId: string;
@@ -1784,7 +1790,7 @@ export type DB = {
   playerSoulStones: PlayerSoulStonesTable;
   livingObjects: LivingObjectsTable;
   livingObjectTemplates: LivingObjectTemplatesTable;
-  classStarterSpells: ClassStarterSpellsTable;
+  classSpells: ClassSpellsTable;
   spellCooldowns: SpellCooldownsTable;
   chatSubscriptions: ChatSubscriptionsTable;
   modReports: ModReportsTable;

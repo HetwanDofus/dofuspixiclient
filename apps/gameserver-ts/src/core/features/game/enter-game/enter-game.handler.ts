@@ -18,6 +18,7 @@ import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-entry";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
+import { PlayersProgressionService } from "@modules/players/players.progression.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { SpellsService } from "@modules/spells/spells.service";
 import { StatsService } from "@modules/stats/stats.service";
@@ -34,6 +35,7 @@ export class EnterGameHandler {
 
   constructor(
     private readonly players: PlayersRepository,
+    private readonly progression: PlayersProgressionService,
     private readonly maps: MapsRepository,
     private readonly mapMonsters: MapMonsterService,
     private readonly presence: PlayerPresenceService,
@@ -124,6 +126,13 @@ export class EnterGameHandler {
     // this is what resolves it to a name, description, icon and legal
     // equip positions, same as `sendInventory` above must precede it.
     await this.items.sendTemplatesForPlayer(ctx.sessionId, session.characterId);
+
+    // Catch-up before the snapshot is built, so a character whose level
+    // was raised outside a fight — by hand in SQL, which is how every
+    // character in this project has ever levelled — walks in with the
+    // spells that level unlocks instead of a book frozen at creation.
+    // A no-op once the book is complete.
+    await this.progression.syncSpellBook(session.characterId);
 
     const spellData = await this.spells.buildSpellList(session.characterId);
     const tSpells = performance.now();
