@@ -45,6 +45,25 @@ describe("decodeCells", () => {
     expect(cells[0]?.walkable).toBe(true);
   });
 
+  test("extracts the layer-2 interactive bit from char 7 (bit 1)", () => {
+    // char 7 = 'c' (index 2 = 0b000010) → the layerObject2Interactive bit.
+    const cells = decodeCells(encode("aaaaaaacaa"));
+
+    expect(cells[0]?.layerObject2Interactive).toBe(true);
+    expect(cells[0]?.layerObject2Flip).toBe(false);
+  });
+
+  test("leaves the interactive bit clear on a decorative copy", () => {
+    // Same layer-2 gfx (chars 8-9 = 'ba' → 64), interactive bit not set: what
+    // separates a harvestable tree from a painted one.
+    const armed = decodeCells(encode("aaaaaaacba"));
+    const decor = decodeCells(encode("aaaaaaaaba"));
+
+    expect(armed[0]?.layer2).toBe(decor[0]?.layer2);
+    expect(armed[0]?.layerObject2Interactive).toBe(true);
+    expect(decor[0]?.layerObject2Interactive).toBe(false);
+  });
+
   test("rejects payloads whose length is not a multiple of 10", () => {
     expect(() => decodeCells(encode("aaaaa"))).toThrow("not a multiple of 10");
   });

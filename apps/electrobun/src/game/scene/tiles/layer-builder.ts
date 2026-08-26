@@ -90,9 +90,7 @@ export class TileLayerBuilder {
    * Replace the per-cell prefix override map. Null (or omit) to clear.
    * Consulted by {@link renderCell} when composing tileKeys.
    */
-  setTilePrefixOverride(
-    map: Map<number, TilePrefixOverride> | null
-  ): void {
+  setTilePrefixOverride(map: Map<number, TilePrefixOverride> | null): void {
     this.tilePrefixOverride = map;
   }
 
@@ -424,7 +422,12 @@ export class TileLayerBuilder {
     if (cell.layer2 > 0) {
       const tileKey = this.tileKeyFor(cell.id, 2, cell.layer2);
       const tile = this.atlasLoader.getTileManifestSync(tileKey);
-      const isInteractive = this.interactiveGfxIds.has(cell.layer2);
+      // An element sits on frame 0 until it is used; a decorative copy of the
+      // same gfx keeps animating, so the cell's own interactive bit has to
+      // agree before the animation is suppressed.
+      const isInteractive =
+        cell.layerObject2Interactive === true &&
+        this.interactiveGfxIds.has(cell.layer2);
       const isAnimated =
         !isInteractive &&
         tile?.behavior === "animated" &&

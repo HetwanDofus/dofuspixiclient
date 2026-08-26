@@ -24,6 +24,12 @@ export interface CellData {
   layerObject1Flip: boolean;
   layerObject2Rot: number;
   layerObject2Flip: boolean;
+  /**
+   * The 1.29 `layerObject2Interactive` bit. The same gfx is decoration on one
+   * cell and a usable element on the next, so this — not the gfx id — decides
+   * whether the sprite is clickable.
+   */
+  layerObject2Interactive?: boolean;
 }
 
 export function findCellAtPosition(

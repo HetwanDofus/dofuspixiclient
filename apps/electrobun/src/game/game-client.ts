@@ -104,6 +104,17 @@ export class GameClient {
   private selfHovered = false;
 
   /**
+   * The element action the player chose while standing away from it. 1.29
+   * walks to the element before acting on it, so the request waits here for
+   * the walk to land — see `useInteractive`.
+   */
+  private pendingInteraction: {
+    mapId: number | null;
+    cellId: number;
+    skillId: number;
+  } | null = null;
+
+  /**
    * Sequencer chain for in-fight visual events. Mirrors the canonical
    * Dofus 1.29 per-sprite Sequencer: GA;100 (damage) actions
    * (popup + `setAnim("Hit")`) are queued AFTER the GA;300
@@ -255,6 +266,9 @@ export class GameClient {
   setBattlefield(battlefield: Battlefield): void {
     this.battlefield = battlefield;
     battlefield.setOnCellClick((cellId) => this.handleCellClick(cellId));
+    battlefield.setOnInteractiveUse((cellId, skillId) =>
+      this.useInteractive(cellId, skillId)
+    );
     // Sole driver of the MP-reachable-range tint: roll-over our own
     // avatar shows the green pattern, roll-out clears it. Replicates
     // canonical Sprite._rollOver / _rollOut from the 1.29 client.
@@ -793,6 +807,7 @@ export class GameClient {
       // immediately. Without this the cursor sits over a cell from
       // the pre-move world until the user wiggles the mouse.
       this.refreshOccupancyAndHover();
+      this.flushPendingInteraction();
     });
     this.mapHandler.setOnSelfMoveStart(() => {
       // The hover-path overlay doesn't need to linger while the
@@ -1043,6 +1058,81 @@ export class GameClient {
       encodeClient(
         "gameAction",
         create(GameActionRequestSchema, { actionType: 1, params })
+      )
+    );
+  }
+
+  /**
+   * `GA;500;<cellId>;<skillId>` — use the interactive element on a cell.
+   *
+   * Canonical 1.29 `GameManager.useRessource` walks the player onto the
+   * element's cell first and only then sends the action, so a door clicked
+   * from across the street is reached before it opens. `useInteractive` does
+   * the same: already there → send now; otherwise remember the request and
+   * let `flushPendingInteraction` fire it when the walk lands.
+   */
+  useInteractive(cellId: number, skillId: number): void {
+    const currentCellId = this.mapHandler.getCurrentCellId();
+
+    if (currentCellId === cellId) {
+      this.sendInteractiveUse(cellId, skillId);
+      return;
+    }
+
+    const pathfinding = this.mapHandler.getPathfinding();
+
+    if (currentCellId === null || !pathfinding) {
+      return;
+    }
+
+    const path = pathfinding.findPath(currentCellId, cellId);
+
+    if (!path || path.length < 2) {
+      log.debug(`interactive: no path from ${currentCellId} → ${cellId}`);
+      return;
+    }
+
+    this.pendingInteraction = {
+      mapId: this.mapHandler.getCurrentMapId(),
+      cellId,
+      skillId,
+    };
+    this.move(path);
+  }
+
+  /** Fires the action the player queued behind a walk, once it has landed. */
+  private flushPendingInteraction(): void {
+    const pending = this.pendingInteraction;
+
+    if (!pending) {
+      return;
+    }
+
+    this.pendingInteraction = null;
+
+    // The walk can end somewhere else entirely: an unwalkable step truncates
+    // the path server-side, and a scripted cell along the way can teleport the
+    // player off the map. Either way the element is no longer under us.
+    if (
+      this.mapHandler.getCurrentMapId() !== pending.mapId ||
+      this.mapHandler.getCurrentCellId() !== pending.cellId
+    ) {
+      log.debug(`interactive: dropped, walk ended off cell ${pending.cellId}`);
+      return;
+    }
+
+    this.sendInteractiveUse(pending.cellId, pending.skillId);
+  }
+
+  private sendInteractiveUse(cellId: number, skillId: number): void {
+    log.info(`interactive-use cell=${cellId} skill=${skillId}`);
+    this.connection.send(
+      encodeClient(
+        "gameAction",
+        create(GameActionRequestSchema, {
+          actionType: 500,
+          params: `${cellId};${skillId}`,
+        })
       )
     );
   }
