@@ -1,9 +1,10 @@
 import type { DofusPathfinding } from "@dofus/grid";
-import { clampFightDirection } from "@dofus/grid";
 import type { Sprite } from "pixi.js";
+import { clampFightDirection } from "@dofus/grid";
 import { ColorMatrixFilter, Container, Graphics, Ticker } from "pixi.js";
 
 import type { CellData } from "@/game/datacenter/cell";
+import type { MapScale } from "@/game/datacenter/map";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { Scene } from "@/game/scene/scene";
 import {
@@ -15,6 +16,7 @@ import {
   DEFAULT_MAP_WIDTH,
 } from "@/game/constants/battlefield";
 import { playerZIndex } from "@/game/constants/z-index";
+import { projectCellPosition } from "@/game/datacenter/map";
 import { PlayerActor } from "@/game/scene/player/actor";
 import {
   getAnimationBaseFromType,
@@ -33,11 +35,6 @@ import {
 } from "@/game/scene/player/graphics";
 import { PlayerMovement } from "@/game/scene/player/movement";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
-import {
-  clearPlayerNameplates,
-  hidePlayerNameplate,
-  setPlayerNameplate,
-} from "@/hud/world/player-nameplate-store";
 import { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
 import {
   type ActivePlayer,
@@ -45,6 +42,11 @@ import {
   type PlayerSpriteData,
   parseGfxId,
 } from "@/game/scene/player/types";
+import {
+  clearPlayerNameplates,
+  hidePlayerNameplate,
+  setPlayerNameplate,
+} from "@/hud/world/player-nameplate-store";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("PlayerRenderer");
@@ -117,6 +119,14 @@ export class PlayerRenderer {
   private playerActors: Map<number, PlayerActor> = new Map();
   private mapWidth: number;
   private groundLevel: number;
+  /**
+   * The `computeMapScale` transform the tile layers bake into every
+   * sprite position. Identity in fight mode, which owns a container of
+   * its own and carries the transform there via `setOffset`/`setScale`.
+   * World actors share the object-layer-2 container with the tiles, so
+   * theirs has to be applied per position instead.
+   */
+  private mapProjection: MapScale = { scale: 1, offsetX: 0, offsetY: 0 };
   private cellDataMap: Map<number, CellData>;
   private pickingSystem: PickingSystem | null;
   private spriteLoader: CharacterSpriteLoader;
@@ -168,6 +178,7 @@ export class PlayerRenderer {
     this.movement = new PlayerMovement({
       mapWidth: () => this.mapWidth,
       groundLevel: () => this.groundLevel,
+      mapProjection: () => this.mapProjection,
       cellDataMap: () => this.cellDataMap,
       pathfinding: () => this.pathfinding,
       pickingSystem: () => this.pickingSystem,
@@ -567,9 +578,10 @@ export class PlayerRenderer {
     hidePlayerNameplate(id);
   }
 
-  private computeNameplateAnchor(
-    player: ActivePlayer
-  ): { x: number; y: number } {
+  private computeNameplateAnchor(player: ActivePlayer): {
+    x: number;
+    y: number;
+  } {
     // `getGlobalPosition` walks every parent transform (zoom + pan
     // included), returning the canvas-stage position in CSS pixels —
     // exactly the coord space `HudOverlay`'s wrapper uses.
@@ -622,6 +634,15 @@ export class PlayerRenderer {
     if (groundLevel !== undefined) {
       this.groundLevel = groundLevel;
     }
+  }
+
+  /**
+   * Set the map-fitting transform applied to every actor position.
+   * Use this — not `setOffset`/`setScale` — whenever the renderer draws
+   * into a container it shares with the terrain.
+   */
+  setMapProjection(projection: MapScale): void {
+    this.mapProjection = projection;
   }
 
   setOffset(x: number, y: number): void {
@@ -767,11 +788,14 @@ export class PlayerRenderer {
     overhead.setVisible(false);
     container.addChild(overhead.container);
 
-    const pos = getCellPositionWithSlope(
-      data.cellId,
-      this.mapWidth,
-      this.groundLevel,
-      this.cellDataMap
+    const pos = projectCellPosition(
+      getCellPositionWithSlope(
+        data.cellId,
+        this.mapWidth,
+        this.groundLevel,
+        this.cellDataMap
+      ),
+      this.mapProjection
     );
     // `pixelOffset` lets monster-group siblings spread around the
     // leader's cell so all members are visible as individual sprites.

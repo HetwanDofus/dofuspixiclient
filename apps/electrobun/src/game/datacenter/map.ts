@@ -37,6 +37,23 @@ export interface MapBounds {
   maxY: number;
 }
 
+/**
+ * Apply a `MapScale` to a raw cell position — the same
+ * `pos * scale + offset` the tile layers bake in (`layer-builder.ts`).
+ * Anything drawn from cell coordinates into the map's own containers has
+ * to go through this, or it drifts off the terrain on every map that is
+ * not 15x17.
+ */
+export function projectCellPosition(
+  pos: { x: number; y: number },
+  mapScale: MapScale
+): { x: number; y: number } {
+  return {
+    x: pos.x * mapScale.scale + mapScale.offsetX,
+    y: pos.y * mapScale.scale + mapScale.offsetY,
+  };
+}
+
 export function computeMapScale(mapWidth: number, mapHeight: number): MapScale {
   if (mapHeight === DEFAULT_HEIGHT && mapWidth === DEFAULT_WIDTH) {
     return { scale: 1, offsetX: 0, offsetY: 0 };
@@ -80,4 +97,3 @@ export function computeMapScale(mapWidth: number, mapHeight: number): MapScale {
 // loadMapData was removed: the server now ships the typed cells inline in
 // the GameMapData proto frame. See map.handler.ts (mapDataFromPayload).
 // Any caller that wants a MapData should receive it from the network layer.
-

@@ -26,6 +26,7 @@ function cell(id: number, overrides: Partial<DecodedCell> = {}): DecodedCell {
     layerObject1Flip: false,
     layerObject2Rot: 0,
     layerObject2Flip: false,
+    layerObject2Interactive: false,
     ...overrides,
   };
 }

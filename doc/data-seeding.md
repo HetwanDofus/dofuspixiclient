@@ -75,6 +75,9 @@ curl -LO https://raw.githubusercontent.com/StarLoco/StarLoco-Game/master/game.sq
 just import-maps game.sql
 ```
 
+(Or `just import-world game.sql` for geometry, contents and triggers in one go
+— see [What makes the world actionable](#what-makes-the-world-actionable).)
+
 That writes 9 358 maps, 265 subareas, 9 358 fight-placement rows and 36 219
 neighbour links.
 
@@ -131,6 +134,52 @@ departure side has no walkable cell on that edge, so nothing ever triggers
 them. The remaining 502 have an exit but no walkable landing spot on the far
 side; `resolveLandingCell` refuses those and logs a warning, leaving the player
 where they stand rather than stranding them.
+
+### What makes the world actionable
+
+`just import-triggers game.sql` (chained into `just import-world` after
+`import-maps`) fills the four tables that decide whether anything in the world
+answers a click. All four sat empty until it existed, which is why no door,
+bank or zaap did anything at all.
+
+```
+scripted cells: 23 726          interactive object templates: 197
+waypoints: 33 zaaps + 75 zaapis houses: 1 050 (815 enterable), 1 092 doors
+```
+
+- **`scripted_cells`** is the dump's own table, minus the 4 rows whose action
+  is not a teleport and the 65 that name a map this database does not have.
+  StarLoco has no `verb` column — actions 0, 979 and 1 all carry `mapId,cellId`
+  arguments and all import as `TP`. This is what a *public* building's door is
+  in 1.29: not a clickable object, a walkable cell carrying a teleport.
+
+  These rows also cover a scattering of map-edge crossings, and
+  `ScriptedCellsService` short-circuits `maybeCrossEdge` — so where a row
+  exists it now outranks the neighbour election above. That is deliberate: the
+  election is a guess, the dump is the retail answer, and it only speaks for
+  about 2.5 cells per map. Everything else still goes through `map_neighbors`.
+
+- **`interactive_objects_templates`** is keyed by layer-2 gfx id and unions the
+  dump's `interactive_objects_data` (respawn, duration) with the 1.29 bundle's
+  `IO` table (name, type, skill list). The *type* is what the server acts on:
+  3 zaap, 5 house door, 6 storage, 10 zaapi.
+
+- **`waypoints`** has no table anywhere in the dump. Zaaps are found by scanning
+  every `maps.cells` payload for a layer-2 object whose interactive bit is armed
+  and whose gfx maps to `IO` type 3 or 10. The same scan counts 16 523
+  interactive cells in the world: 12 226 resources, 1 743 chests, 1 093 house
+  doors, 477 workbenches.
+
+- **`houses`** likewise: the dump carries ownership, never geometry. Doors come
+  from `houses.json` (`H.d`: mapId → cell → houseId, 1 095 of them), interior
+  maps from `H.m` (mapId → houseId), and the arrival cell is *derived* — among a
+  house's interiors, the one carrying a `scripted_cells` `TP` back out to the
+  door's map is the way in, and the player lands on a walkable diamond-neighbour
+  of that exit rather than on it.
+
+  235 houses have no such exit anywhere in the dump and no inside door object
+  either. They keep `entry_map_id` NULL and stay shut: closing a door is a
+  smaller bug than sealing a player inside one.
 
 ### Why the viewport can still be empty
 

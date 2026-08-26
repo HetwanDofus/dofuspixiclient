@@ -3,6 +3,13 @@ import { ExternalStore } from "./game-store";
 export interface ContextMenuOption {
   label: string;
   onClick: () => void;
+  /**
+   * Listed but not selectable. 1.29 keeps an unavailable action visible and
+   * greyed rather than hiding it (`Skill.getState` returns "I" for inactive,
+   * "X" only for "do not show at all"), so the menu of a house door always
+   * reads the same whether or not you own the house.
+   */
+  disabled?: boolean;
 }
 
 export interface ContextMenuState {
