@@ -34,6 +34,13 @@ export interface DecodedCell {
   layerObject1Flip: boolean;
   layerObject2Rot: number;
   layerObject2Flip: boolean;
+  /**
+   * The 1.29 `layerObject2Interactive` bit — Compressor.as:76. It, and not the
+   * gfx id, is what separates a harvestable tree from a decorative copy of the
+   * same sprite: both carry the same `layer2`, only the armed one is an
+   * interactive element the client may click.
+   */
+  layerObject2Interactive: boolean;
 }
 
 export function decodeCells(raw: Uint8Array): DecodedCell[] {
@@ -146,5 +153,6 @@ function decodeOne(id: number, p: bigint): DecodedCell {
     layer2: Number((p >> 44n) & 0x3fffn),
     layerObject2Flip: ((p >> 58n) & 0x1n) !== 0n,
     layerObject2Rot: 0,
+    layerObject2Interactive: ((p >> 59n) & 0x1n) !== 0n,
   };
 }

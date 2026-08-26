@@ -900,11 +900,27 @@ export interface HousesTable {
   lockCode: string;
   doors: Json;
   purchasedAt: TimestampTz | null;
+  /** Interior map the door opens onto, and the cell the player lands on. */
+  entryMapId: number | null;
+  entryCellId: number | null;
+  /** Every map that belongs to this house — ground floor plus upper floors. */
+  interiorMapIds: Json;
 }
 
 export type HouseRow = Selectable<HousesTable>;
 export type NewHouse = Insertable<HousesTable>;
 export type HouseUpdate = Updateable<HousesTable>;
+
+/** One row per clickable door cell; 40 houses have more than one. */
+export interface HouseDoorsTable {
+  mapId: number;
+  cellId: number;
+  houseId: string;
+}
+
+export type HouseDoorRow = Selectable<HouseDoorsTable>;
+export type NewHouseDoor = Insertable<HouseDoorsTable>;
+export type HouseDoorUpdate = Updateable<HouseDoorsTable>;
 
 export interface HouseStorageItemsTable {
   id: Generated<string>;
@@ -1244,6 +1260,10 @@ export interface InteractiveObjectsTemplatesTable {
   durationMs: number;
   walkable: boolean;
   unknown: number;
+  /** 1.29 `IO.d[id].t` — 1 resource, 2 workbench, 3 zaap, 5 house door, 6 storage, 10 zaapi… */
+  type: number;
+  /** 1.29 `IO.d[id].sk`, comma-separated: the skill ids the popup menu offers. */
+  skills: string;
 }
 
 export type InteractiveObjectTemplateRow =
@@ -1807,6 +1827,7 @@ export type DB = {
   mountPaddockData: MountPaddockDataTable;
   mountBreedingLog: MountBreedingLogTable;
   houses: HousesTable;
+  houseDoors: HouseDoorsTable;
   houseStorageItems: HouseStorageItemsTable;
   prisms: PrismsTable;
   prismModules: PrismModulesTable;

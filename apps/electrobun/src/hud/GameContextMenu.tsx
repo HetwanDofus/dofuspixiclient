@@ -66,15 +66,20 @@ export function GameContextMenu() {
         <div
           key={opt.label}
           className={cn(
-            "flex cursor-pointer items-center select-none",
+            "flex items-center select-none",
             "h-[calc(18px*var(--resolution-factor))]",
             "pl-[calc(2px*var(--resolution-factor))]",
             "pr-[calc(16px*var(--resolution-factor))]",
             "bg-action-popout-menu-fg text-action-popout-menu-item-text font-normal",
-            "hover:bg-action-popout-menu-item-hover"
+            opt.disabled
+              ? "cursor-default opacity-40"
+              : "cursor-pointer hover:bg-action-popout-menu-item-hover"
           )}
           onPointerDown={(e) => {
             e.stopPropagation();
+            if (opt.disabled) {
+              return;
+            }
             opt.onClick();
             hideContextMenu();
           }}

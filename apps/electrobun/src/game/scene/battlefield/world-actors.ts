@@ -4,6 +4,7 @@ import { Container } from "pixi.js";
 
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
+import type { MapScale } from "@/game/datacenter/map";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
 import type { MapHandler } from "@/game/scene/map/handler";
@@ -51,6 +52,13 @@ export interface BattlefieldWorldActorsDeps {
   cellDataMap(): Map<number, CellData>;
   rendererRegistry(): RendererRegistry;
   currentMapWidth(): number;
+  /**
+   * Scale and centring offset the tile layers bake into every sprite
+   * position (`computeMapScale`). Actors have to be placed through the
+   * same transform or they drift off the terrain on any map that is not
+   * 15x17 — a fifth of the world.
+   */
+  currentMapScale(): MapScale;
   transparencyEnabled(): boolean;
   applyTransparency(): void;
   registerPlayerForPicking(
@@ -95,6 +103,31 @@ export class BattlefieldWorldActors {
   /** Recreate the renderer (e.g. after map change, before MAP_ACTORS batch). */
   reset(): void {
     this.init();
+  }
+
+  /**
+   * Push the current map's width and centring transform into the renderer,
+   * so actors are projected exactly like the tiles under them.
+   *
+   * Deliberately *not* `setOffset`/`setScale`: those transform the
+   * renderer's container, and in world mode that container IS the shared
+   * object-layer-2 tile container (see `init`) — moving it would drag
+   * every piece of furniture along. The transform has to reach the actor
+   * positions instead.
+   *
+   * Must be re-applied after every map load: `reset()` runs *before* the
+   * scene stores the new `MapData`, so a renderer built there is still
+   * holding the previous map's geometry.
+   */
+  applyMapTransform(): void {
+    const renderer = this.renderer;
+
+    if (!renderer) {
+      return;
+    }
+
+    renderer.setMapDimensions(this.deps.currentMapWidth());
+    renderer.setMapProjection(this.deps.currentMapScale());
   }
 
   async add(data: WorldActorData): Promise<void> {
@@ -357,6 +390,8 @@ export class BattlefieldWorldActors {
       pathfinding: this.deps.pathfinding(),
       scene: this.deps.scene(),
     });
+
+    this.applyMapTransform();
 
     this.deps
       .rendererRegistry()
