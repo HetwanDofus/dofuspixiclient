@@ -91,14 +91,14 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**88 entrées**, dont **84 encore ouvertes**.
+**89 entrées**, dont **85 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 33 | 33 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 34 | 34 |
 | P2 — comportement divergent du 1.29 canonique, contournable | 31 | 31 |
 | P3 — finition, confort, cosmétique | 16 | 17 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 35 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 19 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 20 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -128,7 +128,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`input/`](input/) | 3 | 4 |
 | [`inventory/`](inventory/) | 3 | 3 |
 | [`network/`](network/) | 5 | 5 |
-| [`progression/`](progression/) | 2 | 2 |
+| [`progression/`](progression/) | 3 | 3 |
 | [`server-runtime/`](server-runtime/) | 4 | 4 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 5 | 5 |
@@ -177,6 +177,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-076](inventory/QA-076-positions-equipement-fausses.md) | P1 | inventory | bug | fixed | La table des positions d'équipement était fausse, dans trois fichiers différents |
 | [QA-079](inventory/QA-079-familier-mal-gere.md) | P1 | inventory | bug | fixed | Le familier était mal géré — jet sur des effets non aléatoires, #3 jamais transmis |
 | [QA-080](world-render/QA-080-viewbox-des-svg-hors-cadre.md) | P1 | world-render | bug | fixed | Le recadrage de l'extracteur coupe tout dessin miroir ou pivoté hors de son viewBox |
+| [QA-083](progression/QA-083-aucun-sort-appris-en-montant-de-niveau.md) | P1 | progression | gap | fixed | Aucun sort n'est appris en montant de niveau, et un combat ne fait gagner qu'un seul niveau |
 | [QA-084](world-content/QA-084-cellules-scriptees-jamais-importees.md) | P1 | world-content | data | fixed | Aucune cellule scriptée n'est importée — banque, boutiques et donjons inaccessibles |
 | [QA-085](network/QA-085-aucun-protocole-d-objet-interactif.md) | P1 | network | gap | fixed | Aucun protocole d'utilisation d'objet interactif — portes, zaaps et coffres inertes |
 | [QA-088](world-render/QA-088-largeur-de-carte-perimee-apres-changement.md) | P1 | world-render | bug | fixed | Les acteurs ignorent le recentrage de la carte — décalés hors du décor sur toute carte non 15x17 |

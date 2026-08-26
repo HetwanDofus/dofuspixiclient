@@ -122,6 +122,56 @@ export class SpellsRepository {
     return Number(res.numUpdatedRows);
   }
 
+  /**
+   * The spells `classId` owns at `playerLevel` — i.e. everything it has
+   * learned so far, starters included. Ordered by learn level so a
+   * caller granting several levels at once inserts them in the order
+   * they were unlocked.
+   */
+  findClassSpells(classId: number, playerLevel: number) {
+    return this.txHost.tx
+      .selectFrom("classSpells")
+      .select(["spellId", "position", "learnLevel"])
+      .where("classId", "=", classId)
+      .where("learnLevel", "<=", playerLevel)
+      .orderBy("learnLevel", "asc")
+      .execute();
+  }
+
+  /**
+   * Adds spells to a spell book, ignoring the ones already in it, and
+   * returns the ids that were actually inserted.
+   *
+   * `do nothing` on the (player, spell) key is what makes learning
+   * idempotent and safe to re-run: a spell the player already upgraded
+   * keeps its level and its chosen bar slot, and two level-ups racing
+   * over the same threshold cannot double-insert.
+   */
+  async addPlayerSpells(
+    playerId: string,
+    spells: readonly { spellId: number; position: number }[]
+  ): Promise<number[]> {
+    if (spells.length === 0) {
+      return [];
+    }
+
+    const inserted = await this.txHost.tx
+      .insertInto("playerSpells")
+      .values(
+        spells.map((spell) => ({
+          playerId,
+          spellId: spell.spellId,
+          level: 1,
+          position: spell.position,
+        }))
+      )
+      .onConflict((oc) => oc.columns(["playerId", "spellId"]).doNothing())
+      .returning("spellId")
+      .execute();
+
+    return inserted.map((row) => row.spellId);
+  }
+
   async playerHasSpell(playerId: string, spellId: number): Promise<boolean> {
     const row = await this.txHost.tx
       .selectFrom("playerSpells")
