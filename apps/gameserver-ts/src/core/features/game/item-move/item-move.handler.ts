@@ -4,6 +4,7 @@ import {
   ItemMoveRequestSchema,
 } from "@dofus/proto/items_pb";
 import { InventoryService } from "@modules/inventory/inventory.service";
+import { PlayerLookService } from "@modules/player-presence/player-presence.look.service";
 import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
@@ -26,7 +27,8 @@ export class ItemMoveHandler {
   constructor(
     private readonly sessions: SessionRegistry,
     private readonly inventoryService: InventoryService,
-    private readonly stats: StatsService
+    private readonly stats: StatsService,
+    private readonly look: PlayerLookService
   ) {}
 
   @MessageHandler(ItemMoveRequestSchema)
@@ -63,5 +65,11 @@ export class ItemMoveHandler {
     // (stats, life cap, carrying capacity) — `sendStats` is the one frame
     // that refreshes all of them together.
     await this.stats.sendStats(ctx.sessionId, session.characterId);
+
+    // A worn hat/cape/weapon/shield/pet is part of what every other
+    // client on the map draws, and nothing else ever refreshes it —
+    // without this the change is only visible after a map change.
+    // No-op for slots with no look (ring, amulet, belt, boots, dofus).
+    await this.look.refresh(session.characterId);
   }
 }

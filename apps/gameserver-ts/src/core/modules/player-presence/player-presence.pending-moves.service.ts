@@ -14,6 +14,17 @@ export interface PendingMove {
   mapId: number;
   endCell: number;
   endDirection: number;
+  /**
+   * The validated path, step by step. Only an interruption reads it:
+   * `GKE` names a cell somewhere along the walk, and the server has to
+   * check it really is on the path it authorised before committing it —
+   * otherwise the cancel is a free teleport.
+   *
+   * Optional because a move restored from an older handoff snapshot has
+   * no such list; those can still be acked normally, only interrupted
+   * to the destination.
+   */
+  steps?: { cell: number; direction: number }[];
 }
 
 interface SerializedPending {

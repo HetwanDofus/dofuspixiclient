@@ -291,6 +291,17 @@ export class PlayerRenderer {
       player.overhead.setHp(player.hp, player.maxHp);
     }
 
+    // A look change is an equip/unequip: the sprite has to be rebuilt
+    // from the new accessory set (see `PlayerSpriteController.reload`).
+    // Compared as a whole string — it carries the gfx, the three colour
+    // zones and the five accessory slots, and any of them moving is a
+    // different sprite.
+    if (data.look !== undefined && data.look !== player.look) {
+      player.look = data.look;
+      player.gfxId = parseGfxId(data.look);
+      this.sprites.reload(player);
+    }
+
     if (data.name !== undefined) {
       player.displayName = data.name;
       player.overhead.setName(data.name);
@@ -319,6 +330,19 @@ export class PlayerRenderer {
     }
 
     return this.movement.start(player, path);
+  }
+
+  /**
+   * Stop a walking player on the cell it is entering and drop the rest
+   * of its path. Returns that cell, or `null` if it was not walking.
+   *
+   * The move promise `movePlayer` returned still resolves — one cell
+   * early — so every caller that chains on arrival keeps working.
+   */
+  interruptPlayer(id: number): number | null {
+    const player = this.players.get(id);
+
+    return player ? this.movement.interrupt(player) : null;
   }
 
   teleportPlayer(id: number, cellId: number): void {

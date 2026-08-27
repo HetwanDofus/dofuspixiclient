@@ -871,7 +871,12 @@ function MainBannerHeart({
   const circleExpanded = useCircleExpanded();
   const shiftUp = mode === "normal" && circleExpanded;
   const [displayState, setDisplayState] = useState<HeartDisplayState>("value");
-  const fillY = 19.55 - (hp / max) * 39.1;
+  // Fraction of the heart painted red. Clamped and guarded: `max` is 0
+  // until the first `As` frame lands, and life can legitimately sit
+  // above the cap for the instant between unequipping a vitality item
+  // and the server resolving the new maximum.
+  const fillRatio = max > 0 ? Math.min(1, Math.max(0, hp / max)) : 0;
+  const fillY = 19.55 - fillRatio * 39.1;
 
   function toggleDisplay() {
     setDisplayState((prev) => {
@@ -918,6 +923,11 @@ function MainBannerHeart({
           height={39.1}
           fill="#d80101"
           clipPath={`url(#${clipId})`}
+          // Passive regeneration arrives one life point at a time; a
+          // transition on the geometry makes the level rise instead of
+          // stepping. `y` is animatable as a CSS property in the
+          // WebGPU-class browsers this client targets.
+          style={{ transition: "y 400ms linear" }}
         />
         <path
           d={HEART_PATH}

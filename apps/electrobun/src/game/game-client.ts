@@ -122,6 +122,18 @@ export class GameClient {
   } | null = null;
 
   /**
+   * What the player asked for while already walking.
+   *
+   * A click during a walk cuts the current one short (the sprite stops
+   * on the cell it was entering) and the request waits here until that
+   * happens — it cannot be honoured on the spot, because every action
+   * is computed from the cell we stand on and that cell is still
+   * moving. Held as a thunk rather than a target so a move, an element
+   * and anything added later all queue the same way.
+   */
+  private queuedAfterInterrupt: (() => void) | null = null;
+
+  /**
    * Sequencer chain for in-fight visual events. Mirrors the canonical
    * Dofus 1.29 per-sprite Sequencer: GA;100 (damage) actions
    * (popup + `setAnim("Hit")`) are queued AFTER the GA;300
@@ -826,6 +838,7 @@ export class GameClient {
       // the pre-move world until the user wiggles the mouse.
       this.refreshOccupancyAndHover();
       this.flushPendingInteraction();
+      this.flushQueuedAfterInterrupt();
     });
     this.mapHandler.setOnSelfMoveStart(() => {
       // The hover-path overlay doesn't need to linger while the
@@ -1072,6 +1085,10 @@ export class GameClient {
 
   move(path: number[]): void {
     const params = path.join(",");
+    // Declared before it goes out: from here until the ack, this move
+    // owns the character, and a click in that window interrupts it
+    // rather than racing a second request against it.
+    this.mapHandler.markSelfMoveSent();
     this.connection.send(
       encodeClient(
         "gameAction",
@@ -1090,6 +1107,18 @@ export class GameClient {
    * let `flushPendingInteraction` fire it when the walk lands.
    */
   useInteractive(cellId: number, skillId: number): void {
+    // Same rule as a cell click: an element chosen mid-walk stops the
+    // walk first, then the approach is computed from where we stopped.
+    if (this.mapHandler.isSelfMoveInFlight()) {
+      this.interruptThen(() => this.approachInteractive(cellId, skillId));
+      return;
+    }
+
+    this.approachInteractive(cellId, skillId);
+  }
+
+  /** Walk onto the element's cell if we are not on it, then act on it. */
+  private approachInteractive(cellId: number, skillId: number): void {
     const currentCellId = this.mapHandler.getCurrentCellId();
 
     if (currentCellId === cellId) {
@@ -1424,14 +1453,19 @@ export class GameClient {
       return;
     }
 
-    // Roleplay: standard cell-to-cell pathfinding move.
+    // Roleplay: a click while walking retargets — 1.29 stops the
+    // character on the cell it is entering and leaves from there. The
+    // path can only be computed once we know that cell, so the click
+    // is replayed after the stop rather than routed from the cell we
+    // are currently leaving behind.
+    if (this.mapHandler.isSelfMoveInFlight()) {
+      this.interruptThen(() => this.handleCellClick(targetCellId));
+      return;
+    }
+
     const currentCellId = this.mapHandler.getCurrentCellId();
     const pathfinding = this.mapHandler.getPathfinding();
-    if (
-      currentCellId === null ||
-      !pathfinding ||
-      this.mapHandler.isCharacterMoving()
-    ) {
+    if (currentCellId === null || !pathfinding) {
       return;
     }
     const path = pathfinding.findPath(currentCellId, targetCellId);
@@ -1440,6 +1474,40 @@ export class GameClient {
     }
     log.debug(`Moving: ${currentCellId} → ${targetCellId}`);
     this.move(path);
+  }
+
+  /**
+   * Cut the current walk short and run `action` once the sprite has
+   * stopped, on the cell it stopped on.
+   *
+   * Only the last request survives: clicking three times while walking
+   * runs the third, like any other click-to-move game. If nothing was
+   * actually interrupted — the walk ended between the click and here —
+   * the action runs immediately rather than waiting for a move
+   * completion that will never come.
+   */
+  private interruptThen(action: () => void): void {
+    // Whatever was queued behind the walk we are cutting short is
+    // cancelled by the very act of asking for something else — a door
+    // the player was on their way to must not swing open because the
+    // stop happened to land on its cell.
+    this.pendingInteraction = null;
+    this.queuedAfterInterrupt = action;
+
+    if (!this.mapHandler.interruptSelfMove()) {
+      this.flushQueuedAfterInterrupt();
+    }
+  }
+
+  private flushQueuedAfterInterrupt(): void {
+    const queued = this.queuedAfterInterrupt;
+
+    if (!queued) {
+      return;
+    }
+
+    this.queuedAfterInterrupt = null;
+    queued();
   }
 
   // ── Fight actions (called by FightOverlay) ───────────────────────
@@ -1627,6 +1695,7 @@ export class GameClient {
     this.messageHandler.clear();
     this.audioManager.destroy();
     this.fightHandler.destroy();
+    this.characterHandler.destroy();
     this.battlefield = null;
   }
 }

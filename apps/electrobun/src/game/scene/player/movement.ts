@@ -77,6 +77,24 @@ export class PlayerMovement {
         return;
       }
 
+      // A path can legitimately replace one that is still running: an
+      // interrupted walk restarts from the cell the sprite stopped on,
+      // and peers learn about the interruption only through that new
+      // path. The container is mid-segment at that point, so snap it
+      // onto the anchor cell before the first segment is measured —
+      // otherwise the leftover pixels offset every segment that
+      // follows, and the sprite walks beside the grid until it
+      // arrives. The abandoned promise is resolved rather than
+      // dropped, so nothing awaits a path that will never finish.
+      const anchor = normalized[0];
+
+      if (player.moving && anchor !== undefined) {
+        const abandoned = player.moveResolve;
+        player.moveResolve = undefined;
+        this.teleport(player, anchor);
+        abandoned?.();
+      }
+
       // Mounted players always walk (mount speed); others pick walk/run
       // by path length using the AS2 per-context runLimit (3 for
       // Characters always, 6 for non-Characters on the overworld).
@@ -106,6 +124,35 @@ export class PlayerMovement {
         }, PET_FOLLOW_DELAY_MS);
       }
     });
+  }
+
+  /**
+   * Stop `player` on the cell it is currently walking into, dropping the
+   * rest of its path. Returns that cell, or `null` when the player is
+   * not moving.
+   *
+   * Stopping at the next cell rather than on the spot is the canonical
+   * 1.29 behaviour and the only one the protocol can express: a
+   * position is a cell id, so a sprite halted between two of them has
+   * no cell the server could commit.
+   */
+  interrupt(player: ActivePlayer): number | null {
+    if (!player.moving || player.path.length === 0) {
+      return null;
+    }
+
+    const stopCell = player.path[player.pathIndex + 1];
+
+    if (stopCell === undefined) {
+      return null;
+    }
+
+    // Keep the current segment (anchor + destination) and drop the
+    // rest: the next `advanceMovement` that ends this segment then
+    // finds the path complete and `finishPath` snaps to `stopCell`.
+    player.path = player.path.slice(0, player.pathIndex + 2);
+
+    return stopCell;
   }
 
   teleport(player: ActivePlayer, cellId: number): void {

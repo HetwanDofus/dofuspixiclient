@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { AccountStatsSchema } from "@dofus/proto/account_pb";
+import { InfoLifeRestoreTimerSchema } from "@dofus/proto/chat_pb";
 import { AlignmentInfoSchema, StatEntrySchema } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
@@ -7,6 +8,7 @@ import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { currentPods, maxPods } from "@modules/inventory/pods";
+import { REGEN_MS_PER_LIFE_STANDING } from "@modules/life-regen/life-regen";
 import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import {
@@ -288,6 +290,45 @@ export class StatsService {
             // No achievement system yet — see the field's comment in
             // account.proto.
             successPoints: 0,
+          }),
+        },
+      })
+    );
+
+    this.sendLifeRestoreTimer(sessionId, life, maxHp);
+  }
+
+  /**
+   * `IL` — hand the client the regeneration clock so the heart fills in
+   * real time.
+   *
+   * Life is resolved from a timestamp and only ever recomputed when
+   * something asks for stats (QA-063), so without this frame a player
+   * standing still watches a frozen number and concludes nothing
+   * regenerates. This is the canonical 1.29 answer: the server states
+   * the rate once, the client counts the points locally, and the next
+   * `As` frame re-synchronises whatever drifted.
+   *
+   * `ILF` (started = false) is just as important as `ILS`: it is what
+   * stops a client that has reached its cap — or been healed to it —
+   * from carrying on past it.
+   */
+  private sendLifeRestoreTimer(
+    sessionId: string,
+    life: number,
+    maxLife: number
+  ): void {
+    const restoring = life < maxLife;
+
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "infoLifeRestoreTimer",
+          value: create(InfoLifeRestoreTimerSchema, {
+            started: restoring,
+            rate: restoring ? REGEN_MS_PER_LIFE_STANDING : 0,
+            delta: 0,
           }),
         },
       })

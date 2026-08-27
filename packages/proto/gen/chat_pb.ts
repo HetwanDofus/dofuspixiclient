@@ -721,8 +721,14 @@ export const InfoObjectSchema: GenMessage<InfoObject> = /*@__PURE__*/
 /**
  * IL - Life restore timer.
  * StarLoco Player.java:1266,1919,1920,2372,2373,3401 — "ILS<rate>" starts
- * passive regen at `rate` HP/sec, "ILF<diff>" finishes with the HP delta
- * healed. Stalk.java:51 — "ILF0".
+ * passive regen, "ILF<diff>" finishes with the HP delta healed.
+ * Stalk.java:51 — "ILF0".
+ *
+ * `rate` is the period of one life point, in milliseconds — the same
+ * number the server regenerates by (`REGEN_MS_PER_LIFE_STANDING`), so a
+ * client that counts one point per `rate` ms lands on the value the next
+ * `As` frame will carry. It is a period, not a speed: a bigger `rate` is
+ * slower regeneration.
  *
  * @generated from message dofus.InfoLifeRestoreTimer
  */
@@ -735,7 +741,7 @@ export type InfoLifeRestoreTimer = Message<"dofus.InfoLifeRestoreTimer"> & {
   started: boolean;
 
   /**
-   * HP per tick when started
+   * Milliseconds per life point restored
    *
    * @generated from field: int32 rate = 2;
    */

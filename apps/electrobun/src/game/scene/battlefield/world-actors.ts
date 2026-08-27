@@ -338,6 +338,11 @@ export class BattlefieldWorldActors {
     this.renderer?.removePlayer(id);
   }
 
+  /** Stop a walking actor at the next cell; returns it, or null. */
+  interrupt(id: number): number | null {
+    return this.renderer?.interruptPlayer(id) ?? null;
+  }
+
   async move(id: number, path: number[]): Promise<void> {
     await this.renderer?.movePlayer(id, path);
   }

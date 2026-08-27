@@ -681,6 +681,14 @@ export class Battlefield {
     this.worldActors.remove(id);
   }
 
+  /**
+   * Cut a walking actor's path short at the cell it is entering.
+   * Returns that cell, or `null` when the actor was not walking.
+   */
+  interruptWorldActor(id: number): number | null {
+    return this.worldActors.interrupt(id);
+  }
+
   moveWorldActor(id: number, path: number[]): Promise<void> {
     return this.worldActors.move(id, path);
   }

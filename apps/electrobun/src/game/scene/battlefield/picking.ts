@@ -219,6 +219,13 @@ export class BattlefieldPicking {
       return;
     }
 
+    // An actor can legitimately be registered twice — a `GM UPDATE`
+    // after an equip re-runs the whole add path on a sprite that is
+    // already on screen. Dropping the previous pickable first keeps one
+    // hover target per actor; without it every re-add left a stale
+    // entry answering for the same sprite.
+    this.unregisterPlayer(playerId);
+
     const pickableId = this.nextPickableId++;
     pickingSystem.registerObject({
       id: pickableId,

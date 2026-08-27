@@ -200,11 +200,17 @@ message InfoObject {
 
 // IL - Life restore timer.
 // StarLoco Player.java:1266,1919,1920,2372,2373,3401 — "ILS<rate>" starts
-// passive regen at `rate` HP/sec, "ILF<diff>" finishes with the HP delta
-// healed. Stalk.java:51 — "ILF0".
+// passive regen, "ILF<diff>" finishes with the HP delta healed.
+// Stalk.java:51 — "ILF0".
+//
+// `rate` is the period of one life point, in milliseconds — the same
+// number the server regenerates by (`REGEN_MS_PER_LIFE_STANDING`), so a
+// client that counts one point per `rate` ms lands on the value the next
+// `As` frame will carry. It is a period, not a speed: a bigger `rate` is
+// slower regeneration.
 message InfoLifeRestoreTimer {
   bool  started = 1;   // true => ILS (rate populated), false => ILF (delta populated)
-  int32 rate = 2;      // HP per tick when started
+  int32 rate = 2;      // Milliseconds per life point restored
   int32 delta = 3;     // HP restored when finished
 }
 

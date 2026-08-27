@@ -26,6 +26,13 @@ import type { CharacterHandler, CharacterInfo } from "./character.handler";
 const log = createLogger("MapHandler");
 
 /**
+ * How long a move request may go unanswered before the client stops
+ * considering it in flight. Only a request the server refuses outright
+ * ever reaches this — a validated one is echoed in the same round trip.
+ */
+const SELF_MOVE_TIMEOUT_MS = 2_000;
+
+/**
  * Handles map + actor lifecycle over the new protobuf protocol.
  *
  *   gameMapData   → load map cells from local dofasset, build pathfinding
@@ -56,6 +63,32 @@ export class MapHandler {
    * sprite move animation.
    */
   private onSelfMoveStart: (() => void) | null = null;
+  /**
+   * Set when the player cut the current walk short — the ack that
+   * closes the move must then be a cancel (`GKE`) carrying the cell we
+   * actually stopped on, not a plain `GKK` the server would read as
+   * "arrived at the destination you validated".
+   */
+  private selfMoveInterrupted = false;
+  /**
+   * Set when the interruption was asked for before the server echoed
+   * the move back: there is no animation to cut yet, so the path is cut
+   * to its first step the moment it arrives instead.
+   */
+  private truncateNextSelfPath = false;
+  /**
+   * When our own move request went out, `null` once it has been acked.
+   *
+   * A move owns the character until its ack: the server keeps exactly
+   * one pending move per session and matches the ack by id, so a second
+   * request sent before the first is acked orphans it — the ack that
+   * follows names a move the server has already replaced, and the
+   * position it was going to commit is lost. This is what makes a
+   * second click wait for the first move instead of racing it, over the
+   * whole request → echo → animation → ack round trip and not just the
+   * animation.
+   */
+  private selfMoveSentAt: number | null = null;
 
   // Messages that arrive before the Battlefield is ready are buffered and
   // replayed by `flushPending()` once the renderer attaches.
@@ -121,6 +154,81 @@ export class MapHandler {
     this.onSelfMoveStart = cb;
   }
 
+  /**
+   * Remember that a move request went out; called by GameClient.move.
+   *
+   * Also clears any interruption left over from a request the server
+   * never answered — otherwise the flags would cut this move short
+   * instead of the one they were raised for.
+   */
+  markSelfMoveSent(): void {
+    this.selfMoveSentAt = Date.now();
+    this.selfMoveInterrupted = false;
+    this.truncateNextSelfPath = false;
+  }
+
+  /**
+   * Whether one of our own moves is still owed an ack — from the moment
+   * the request is sent to the moment the walk is acknowledged.
+   *
+   * Expires on its own: a request the server refuses outright (a path it
+   * will not validate) is never echoed and would otherwise hold every
+   * later click hostage.
+   */
+  isSelfMoveInFlight(): boolean {
+    if (this.selfMoveSentAt === null) {
+      return false;
+    }
+
+    if (Date.now() - this.selfMoveSentAt > SELF_MOVE_TIMEOUT_MS) {
+      this.selfMoveSentAt = null;
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Cut our own move short at the cell the sprite is entering.
+   *
+   * Returns false when there was nothing to interrupt, and the caller
+   * should just do what it wanted straight away. Returns true when the
+   * interruption is under way: the move then completes one cell later
+   * through the ordinary `handleActorPath` tail, which sends the cancel
+   * and fires `onSelfMoveComplete` — where whatever the player asked
+   * for instead is replayed, from the cell they really stopped on.
+   *
+   * The request can land before the server has echoed the move back, in
+   * which case there is no animation to cut yet and the path is cut to
+   * its first step when it arrives.
+   */
+  interruptSelfMove(): boolean {
+    if (!this.isSelfMoveInFlight()) {
+      return false;
+    }
+
+    this.selfMoveInterrupted = true;
+
+    if (!this.isMoving) {
+      this.truncateNextSelfPath = true;
+      log.info("move interrupted before the server echoed it back");
+      return true;
+    }
+
+    const self = this.characterHandler.getCurrentCharacter();
+    const stopCell = self
+      ? this.getBattlefield()?.interruptWorldActor(numericId(self.spriteId))
+      : null;
+
+    log.info(
+      stopCell === null || stopCell === undefined
+        ? "move interrupted, but the sprite is gone — closing the move anyway"
+        : `move interrupted → stopping at cell ${stopCell}`
+    );
+
+    return true;
+  }
+
   private register(): void {
     this.messageHandler.on("gameMapData", (payload) => {
       void this.handleMapData(payload);
@@ -176,6 +284,12 @@ export class MapHandler {
       const mapData = mapDataFromPayload(payload);
       this.buildPathfinding(mapData);
       battlefield.setPathfinding(this.pathfinding!);
+
+      // A map change ends any move the old map still owed an ack for —
+      // the server teleported us, so nothing is in flight any more.
+      this.selfMoveSentAt = null;
+      this.selfMoveInterrupted = false;
+      this.truncateNextSelfPath = false;
 
       const direction = oldMapId
         ? (getMapTransitionDirection(oldMapId, mapId) ?? undefined)
@@ -286,12 +400,22 @@ export class MapHandler {
 
   private async handleActorPath(
     spriteId: string,
-    path: number[],
+    rawPath: number[],
     sequenceId: number
   ): Promise<void> {
     const current = this.characterHandler.getCurrentCharacter();
     const numeric = numericId(spriteId);
     const isSelf = spriteId === current?.spriteId;
+
+    // The player asked for something else before this echo came back:
+    // walk the first step and stop there, which is the same place the
+    // sprite would have stopped had the interruption arrived mid-walk.
+    let path = rawPath;
+
+    if (isSelf && this.truncateNextSelfPath) {
+      this.truncateNextSelfPath = false;
+      path = rawPath.slice(0, 2);
+    }
 
     if (isSelf && path.length > 0) {
       this.isMoving = true;
@@ -305,10 +429,23 @@ export class MapHandler {
       }
     }
 
-    await this.getBattlefield()?.moveWorldActor(numeric, path);
+    const battlefield = this.getBattlefield();
+
+    await battlefield?.moveWorldActor(numeric, path);
 
     if (isSelf && path.length > 0) {
-      this.currentCellId = path[path.length - 1];
+      // Where the sprite actually stands, which is not always the last
+      // cell of the path the server sent: an interrupted walk stops one
+      // cell in. Falling back to the path end keeps the old behaviour
+      // if the actor is gone from the renderer.
+      const interrupted = this.selfMoveInterrupted;
+      this.selfMoveInterrupted = false;
+      this.selfMoveSentAt = null;
+      const landedCell =
+        battlefield?.getWorldActorRenderer()?.getPlayerCell(numeric) ??
+        path[path.length - 1];
+
+      this.currentCellId = landedCell;
       this.isMoving = false;
       this.characterHandler.setMapPosition(
         this.currentMapId ?? 0,
@@ -318,12 +455,18 @@ export class MapHandler {
       // authoritative position + emit GameActionsFinish + run any
       // map-change / cell-trigger evaluation. Without this ack, the
       // server keeps the move in-flight and rejects the next click.
+      //
+      // `GKE` — the canonical cancel — is what an interrupted walk
+      // sends instead: same action id, plus the cell we stopped on, so
+      // the server commits where the sprite really is rather than
+      // where the path was heading.
       this.connection.send(
         encodeClient(
           "gameActionAck",
           create(GameActionAckSchema, {
-            isAck: true,
+            isAck: !interrupted,
             actionId: sequenceId,
+            ...(interrupted ? { cancelParams: String(landedCell) } : {}),
           })
         )
       );
