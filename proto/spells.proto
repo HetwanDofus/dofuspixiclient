@@ -40,10 +40,14 @@ message SpellForget {
   bool show_ui = 1;  // + = show, - = hide
 }
 
-// SM - Spell moved
+// SM - Spell moved. The 1.29 wire is `SM<spellId>|<position>`, which
+// `dofus/aks/Spells.as:onSpellMove` forwards as
+// `Banner.shortcuts.spellMove(spellId, position)` — the spell being moved
+// and where it lands, not a pair of slots. The slot the spell vacated
+// needs no frame: the client already knows which slot held it.
 message SpellMove {
-  int32 old_position = 1;
-  int32 new_position = 2;
+  int32 spell_id = 1;
+  int32 position = 2;    // Hotbar slot, 1-based
 }
 
 // SR - Spell removed

@@ -17,8 +17,34 @@ import {
 import { useSpellCast } from "@/game/machines/spell-cast-selectors";
 import { togglePanel, toggleWorldMap } from "@/game/stores";
 import { characterStore } from "@/game/stores/character-store";
+import { showContextMenu } from "@/game/stores/context-menu-store";
+import { inventoryStore } from "@/game/stores/inventory-store";
+import {
+  HOTBAR_PAGES,
+  HOTBAR_SLOTS_PER_PAGE,
+  type HotbarTab,
+  type ResolvedShortcut,
+  resolveShortcut,
+  setHotbarTab,
+  shortcutsStore,
+  slotAt,
+  stepHotbarPage,
+} from "@/game/stores/shortcuts-store";
 import { type SpellEntry, spellsStore } from "@/game/stores/spells-store";
+import {
+  dropOnSlot,
+  removeFromSlot,
+  triggerSlot,
+} from "@/hud/banner/hotbar-actions";
+import {
+  type HotbarDragPayload,
+  hotbarDragAllowed,
+  hotbarDragProps,
+  hotbarDropProps,
+} from "@/hud/banner/hotbar-dnd";
+import { useGameClient } from "@/hud/contexts/GameClientContext";
 import { useFightMode } from "@/hud/fight/useFightMode";
+import { ItemIcon } from "@/hud/inventory/ItemIcon";
 import { SpellIconMount } from "@/hud/spells/SpellIconMount";
 
 import { Minimap } from "../minimap/Minimap";
@@ -37,15 +63,20 @@ type FightSlotState =
   | "cooldown"
   | "disabled";
 
-interface SpellHotbarCellProps {
+/** Drag/drop wiring every cell of the bar shares. */
+interface HotbarCellDnd {
+  slot: number;
+  tab: HotbarTab;
+  onDrop: (payload: HotbarDragPayload) => void;
+  onDropNowhere: (payload: HotbarDragPayload) => void;
+}
+
+interface SpellHotbarCellProps extends HotbarCellDnd {
   spell: SpellEntry | null;
   fight: FightSlotState;
   /** Click handler for fight casts. No-op when fight === "idle". */
   onCast?: ((spellId: number) => void) | undefined;
 }
-
-/** Hotbar slot count — mirrors the 14 MainBannerGridSlot cells in the HUD. */
-const HOTBAR_SLOTS = 14;
 
 /**
  * Maps the slot's fight state to the Tailwind classes that overlay the
@@ -62,6 +93,12 @@ const FIGHT_SLOT_OVERLAY: Record<FightSlotState, string> = {
   disabled: "opacity-40 cursor-not-allowed",
 };
 
+/** Corner label shared by the AP badge and the item quantity badge. */
+const CORNER_BADGE =
+  "absolute bottom-0 right-0 z-10 px-[calc(2px*var(--resolution-factor))] " +
+  "font-[Verdana,sans-serif] text-[calc(9px*var(--resolution-factor))] " +
+  "font-bold drop-shadow-[0_0_2px_#000] pointer-events-none";
+
 /**
  * Hotbar cell — one slot of the 14-wide spell grid. Wraps MainBannerGridSlot
  * with a Base UI Tooltip so hover shows the localized name + level +
@@ -71,12 +108,29 @@ const FIGHT_SLOT_OVERLAY: Record<FightSlotState, string> = {
  * In a fight the cell becomes castable: clicking it routes to
  * `gameClient.fightSelectSpell` (via the `onCast` prop) and the visual
  * treatment reflects the spell-cast machine + per-spell affordability.
- * Outside a fight the cell is purely informational (hover tooltip).
+ * Outside a fight the cell is purely informational (hover tooltip) —
+ * 1.29 refuses to cast from the map, and so does this.
  */
-function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
+function SpellHotbarCell({
+  spell,
+  fight,
+  onCast,
+  slot,
+  tab,
+  onDrop,
+  onDropNowhere,
+}: SpellHotbarCellProps) {
+  const dropProps = hotbarDropProps(onDrop);
+
   if (!spell) {
-    return <MainBannerGridSlot />;
+    return <MainBannerGridSlot {...dropProps} />;
   }
+
+  const payload: HotbarDragPayload = {
+    kind: "spell",
+    spellId: spell.spellId,
+    fromSlot: slot,
+  };
   const overlay = FIGHT_SLOT_OVERLAY[fight];
   const clickable =
     fight !== "idle" &&
@@ -93,9 +147,7 @@ function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
     ) : null;
   const apBadge =
     fight !== "idle" && spell.apCost > 0 ? (
-      <span className="absolute bottom-0 right-0 z-10 px-[calc(2px*var(--resolution-factor))] font-[Verdana,sans-serif] text-[calc(9px*var(--resolution-factor))] font-bold text-[#ffd27a] drop-shadow-[0_0_2px_#000] pointer-events-none">
-        {spell.apCost}
-      </span>
+      <span className={`${CORNER_BADGE} text-[#ffd27a]`}>{spell.apCost}</span>
     ) : null;
   return (
     <Tooltip.Root>
@@ -104,6 +156,13 @@ function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
           <MainBannerGridSlot
             className={overlay}
             {...(handleClick ? { onClick: handleClick } : {})}
+            {...dropProps}
+            {...hotbarDragProps(payload, () => onDropNowhere(payload))}
+            onDragStartCapture={(e) => {
+              if (!hotbarDragAllowed(tab, e.shiftKey)) {
+                e.preventDefault();
+              }
+            }}
           >
             <SpellIconMount spellId={spell.spellId} label={spell.name} />
             {apBadge}
@@ -132,15 +191,7 @@ function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
             title) which read as a generic web tooltip rather than
             anything Ankama drew.
           */}
-          <Tooltip.Popup
-            className={
-              "max-w-xs rounded-[6px] border border-[#514a3c] " +
-              "bg-[#ede5cc] px-[8px] py-[6px] " +
-              "text-[11px] leading-snug text-[#514a3c] " +
-              "shadow-[0_2px_6px_rgba(0,0,0,0.45)] " +
-              "font-[Verdana,sans-serif] whitespace-pre-wrap"
-            }
-          >
+          <Tooltip.Popup className={TOOLTIP_POPUP}>
             <div className="text-[13px] font-bold leading-tight">
               {spell.name}
               <span className="ml-2 text-[11px] font-normal text-[#7a7060]">
@@ -174,6 +225,108 @@ function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
   );
 }
 
+const TOOLTIP_POPUP =
+  "max-w-xs rounded-[6px] border border-[#514a3c] " +
+  "bg-[#ede5cc] px-[8px] py-[6px] " +
+  "text-[11px] leading-snug text-[#514a3c] " +
+  "shadow-[0_2px_6px_rgba(0,0,0,0.45)] " +
+  "font-[Verdana,sans-serif] whitespace-pre-wrap";
+
+interface ItemHotbarCellProps extends HotbarCellDnd {
+  shortcut: ResolvedShortcut | undefined;
+  onUse: () => void;
+  onRemove: () => void;
+}
+
+/**
+ * Hotbar cell in "Obj." mode.
+ *
+ * A cell survives its stack: when nothing in the inventory matches the
+ * template any more it greys out instead of disappearing
+ * (`MouseShortcuts.setItemStateOnContainer` applies `INACTIVE_TRANSFORM`
+ * for exactly this). Double-click uses or equips, right-click opens the
+ * same two options the retail popup menu carries.
+ */
+function ItemHotbarCell({
+  shortcut,
+  onUse,
+  onRemove,
+  slot,
+  tab,
+  onDrop,
+  onDropNowhere,
+}: ItemHotbarCellProps) {
+  const dropProps = hotbarDropProps(onDrop);
+
+  if (!shortcut) {
+    return <MainBannerGridSlot {...dropProps} />;
+  }
+
+  const payload: HotbarDragPayload = { kind: "shortcut", fromSlot: slot };
+  const { template, label, active } = shortcut;
+  const name = template?.name ?? "Objet";
+
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger
+        render={
+          <MainBannerGridSlot
+            className={active ? "" : "grayscale opacity-50"}
+            onDoubleClick={onUse}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const options = [
+                { label: "Retirer ce raccourci", onClick: onRemove },
+              ];
+              if (active && template?.usable) {
+                options.unshift({ label: "Utiliser", onClick: onUse });
+              }
+              showContextMenu(name, options, e.clientX, e.clientY);
+            }}
+            {...dropProps}
+            {...hotbarDragProps(payload, () => onDropNowhere(payload))}
+            onDragStartCapture={(e) => {
+              if (!hotbarDragAllowed(tab, e.shiftKey)) {
+                e.preventDefault();
+              }
+            }}
+          >
+            {template && (
+              <ItemIcon
+                typeId={template.typeId}
+                gfxId={template.gfxId}
+                size="100%"
+                alt={name}
+              />
+            )}
+            {label && (
+              <span className={`${CORNER_BADGE} text-white`}>{label}</span>
+            )}
+          </MainBannerGridSlot>
+        }
+      />
+      <Tooltip.Portal>
+        <Tooltip.Positioner sideOffset={6} style={{ zIndex: 999999 }}>
+          <Tooltip.Popup className={TOOLTIP_POPUP}>
+            <div className="text-[13px] font-bold leading-tight">{name}</div>
+            {/* `HELP_SHORTCUT_DBLCLICK` in the retail lang bundle. */}
+            {active && template?.usable && (
+              <div className="mt-[3px] font-normal text-[#3a3528]">
+                Double-cliquez pour utiliser cet objet.
+              </div>
+            )}
+            {!active && (
+              <div className="mt-[3px] font-normal text-[#7a7060]">
+                Vous n'avez plus cet objet.
+              </div>
+            )}
+          </Tooltip.Popup>
+        </Tooltip.Positioner>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
+
 const ICON_BUTTONS = [
   { icon: "stats", panel: "stats" },
   { icon: "spells", panel: "spells" },
@@ -191,6 +344,7 @@ interface BannerReactProps {
 }
 
 export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
+  const gameClient = useGameClient();
   const { stats } = useSyncExternalStore(
     characterStore.subscribe,
     characterStore.getSnapshot
@@ -199,10 +353,19 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
     spellsStore.subscribe,
     spellsStore.getSnapshot
   );
+  const shortcuts = useSyncExternalStore(
+    shortcutsStore.subscribe,
+    shortcutsStore.getSnapshot
+  );
+  const inventory = useSyncExternalStore(
+    inventoryStore.subscribe,
+    inventoryStore.getSnapshot
+  );
 
   const fight = useFightMode();
   const cast = useSpellCast();
   const { isFighting } = fight;
+  const { tab, page } = shortcuts;
 
   // During a fight the live LP/LPmax for our sprite live in fightStore
   // (FIGHTER_UPSERT seeds them on placement, FIGHTER_UPDATE patches
@@ -218,21 +381,29 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
   const hp = myFighter?.hp ?? stats?.hp ?? 100;
   const maxHp = myFighter?.maxHp ?? stats?.maxHp ?? 100;
 
+  /** The 1-based slots this page shows, left to right, top to bottom. */
+  const pageSlots = useMemo(
+    () =>
+      Array.from({ length: HOTBAR_SLOTS_PER_PAGE }, (_, i) => slotAt(page, i)),
+    [page]
+  );
+
   /**
-   * Project the SpellEntry list into fixed HOTBAR_SLOTS cells, keyed by
-   * `position` (0-based). Positions outside the bar are dropped; duplicate
-   * positions collide — the last one wins, matching Dofus 1.29's drag-and-
-   * drop semantics. Out-of-bar spells (no position assigned) can live in
-   * the Sorts panel later; for now they just don't show in the hotbar.
+   * Project the SpellEntry list onto this page's slots.
+   *
+   * `position` is 1-based on the wire (the server's `ROW_NUMBER()` seed
+   * starts at 1 and `UNSLOTTED_POSITION` is -1); reading it as a 0-based
+   * array index — which this did until the hotbar was wired up — shifted
+   * the whole bar one cell left and dropped the spell in slot 14.
+   * Duplicate positions collide, last one wins.
    */
   const hotbar = useMemo<(SpellEntry | null)[]>(() => {
-    const slots: (SpellEntry | null)[] = Array(HOTBAR_SLOTS).fill(null);
+    const byPosition = new Map<number, SpellEntry>();
     for (const s of spells) {
-      if (s.position < 0 || s.position >= HOTBAR_SLOTS) continue;
-      slots[s.position] = s;
+      byPosition.set(s.position, s);
     }
-    return slots;
-  }, [spells]);
+    return pageSlots.map((slot) => byPosition.get(slot) ?? null);
+  }, [spells, pageSlots]);
 
   /**
    * Resolve fight-slot state per spell. Outside combat every slot is
@@ -245,13 +416,25 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
       return hotbar.map(() => "idle");
     }
     return hotbar.map((spell): FightSlotState => {
-      if (!spell) return "idle";
-      if (!fight.isMyTurn) return "disabled";
-      if (spell.cooldownRemaining > 0) return "cooldown";
+      if (!spell) {
+        return "idle";
+      }
+      if (!fight.isMyTurn) {
+        return "disabled";
+      }
+      if (spell.cooldownRemaining > 0) {
+        return "cooldown";
+      }
       const isSelected = cast.selectedSpellId === spell.spellId;
-      if (isSelected && cast.isPending) return "pending";
-      if (isSelected) return "selected";
-      if (spell.apCost > fight.ap) return "unaffordable";
+      if (isSelected && cast.isPending) {
+        return "pending";
+      }
+      if (isSelected) {
+        return "selected";
+      }
+      if (spell.apCost > fight.ap) {
+        return "unaffordable";
+      }
       return "ready";
     });
   }, [
@@ -270,6 +453,39 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
       togglePanel(panel as never);
     }
   };
+
+  const cells = pageSlots.map((slot, i) => {
+    const dnd = {
+      slot,
+      tab,
+      onDrop: (payload: HotbarDragPayload) =>
+        dropOnSlot(gameClient, slot, payload),
+      onDropNowhere: (payload: HotbarDragPayload) =>
+        removeFromSlot(gameClient, payload),
+    };
+
+    if (tab === "spells") {
+      return (
+        <SpellHotbarCell
+          key={slot}
+          spell={hotbar[i] ?? null}
+          fight={fightStates[i] ?? "idle"}
+          onCast={onSelectSpell}
+          {...dnd}
+        />
+      );
+    }
+
+    return (
+      <ItemHotbarCell
+        key={slot}
+        shortcut={resolveShortcut(shortcuts, inventory, slot)}
+        onUse={() => triggerSlot(gameClient, slot)}
+        onRemove={() => gameClient?.removeItemShortcut(slot)}
+        {...dnd}
+      />
+    );
+  });
 
   return (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-auto z-10">
@@ -310,17 +526,15 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
             { value: "spells", label: "Sorts" },
             { value: "items", label: "Obj." },
           ]}
+          value={tab}
+          onValueChange={(next) => setHotbarTab(next as HotbarTab)}
+          pager={{
+            page,
+            pageCount: HOTBAR_PAGES,
+            onStep: stepHotbarPage,
+          }}
         >
-          <Tooltip.Provider>
-            {hotbar.map((spell, i) => (
-              <SpellHotbarCell
-                key={i}
-                spell={spell}
-                fight={fightStates[i] ?? "idle"}
-                onCast={onSelectSpell}
-              />
-            ))}
-          </Tooltip.Provider>
+          <Tooltip.Provider>{cells}</Tooltip.Provider>
         </MainBannerGrid>
       </MainBanner>
     </div>

@@ -8,6 +8,10 @@ import {
   handleItemTemplates,
   handleWeightUpdate,
 } from "@/game/stores/inventory-store";
+import {
+  handleShortcutAdd,
+  handleShortcutRemove,
+} from "@/game/stores/shortcuts-store";
 
 /**
  * Wires inventory proto messages into `inventoryStore`.
@@ -20,6 +24,10 @@ import {
  *   itemMovement   → handleItemMovement (OM)
  *   itemWeight     → handleWeightUpdate (Ow)
  *   itemTemplates  → handleItemTemplates (custom — see inventory-store.ts)
+ *
+ * Plus the item half of the hotbar, which rides the same `Or` family:
+ *   inventoryShortcutAdd    → handleShortcutAdd (OrA)
+ *   inventoryShortcutRemove → handleShortcutRemove (OrR)
  */
 export class InventoryHandler {
   constructor(private readonly messageHandler: MessageHandler) {
@@ -34,5 +42,7 @@ export class InventoryHandler {
     this.messageHandler.on("itemMovement", handleItemMovement);
     this.messageHandler.on("itemWeight", handleWeightUpdate);
     this.messageHandler.on("itemTemplates", handleItemTemplates);
+    this.messageHandler.on("inventoryShortcutAdd", handleShortcutAdd);
+    this.messageHandler.on("inventoryShortcutRemove", handleShortcutRemove);
   }
 }

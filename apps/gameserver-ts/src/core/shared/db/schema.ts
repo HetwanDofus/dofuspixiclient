@@ -550,11 +550,16 @@ export type WaypointKnownRow = Selectable<WaypointKnownTable>;
 export type NewWaypointKnown = Insertable<WaypointKnownTable>;
 export type WaypointKnownUpdate = Updateable<WaypointKnownTable>;
 
+/**
+ * One hotbar item shortcut. Keyed by template, not by stack — see
+ * `migrations/0050_hotbar_shortcuts.ts`. Spell slots are not here: they
+ * live in `player_spells.position`.
+ */
 export interface PlayerItemShortcutsTable {
   playerId: string;
+  /** 1-based, 1..42 (3 pages of 14). */
   slot: number;
-  itemId: string | null;
-  spellId: number | null;
+  templateId: number;
 }
 
 export type PlayerItemShortcutRow = Selectable<PlayerItemShortcutsTable>;

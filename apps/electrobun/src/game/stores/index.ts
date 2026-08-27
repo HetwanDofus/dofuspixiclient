@@ -11,6 +11,11 @@ export type { ContextMenuOption, ContextMenuState } from "./context-menu-store";
 export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
 export type { InventoryState, InventoryWeight } from "./inventory-store";
+export type {
+  HotbarTab,
+  ResolvedShortcut,
+  ShortcutsState,
+} from "./shortcuts-store";
 export { characterStore } from "./character-store";
 export {
   appendChatMessage,
@@ -49,3 +54,14 @@ export {
   getTemplate,
   inventoryStore,
 } from "./inventory-store";
+export {
+  HOTBAR_PAGES,
+  HOTBAR_SLOTS_PER_PAGE,
+  MAX_HOTBAR_SLOT,
+  resolveShortcut,
+  setHotbarTab,
+  shortcutsStore,
+  slotAt,
+  stepHotbarPage,
+  toggleHotbarTab,
+} from "./shortcuts-store";

@@ -1074,20 +1074,81 @@ function MainBannerGridTab({
   );
 }
 
+/**
+ * A pagination arrow flanking the shortcut grid.
+ *
+ * No 1.29 counterpart: the retail banner has exactly 14 cells and puts
+ * the rest on a detachable `MovableContainerBar`. The arrows are our
+ * affordance for the same extra slots, drawn in the banner's own bevel
+ * vocabulary so they do not read as web chrome.
+ */
+function MainBannerGridArrow({
+  direction,
+  disabled,
+  onClick,
+  className,
+  ...props
+}: {
+  direction: "prev" | "next";
+  disabled?: boolean;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={direction === "prev" ? "Page précédente" : "Page suivante"}
+      className={cn(
+        "relative cursor-pointer p-0 m-0 border-none",
+        "w-[calc(9px*var(--resolution-factor))]",
+        "h-[calc(11px*var(--resolution-factor))]",
+        "bg-[#b4ac8d] text-[#514a3c]",
+        "text-[calc(8px*var(--resolution-factor))] leading-none",
+        "font-[Verdana,sans-serif]",
+        "shadow-[inset_calc(1px*var(--resolution-factor))_calc(1px*var(--resolution-factor))_0_0_#d1ccb6,inset_calc(-1px*var(--resolution-factor))_calc(-1px*var(--resolution-factor))_0_0_#877b63]",
+        "hover:bg-[#c6bf9f]",
+        "disabled:opacity-40 disabled:cursor-default disabled:hover:bg-[#b4ac8d]",
+        className
+      )}
+      {...props}
+    >
+      {direction === "prev" ? "▲" : "▼"}
+    </button>
+  );
+}
+
 function MainBannerGrid({
   className,
   children,
   tabs,
+  value,
+  onValueChange,
   defaultValue,
+  pager,
 }: {
   className?: string;
   children?: ReactNode;
   tabs?: { value: string; label: string }[];
+  /** Controlled tab, so the SWAP shortcut can drive it from outside. */
+  value?: string;
+  onValueChange?: (value: string) => void;
   defaultValue?: string;
+  /** Page arrows + indicator. Omit for a single-page grid. */
+  pager?: {
+    page: number;
+    pageCount: number;
+    onStep: (delta: number) => void;
+  };
 }) {
   return (
     <Tabs.Root
-      defaultValue={defaultValue ?? tabs?.[0]?.value}
+      {...(value === undefined ? {} : { value })}
+      {...(onValueChange === undefined
+        ? {}
+        : { onValueChange: (next: unknown) => onValueChange(String(next)) })}
+      {...(value === undefined
+        ? { defaultValue: defaultValue ?? tabs?.[0]?.value }
+        : {})}
       className={cn(
         "absolute",
         "left-[calc(464.1px*var(--resolution-factor))]",
@@ -1108,6 +1169,35 @@ function MainBannerGrid({
       >
         {children}
       </div>
+      {pager && (
+        <div
+          className={cn(
+            "absolute flex flex-col items-center",
+            "left-[calc(40px*var(--resolution-factor))]",
+            "top-[calc(13px*var(--resolution-factor))]",
+            "gap-[calc(2px*var(--resolution-factor))]"
+          )}
+        >
+          <MainBannerGridArrow
+            direction="prev"
+            disabled={pager.page <= 0}
+            onClick={() => pager.onStep(-1)}
+          />
+          <span
+            className={cn(
+              "font-[Verdana,sans-serif] text-[#514a3c] select-none",
+              "text-[calc(8px*var(--resolution-factor))] leading-none"
+            )}
+          >
+            {pager.page + 1}
+          </span>
+          <MainBannerGridArrow
+            direction="next"
+            disabled={pager.page >= pager.pageCount - 1}
+            onClick={() => pager.onStep(1)}
+          />
+        </div>
+      )}
       {tabs && (
         <Tabs.List
           className={cn(
@@ -1116,9 +1206,9 @@ function MainBannerGrid({
             "top-[calc(8.1px*var(--resolution-factor))]"
           )}
         >
-          {tabs.map(({ value, label }) => (
-            <MainBannerGridTab key={value} value={value}>
-              {label}
+          {tabs.map((tab) => (
+            <MainBannerGridTab key={tab.value} value={tab.value}>
+              {tab.label}
             </MainBannerGridTab>
           ))}
         </Tabs.List>
@@ -1165,6 +1255,7 @@ export {
   MainBannerFightControls,
   MainBannerGrid,
   MainBannerGridSlot,
+  MainBannerGridArrow,
   MainBannerGridTab,
   MainBannerHeart,
   MainBannerIconButton,

@@ -8,6 +8,7 @@ import {
   spellsStore,
   spellUpgradeCost,
 } from "@/game/stores/spells-store";
+import { hotbarDragProps } from "@/hud/banner/hotbar-dnd";
 
 import { Panel } from "../components/Panel";
 import { Scrollbar } from "../components/Scrollbar";
@@ -320,6 +321,9 @@ function SpellRow({
       }}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
+      // Drag source for the hotbar. The bar sends the SM frame; this
+      // row only says which spell left the book.
+      {...hotbarDragProps({ kind: "spell", spellId: spell.spellId })}
       style={{
         position: "relative",
         width: p(width),

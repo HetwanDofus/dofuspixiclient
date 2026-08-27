@@ -4,7 +4,12 @@ import {
   applySpellDetailsLevel,
   clearSpellDetailsPending,
 } from "@/game/stores/spell-details-store";
-import { applySpellCooldown, applySpellList } from "@/game/stores/spells-store";
+import {
+  applySpellCooldown,
+  applySpellList,
+  applySpellMove,
+  applySpellRemove,
+} from "@/game/stores/spells-store";
 
 /**
  * Wires spell-related server proto messages into spellsStore:
@@ -15,6 +20,9 @@ import { applySpellCooldown, applySpellList } from "@/game/stores/spells-store";
  *   fightActor subscription wired in game-client.
  * - SpellDetails (Sd) — the per-level table the spell book's detail
  *   panel renders, answered on demand.
+ * - SpellMove (SM) / SpellRemove (SR) — the hotbar half: which slot a
+ *   spell landed in, and which slot emptied. The server is the
+ *   authority, so a drag only redraws the bar once its frame comes back.
  * - SpellUpgrade (SU) — the outcome of spending capital sorts on a
  *   spell. The new AP cost / range / effects arrive on the SpellList
  *   the server re-emits right after, and the new point balance on the
@@ -32,6 +40,12 @@ export class SpellHandler {
     });
     this.messageHandler.on("spellCooldown", (payload) => {
       applySpellCooldown(payload.spellId, payload.remainingTurns);
+    });
+    this.messageHandler.on("spellMove", (payload) => {
+      applySpellMove(payload.spellId, payload.position);
+    });
+    this.messageHandler.on("spellRemove", (payload) => {
+      applySpellRemove(payload.position);
     });
     this.messageHandler.on("spellDetails", (payload) => {
       applySpellDetails(payload);

@@ -107,10 +107,10 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
 | Statut | Entrées |
 |---|---|
-| `open` — observé, non reproduit méthodiquement | 35 |
+| `open` — observé, non reproduit méthodiquement | 34 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 20 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 21 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -189,7 +189,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 |---|---|---|---|---|---|
 | [QA-001](auth/QA-001-ecran-login-hors-charte.md) | P2 | auth | bug | open | Écran de login générique, hors charte 1.29 et non traduit |
 | [QA-006](hud-banner/QA-006-ni-xp-ni-pods-ni-energie.md) | P2 | hud-banner | gap | open | Ni barre d'XP, ni pods, ni énergie, ni nom/niveau en bannière |
-| [QA-007](hud-banner/QA-007-slots-de-raccourcis-vides-et-inertes.md) | P2 | hud-banner | gap | open | Les 14 slots de raccourcis sont vides et inertes |
+| [QA-007](hud-banner/QA-007-slots-de-raccourcis-vides-et-inertes.md) | P2 | hud-banner | gap | fixed | Les 14 slots de raccourcis sont vides et inertes |
 | [QA-009](worldmap/QA-009-marqueur-minimap-rectangle-rouge.md) | P2 | worldmap | bug | open | Marqueur de position de la minimap = rectangle rouge plein |
 | [QA-013](hud-panels/QA-013-inventaire-450-pods-pour-zero-objet.md) | P2 | hud-panels | bug | fixed | Inventaire : 450/1000 pods pour zéro objet |
 | [QA-014](hud-panels/QA-014-apercu-personnage-remplace-par-silhouette.md) | P2 | hud-panels | gap | open | Inventaire : aperçu du personnage remplacé par une silhouette |

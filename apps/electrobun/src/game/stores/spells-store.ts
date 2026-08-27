@@ -124,6 +124,66 @@ export function applySpellCooldown(
 }
 
 /**
+ * `SpellEntry.position` for a spell that is not in the hotbar — matches
+ * the server's `UNSLOTTED_POSITION` and `player_spells.position`'s
+ * default. Hotbar slots themselves are **1-based**.
+ */
+export const UNSLOTTED_POSITION = -1;
+
+function withPositions(
+  state: SpellsState,
+  patch: (spell: SpellEntry) => number | undefined
+): void {
+  let dirty = false;
+  const byId = new Map<number, SpellEntry>();
+  const spells = state.spells.map((s) => {
+    const position = patch(s);
+    if (position === undefined || position === s.position) {
+      byId.set(s.spellId, s);
+      return s;
+    }
+    dirty = true;
+    const next: SpellEntry = { ...s, position };
+    byId.set(s.spellId, next);
+    return next;
+  });
+
+  if (!dirty) {
+    return;
+  }
+
+  spellsStore.replaceState({ spells, byId });
+}
+
+/**
+ * Apply an SM frame — one spell landed in `position`.
+ *
+ * The server also emits an SR for every slot the move emptied, so this
+ * only has to move the one spell. It still evicts any stale occupant of
+ * the destination, because the two frames race through separate
+ * `broadcast` calls and the bar must never show one slot twice.
+ */
+export function applySpellMove(spellId: number, position: number): void {
+  const state = spellsStore.getSnapshot();
+
+  withPositions(state, (s) => {
+    if (s.spellId === spellId) {
+      return position;
+    }
+    return s.position === position ? UNSLOTTED_POSITION : undefined;
+  });
+}
+
+/** Apply an SR frame — whatever sat in `position` leaves the bar. */
+export function applySpellRemove(position: number): void {
+  const state = spellsStore.getSnapshot();
+
+  withPositions(state, (s) =>
+    s.position === position ? UNSLOTTED_POSITION : undefined
+  );
+}
+
+/**
  * Decrement every spell's cooldown by one turn. Called from game-client
  * on every local-player TURN_START (no server decrement frame exists —
  * Dofus 1.29 expects the client to track cooldowns locally and the

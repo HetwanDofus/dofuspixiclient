@@ -27,10 +27,40 @@ export type Shortcut =
   | "FRIENDS"
   | "GUILD"
   | "MOUNT"
+  // ── Hotbar ───────────────────────────────────────────────
+  | "SWAP"
+  | HotbarShortcut
   // ── Debug tooling (not in legacy) ────────────────────────
   | "DEBUG_TOGGLE"
   | "DEBUG_GRID"
   | "DEBUG_TRANSPARENCY";
+
+/**
+ * `SH1`..`SH14` — one per cell of the shortcut bar. The legacy client
+ * names them the same way (`MouseShortcuts.onShortcut` switches on
+ * `"SH" + n`); `SH0` is the melee-attack container, which this hotbar
+ * does not have yet.
+ */
+export type HotbarShortcut =
+  `SH${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14}`;
+
+/** The 14 hotbar shortcuts in cell order, for registration loops. */
+export const HOTBAR_SHORTCUTS: readonly HotbarShortcut[] = [
+  "SH1",
+  "SH2",
+  "SH3",
+  "SH4",
+  "SH5",
+  "SH6",
+  "SH7",
+  "SH8",
+  "SH9",
+  "SH10",
+  "SH11",
+  "SH12",
+  "SH13",
+  "SH14",
+];
 
 /** Modifier flags, matching KeyManager.as _bCtrlDown / _bShiftDown. */
 export interface ChordKey {
@@ -57,6 +87,27 @@ const DEFAULT_BINDINGS: Record<Shortcut, ChordKey> = {
   FRIENDS: { key: "f" },
   GUILD: { key: "g" },
   MOUNT: { key: "u" },
+
+  // Read out of the retail lang bundle rather than guessed:
+  // `assets/dist/langs/fr/shortcuts.json`, table `SSK`, default set 1
+  // (`Clavier français - France`). Top row 1..7 are the bare digits,
+  // bottom row A..G are the same digits with Ctrl, and SWAP — the
+  // Spells/Items toggle — is `<` (keycode 226).
+  SWAP: { key: "<" },
+  SH1: { key: "1" },
+  SH2: { key: "2" },
+  SH3: { key: "3" },
+  SH4: { key: "4" },
+  SH5: { key: "5" },
+  SH6: { key: "6" },
+  SH7: { key: "7" },
+  SH8: { key: "1", ctrl: true },
+  SH9: { key: "2", ctrl: true },
+  SH10: { key: "3", ctrl: true },
+  SH11: { key: "4", ctrl: true },
+  SH12: { key: "5", ctrl: true },
+  SH13: { key: "6", ctrl: true },
+  SH14: { key: "7", ctrl: true },
 
   DEBUG_TOGGLE: { key: "d" },
   DEBUG_GRID: { key: "g", shift: true },

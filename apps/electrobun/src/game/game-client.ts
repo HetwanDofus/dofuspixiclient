@@ -38,11 +38,15 @@ import {
   encodeClient,
   GameActionRequestSchema,
   GameCreateRequestSchema,
+  InventoryShortcutAddRequestSchema,
+  InventoryShortcutMoveRequestSchema,
+  InventoryShortcutRemoveRequestSchema,
   ItemDestroyRequestSchema,
   ItemDropRequestSchema,
   ItemMoveRequestSchema,
   ItemUseRequestSchema,
   SpellDetailsRequestSchema,
+  SpellMoveRequestSchema,
   SpellUpgradeRequestSchema,
 } from "@/game/network/protocol";
 import { HighlightType } from "@/game/scene/overlays/cell-highlighter";
@@ -1167,6 +1171,62 @@ export class GameClient {
       encodeClient(
         "itemUse",
         create(ItemUseRequestSchema, { itemUnicId: unicId })
+      )
+    );
+  }
+
+  /**
+   * OrA — pin the *template* of a stack to a hotbar slot.
+   *
+   * The unic id goes on the wire (1.29's `MouseShortcuts.drop` sends
+   * `oCursor.ID`); the server resolves it to a template so the shortcut
+   * outlives the stack. Slots are 1-based.
+   */
+  addItemShortcut(slot: number, unicId: number): void {
+    this.connection.send(
+      encodeClient(
+        "shortcutAdd",
+        create(InventoryShortcutAddRequestSchema, {
+          position: slot,
+          objectId: unicId,
+        })
+      )
+    );
+  }
+
+  /** OrM — drag an item shortcut from one slot to another. */
+  moveItemShortcut(from: number, to: number): void {
+    this.connection.send(
+      encodeClient(
+        "shortcutMove",
+        create(InventoryShortcutMoveRequestSchema, {
+          oldPosition: from,
+          newPosition: to,
+        })
+      )
+    );
+  }
+
+  /** OrR — clear an item shortcut slot. */
+  removeItemShortcut(slot: number): void {
+    this.connection.send(
+      encodeClient(
+        "shortcutRemove",
+        create(InventoryShortcutRemoveRequestSchema, { position: slot })
+      )
+    );
+  }
+
+  /**
+   * SM — put a spell in a hotbar slot, or take it out of the bar with
+   * `UNSLOTTED_POSITION`. There is no separate client-side SR: 1.29
+   * sends the same frame with no slot.
+   */
+  moveSpellToSlot(spellId: number, slot: number): void {
+    this.connection.send(
+      encodeClient(
+        "spellMove",
+        create(SpellMoveRequestSchema, { spellId, newSlot: slot })
       )
     );
   }

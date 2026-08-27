@@ -3,6 +3,12 @@ import type { DB } from "@shared/db/schema";
 import { Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 
+/**
+ * `player_spells.position` for a spell that is not in the hotbar — the
+ * column default since 0001.
+ */
+export const UNSLOTTED_POSITION = -1;
+
 @Injectable()
 export class SpellsRepository {
   constructor(
@@ -170,6 +176,35 @@ export class SpellsRepository {
       .execute();
 
     return inserted.map((row) => row.spellId);
+  }
+
+  /** Whichever spell currently occupies a hotbar slot, if any. */
+  findPlayerSpellAtPosition(playerId: string, position: number) {
+    return this.txHost.tx
+      .selectFrom("playerSpells")
+      .selectAll()
+      .where("playerId", "=", playerId)
+      .where("position", "=", position)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Put a spell in a hotbar slot, or take it out of the bar with
+   * `UNSLOTTED_POSITION`. `player_spells.position` defaults to that
+   * sentinel (0001), so "out of the bar" and "never placed" are the
+   * same state — which is what the client's SpellList reader assumes.
+   */
+  async setPlayerSpellPosition(
+    playerId: string,
+    spellId: number,
+    position: number
+  ): Promise<void> {
+    await this.txHost.tx
+      .updateTable("playerSpells")
+      .set({ position })
+      .where("playerId", "=", playerId)
+      .where("spellId", "=", spellId)
+      .execute();
   }
 
   async playerHasSpell(playerId: string, spellId: number): Promise<boolean> {
