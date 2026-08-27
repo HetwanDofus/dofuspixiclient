@@ -50,6 +50,37 @@ It creates:
   character would otherwise have an empty spellbook.
 - **`maps` id 10300** — *only if absent*, see below.
 
+### A second account (two-player testing)
+
+The seed writes one account per run and is keyed on `accounts.username` /
+(`server_id`, `players.name`), so running it again with different arguments
+adds a second account and character rather than replacing the first:
+
+```bash
+cd apps/gameserver-ts
+SPAWN_MAP_ID=7410 CHARACTER_CLASS=8 \
+  bun run scripts/dev-seed.ts dev2 dev2 Dev2
+```
+
+`CHARACTER_CLASS` (1..12, the 1.29 breed ids — 1 Féca, 8 Iop, 9 Crâ…) and
+`CHARACTER_SEX` (0 male, 1 female) pick the class and the sprite
+(`gfx = class * 10 + sex`); without them the second character is another
+Féca with the same sprite as the first, which makes it hard to tell the two
+apart on screen. The spellbook follows the class through `class_spells`.
+
+Point `SPAWN_MAP_ID` at the map the first character is standing on to have
+them meet straight away:
+
+```bash
+docker exec dofuspixiclient-postgres-1 psql -U dofus -d dofus \
+  -c "SELECT name, map_id, cell_id FROM players"
+```
+
+Both clients then connect to the same gateway, and two tabs of
+`just client-web` are enough: the client keeps no login state in browser
+storage (only keybinding overrides live in `localStorage`), so each tab
+authenticates over its own WebSocket.
+
 ### Spawn cell
 
 The schema's default spawn is `map_id = 10300, cell_id = 319`, and **319 is
