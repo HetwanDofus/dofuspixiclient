@@ -91,15 +91,15 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**82 entrées**, dont **78 encore ouvertes**.
+**89 entrées**, dont **85 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 29 | 29 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 29 | 29 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 34 | 34 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 31 | 31 |
 | P3 — finition, confort, cosmétique | 16 | 17 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -107,10 +107,10 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
 | Statut | Entrées |
 |---|---|
-| `open` — observé, non reproduit méthodiquement | 33 |
-| `confirmed` — reproduit, preuve au dossier | 18 |
+| `open` — observé, non reproduit méthodiquement | 35 |
+| `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 14 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 20 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -125,14 +125,14 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`fight/`](fight/) | 13 | 13 |
 | [`hud-banner/`](hud-banner/) | 9 | 9 |
 | [`hud-panels/`](hud-panels/) | 13 | 14 |
-| [`input/`](input/) | 2 | 3 |
+| [`input/`](input/) | 3 | 4 |
 | [`inventory/`](inventory/) | 3 | 3 |
-| [`network/`](network/) | 4 | 4 |
-| [`progression/`](progression/) | 2 | 2 |
-| [`server-runtime/`](server-runtime/) | 3 | 3 |
+| [`network/`](network/) | 5 | 5 |
+| [`progression/`](progression/) | 3 | 3 |
+| [`server-runtime/`](server-runtime/) | 4 | 4 |
 | [`session/`](session/) | 3 | 3 |
-| [`world-content/`](world-content/) | 3 | 3 |
-| [`world-render/`](world-render/) | 6 | 6 |
+| [`world-content/`](world-content/) | 5 | 5 |
+| [`world-render/`](world-render/) | 7 | 7 |
 | [`worldmap/`](worldmap/) | 7 | 8 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -160,7 +160,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-043](fight/QA-043-mode-tactique-sans-declencheur.md) | P1 | fight | gap | confirmed | Le mode tactique n'a aucun déclencheur dans l'interface |
 | [QA-046](session/QA-046-session-zombie-apres-redemarrage-core.md) | P1 | session | bug | fixed | Session zombie après un redémarrage du core : aucun retour utilisateur |
 | [QA-049](world-render/QA-049-aucun-retour-visuel-au-survol.md) | P1 | world-render | gap | confirmed | Aucun retour visuel au survol d'une cellule |
-| [QA-050](world-render/QA-050-objets-interactifs-non-cliquables.md) | P1 | world-render | gap | confirmed | 194 objets interactifs chargés sur la map, aucun n'est cliquable |
+| [QA-050](world-render/QA-050-objets-interactifs-non-cliquables.md) | P1 | world-render | gap | fixed | 194 objets interactifs chargés sur la map, aucun n'est cliquable |
 | [QA-057](session/QA-057-double-connexion-du-meme-compte.md) | P1 | session | bug | fixed | Un même compte pouvait ouvrir autant de fenêtres qu'il voulait |
 | [QA-058](fight/QA-058-combat-jamais-teste.md) | P1 | fight | test-gap | in-progress | Le combat est jouable mais non finalisé |
 | [QA-059](fight/QA-059-aucun-xp-ni-kamas-en-fin-de-combat.md) | P1 | fight | bug | in-progress | XP et kamas toujours nuls en fin de combat |
@@ -177,6 +177,11 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-076](inventory/QA-076-positions-equipement-fausses.md) | P1 | inventory | bug | fixed | La table des positions d'équipement était fausse, dans trois fichiers différents |
 | [QA-079](inventory/QA-079-familier-mal-gere.md) | P1 | inventory | bug | fixed | Le familier était mal géré — jet sur des effets non aléatoires, #3 jamais transmis |
 | [QA-080](world-render/QA-080-viewbox-des-svg-hors-cadre.md) | P1 | world-render | bug | fixed | Le recadrage de l'extracteur coupe tout dessin miroir ou pivoté hors de son viewBox |
+| [QA-083](progression/QA-083-aucun-sort-appris-en-montant-de-niveau.md) | P1 | progression | gap | fixed | Aucun sort n'est appris en montant de niveau, et un combat ne fait gagner qu'un seul niveau |
+| [QA-084](world-content/QA-084-cellules-scriptees-jamais-importees.md) | P1 | world-content | data | fixed | Aucune cellule scriptée n'est importée — banque, boutiques et donjons inaccessibles |
+| [QA-085](network/QA-085-aucun-protocole-d-objet-interactif.md) | P1 | network | gap | fixed | Aucun protocole d'utilisation d'objet interactif — portes, zaaps et coffres inertes |
+| [QA-088](world-render/QA-088-largeur-de-carte-perimee-apres-changement.md) | P1 | world-render | bug | fixed | Les acteurs ignorent le recentrage de la carte — décalés hors du décor sur toute carte non 15x17 |
+| [QA-089](input/QA-089-identifiants-de-picking-recycles-apres-changement-de-carte.md) | P1 | input | bug | fixed | Après un changement de carte, cliquer un élément ouvre le menu d'un acteur de la carte précédente |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -211,6 +216,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-078](hud-panels/QA-078-inventaire-sans-skin-1-29.md) | P2 | hud-panels | bug | fixed | L'inventaire n'utilisait aucun des assets du skin 1.29 déjà en dépôt |
 | [QA-081](hud-panels/QA-081-fiche-objet-onglets-et-description.md) | P2 | hud-panels | bug | fixed | Barre de défilement parasite sur la fenêtre d'inventaire, onglet « Conditions » débordant, description écrasée |
 | [QA-082](hud-panels/QA-082-icones-de-caracteristique-mal-nommees.md) | P2 | hud-panels | bug | fixed | Les icônes de caractéristique venaient du mauvais jeu d'assets |
+| [QA-086](world-content/QA-086-coffre-et-banque-sans-transfert-d-objets.md) | P2 | world-content | gap | open | Coffre et banque s'ouvrent mais ne transfèrent aucun objet |
+| [QA-087](server-runtime/QA-087-cellules-movement-1-traversables.md) | P2 | server-runtime | bug | open | Les cellules `movement = 1` sont traversables au lieu d'être des cases d'arrivée |
 
 ## P3 — finition, confort, cosmétique
 

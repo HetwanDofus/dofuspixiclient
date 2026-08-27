@@ -242,6 +242,10 @@ message MapCell {
   bool  layer_object1_flip = 14;
   int32 layer_object2_rot = 15;
   bool  layer_object2_flip = 16;
+  // The 1.29 `layerObject2Interactive` bit (Compressor.as:76). Same gfx can be
+  // decoration on one cell and a usable element on the next, so this — not the
+  // gfx id — is what makes an object clickable.
+  bool  layer_object2_interactive = 17;
 }
 
 // GDK - Map loaded confirmation
@@ -425,6 +429,10 @@ enum GameActionType {
   ACTION_CRITICAL_HIT = 301;
   ACTION_CRITICAL_MISS = 302;
   ACTION_CLOSE_COMBAT = 303;
+  // GA;500;<cellId>;<skillId> — "use the interactive element on this cell with
+  // this skill". Canonical 1.29: GameManager.useRessource walks the player to
+  // the cell, then sends it. Covers doors, zaaps, storages and resources.
+  ACTION_INTERACTIVE_USE = 500;
   ACTION_MARRIAGE_ASK = 617;
   ACTION_MARRIAGE_ACCEPT = 618;
   ACTION_MARRIAGE_REFUSE = 619;

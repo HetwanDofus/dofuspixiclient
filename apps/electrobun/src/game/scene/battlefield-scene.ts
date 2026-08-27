@@ -28,6 +28,7 @@ import {
 } from "@/game/assets/character-sprite";
 import { type CellData, findCellAtPosition } from "@/game/datacenter/cell";
 import { computeMapScale, type MapData } from "@/game/datacenter/map";
+import { loadInteractiveObjectsLang } from "@/game/lang/interactive-objects-lang";
 import { Engine } from "@/game/render/engine";
 import { RendererRegistry } from "@/game/render/renderer-registry";
 import {
@@ -55,7 +56,6 @@ import {
   tacticalModeStore,
 } from "@/hud/fight/tactical-mode-store";
 import { loadTheme } from "@/themes";
-import { createLogger } from "@/utils/logger";
 
 extensions.add(LayoutSystem);
 TextureSource.defaultOptions.scaleMode = "linear";
@@ -76,8 +76,6 @@ export interface BattlefieldConfig {
   onResizeEnd?: () => void;
   resizeDebounceMs?: number;
 }
-
-const log = createLogger("Battlefield");
 
 function projectFightMode(value: unknown): string {
   if (typeof value === "string") {
@@ -134,6 +132,7 @@ export class Battlefield {
   private rendererRegistry = new RendererRegistry();
 
   private onCellClickCallback?: (cellId: number) => void;
+  private onInteractiveUseCallback?: (cellId: number, skillId: number) => void;
   private onCellHoverCallback?: (cellId: number | null) => void;
   private lastHoveredCellId: number | null = null;
   private onResizeStartCallback?: () => void;
@@ -145,6 +144,8 @@ export class Battlefield {
     worldActorRenderer: () => this.worldActors.getRenderer(),
     app: () => this.app,
     onCellPickThrough: (cellId) => this.onCellClickCallback?.(cellId),
+    onInteractiveUse: (cellId, skillId) =>
+      this.onInteractiveUseCallback?.(cellId, skillId),
   });
 
   private readonly worldActors = new BattlefieldWorldActors({
@@ -157,6 +158,11 @@ export class Battlefield {
     cellDataMap: () => this.cellDataMap,
     rendererRegistry: () => this.rendererRegistry,
     currentMapWidth: () => this.currentMapData?.width ?? 15,
+    currentMapScale: () =>
+      computeMapScale(
+        this.currentMapData?.width ?? 15,
+        this.currentMapData?.height ?? 17
+      ),
     transparencyEnabled: () => this.transparencyMode,
     applyTransparency: () => this.applyTransparencyMode(),
     registerPlayerForPicking: (
@@ -467,8 +473,10 @@ export class Battlefield {
         flip,
         groundSlope
       ) => {
-        if (layer > 0 && this.isInteractiveTile(tileId)) {
-          this.picking.registerTile(sprite, tileId);
+        // Only layer 2 carries elements — the interactive bit is
+        // `layerObject2Interactive`, there is no layer-1 equivalent.
+        if (layer === 2 && this.isInteractiveTile(tileId, cellId)) {
+          this.picking.registerTile(sprite, tileId, cellId);
         }
 
         // Register sprite with debug overlay
@@ -511,6 +519,15 @@ export class Battlefield {
     for (const cell of mapData.cells) {
       this.cellDataMap.set(cell.id, cell);
     }
+
+    // The tile layers bake `computeMapScale` into every sprite position,
+    // which recentres any map that is not 15x17 (a fifth of the world).
+    // Actors are drawn from raw cell positions, so they need the same
+    // transform or they drift off the terrain — an 11x13 house interior
+    // shifts its floor by (106, 54), and the character stays behind on
+    // the wall. Re-applied here rather than at construction because
+    // `prepareWorldActors()` runs before `currentMapData` is assigned.
+    this.worldActors.applyMapTransform();
 
     this.mapContainer.x = 0;
     this.mapContainer.y = 0;
@@ -593,6 +610,12 @@ export class Battlefield {
    * Called by GameClient right before adding MAP_ACTORS.
    */
   prepareWorldActors(): void {
+    // `reset()` destroys the renderer and every sprite it owns, so the
+    // picking entries for those actors are dead the moment it returns.
+    // Left in place they keep answering clicks — and since ids are
+    // handed out per pickable, a tile of the new map inherits the name
+    // and menu of an actor from the old one.
+    this.picking.clearPlayers();
     this.worldActors.reset();
   }
 
@@ -667,28 +690,27 @@ export class Battlefield {
   }
 
   private async loadInteractiveObjects(): Promise<void> {
-    try {
-      const response = await fetch("/assets/data/interactive-objects.json");
-      const data = await response.json();
+    this.interactiveObjectsData = await loadInteractiveObjectsLang();
 
-      const interactiveObjects = data.interactiveObjects || {};
-
-      for (const obj of Object.values(
-        interactiveObjects
-      ) as InteractiveObjectData[]) {
-        if (obj.gfxIds && Array.isArray(obj.gfxIds)) {
-          for (const gfxId of obj.gfxIds) {
-            this.interactiveGfxIds.add(gfxId);
-            this.interactiveObjectsData.set(gfxId, obj);
-          }
-        }
-      }
-    } catch (error) {
-      log.error("Failed to load interactive objects:", error);
+    for (const gfxId of this.interactiveObjectsData.keys()) {
+      this.interactiveGfxIds.add(gfxId);
     }
   }
 
-  private isInteractiveTile(tileId: number): boolean {
+  /**
+   * Whether a sprite is an element the player can act on.
+   *
+   * The gfx id alone does not answer that: the same sprite is decoration on
+   * one cell and a usable element on the next. Canonical 1.29 reads the cell's
+   * own `layerObject2Interactive` bit (`MapHandler.as:359`), which the server
+   * now ships in `MapCell`. The gfx lookup only decides *what* the element is
+   * once the bit says there is one.
+   */
+  private isInteractiveTile(tileId: number, cellId: number): boolean {
+    if (!this.cellDataMap.get(cellId)?.layerObject2Interactive) {
+      return false;
+    }
+
     return this.interactiveGfxIds.has(tileId);
   }
 
@@ -741,6 +763,12 @@ export class Battlefield {
     if (cell?.walkable) {
       this.onCellClickCallback?.(cell.id);
     }
+  }
+
+  setOnInteractiveUse(
+    callback: (cellId: number, skillId: number) => void
+  ): void {
+    this.onInteractiveUseCallback = callback;
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {

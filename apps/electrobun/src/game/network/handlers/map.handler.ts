@@ -380,6 +380,7 @@ function cellFromProto(c: MapCell): CellData {
     layerObject1Flip: c.layerObject1Flip,
     layerObject2Rot: c.layerObject2Rot,
     layerObject2Flip: c.layerObject2Flip,
+    layerObject2Interactive: c.layerObject2Interactive,
   };
 }
 

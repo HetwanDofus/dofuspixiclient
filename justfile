@@ -90,8 +90,15 @@ import-maps dump:
 import-content dump:
     cd apps/gameserver-ts && bun run scripts/import-starloco-content.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
 
-# The whole world in one go — geometry, then contents.
-import-world dump: (import-maps dump) (import-content dump)
+# Needs `import-maps` to have run first: it reads maps.cells and maps.id.
+
+# Import what makes the world actionable: scripted cells, interactive object
+# templates, zaaps and house geometry
+import-triggers dump:
+    cd apps/gameserver-ts && bun run scripts/import-starloco-triggers.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
+
+# The whole world in one go — geometry, then contents, then what you can act on.
+import-world dump: (import-maps dump) (import-content dump) (import-triggers dump)
 
 # Build the Vello WASM renderer.
 # `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —

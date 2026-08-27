@@ -11,6 +11,7 @@ import { MonstersModule } from "@modules/monsters/monsters.module";
 import { PlayerPresenceModule } from "@modules/player-presence/player-presence.module";
 import { PlayersModule } from "@modules/players/players.module";
 import { SpellsModule } from "@modules/spells/spells.module";
+import { StatsModule } from "@modules/stats/stats.module";
 import { Global, Module } from "@nestjs/common";
 
 @Global()
@@ -22,6 +23,9 @@ import { Global, Module } from "@nestjs/common";
     PlayerPresenceModule,
     MapsModule,
     SpellsModule,
+    // For the level-up push at the end of a fight: the new level,
+    // capital and life cap ride on the `As` frame, not on `GameEnd`.
+    StatsModule,
     MonstersModule,
     InventoryModule,
   ],

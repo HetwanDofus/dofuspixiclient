@@ -1,6 +1,10 @@
 import type { BoostableStat } from "@modules/stats/boost-cost";
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
 import type { DB } from "@shared/db/schema";
+import {
+  SPELL_POINTS_PER_LEVEL,
+  STAT_POINTS_PER_LEVEL,
+} from "@modules/players/players.progression.constants";
 import { Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 
@@ -119,13 +123,26 @@ export class PlayersRepository {
       .executeTakeFirst();
   }
 
-  async levelUp(playerId: string): Promise<void> {
+  /**
+   * Raises the level by `levels` and credits the capital that comes with
+   * them, in one statement.
+   *
+   * Takes a count rather than being called in a loop because a single
+   * fight can cross several thresholds: three `UPDATE`s for three levels
+   * would leave the row observable at an intermediate level, and the
+   * caller would have to decide what to do if the second one failed.
+   */
+  async grantLevels(playerId: string, levels: number): Promise<void> {
+    if (levels <= 0) {
+      return;
+    }
+
     await this.txHost.tx
       .updateTable("players")
       .set((eb) => ({
-        level: eb("level", "+", 1),
-        statsPoints: eb("statsPoints", "+", 5),
-        spellPoints: eb("spellPoints", "+", 1),
+        level: eb("level", "+", levels),
+        statsPoints: eb("statsPoints", "+", STAT_POINTS_PER_LEVEL * levels),
+        spellPoints: eb("spellPoints", "+", SPELL_POINTS_PER_LEVEL * levels),
       }))
       .where("id", "=", playerId)
       .execute();

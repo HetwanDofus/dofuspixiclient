@@ -15,6 +15,7 @@ import {
   SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { SpellListSchema } from "@dofus/proto/spells_pb";
 import { FightHistoryRepository } from "@modules/fight/engine/fight.history.repository";
 import { rollLoot } from "@modules/fight/engine/fight.loot";
 import {
@@ -32,11 +33,21 @@ import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-
 import { MonstersRepository } from "@modules/monsters/monsters.repository";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
+import { PlayersProgressionService } from "@modules/players/players.progression.service";
 import { PlayersRepository } from "@modules/players/players.repository";
+import { SpellsService } from "@modules/spells/spells.service";
 import { prospection } from "@modules/stats/stats.constants";
+import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
+
+/** One winner that crossed a level threshold, and what to re-push to it. */
+interface LevelUpOutcome {
+  sessionId: string;
+  playerId: string;
+  learnedSpells: number;
+}
 
 @Injectable()
 export class FightEndService {
@@ -47,6 +58,9 @@ export class FightEndService {
     private readonly frames: GatewayFrameService,
     private readonly historyRepo: FightHistoryRepository,
     private readonly players: PlayersRepository,
+    private readonly progression: PlayersProgressionService,
+    private readonly spells: SpellsService,
+    private readonly stats: StatsService,
     private readonly presence: PlayerPresenceService,
     private readonly transition: MapTransitionService,
     private readonly mapMonsters: MapMonsterService,
@@ -124,7 +138,7 @@ export class FightEndService {
     // payout the database never took is the worst possible failure here:
     // the player believes they earned it. Writing first means a failed
     // transaction shows nothing rather than a lie.
-    await this.persistOutcome({
+    const levelledUp = await this.persistOutcome({
       fight,
       winner,
       durationMs,
@@ -190,6 +204,10 @@ export class FightEndService {
         },
       })
     );
+
+    // After the result screen, so the panels the player opens next are
+    // already showing the new level, capital and spells.
+    await this.announceLevelUps(levelledUp);
 
     // Clean buffs and states for all fighters
     for (const f of fight.fighters()) {
@@ -382,9 +400,14 @@ export class FightEndService {
     xpPerPlayer: number;
     kamasPerPlayer: number;
     loot: Map<number, LootRoll[]>;
-  }): Promise<void> {
+  }): Promise<LevelUpOutcome[]> {
     const { fight, winner, durationMs, xpPerPlayer, kamasPerPlayer, loot } =
       outcome;
+
+    // Collected inside the transaction, announced outside it: a client
+    // told "you reached level 12" by a transaction that then rolls back
+    // is the same lie the payout screen is careful not to tell.
+    const levelledUp: LevelUpOutcome[] = [];
 
     await this.txHost.withTransaction(async () => {
       const historyResult = await this.historyRepo.insertHistory({
@@ -442,23 +465,56 @@ export class FightEndService {
 
         await this.players.addXpAndKamas(playerId, xpGained, kamasGained);
 
-        const updated = await this.players.findById(playerId);
+        // Every level the experience now covers, not just the first one,
+        // plus the spells they unlock — see `PlayersProgressionService`.
+        const progress = await this.progression.applyExperience(playerId);
 
-        if (updated) {
-          const currentXp = Number(updated.experience);
-          const nextLevelXp = (updated.level + 1) * (updated.level + 1) * 10;
-
-          if (currentXp >= nextLevelXp) {
-            await this.players.levelUp(playerId);
-            this.logger.log(
-              `Player ${fighter.player.id} leveled up to ${updated.level + 1}`
-            );
-          }
+        if (
+          fighter.sessionId &&
+          progress &&
+          progress.level > progress.previousLevel
+        ) {
+          levelledUp.push({
+            sessionId: fighter.sessionId,
+            playerId,
+            learnedSpells: progress.learnedSpellIds.length,
+          });
         }
 
         await this.grantLoot(fighter, playerId, loot.get(fighter.id) ?? []);
       }
     });
+
+    return levelledUp;
+  }
+
+  /**
+   * Tell a client that just levelled up what changed.
+   *
+   * A level up moves three things the HUD reads and none of them travel
+   * on `GameEnd`: the spell book (new spells), the level/experience bar,
+   * and the two point balances. `SpellList` is the same full-snapshot
+   * frame `spell-upgrade` re-pushes for the same reason — the client
+   * treats it as authoritative rather than merging.
+   */
+  private async announceLevelUps(levelledUp: LevelUpOutcome[]): Promise<void> {
+    for (const entry of levelledUp) {
+      if (entry.learnedSpells > 0) {
+        const spellData = await this.spells.buildSpellList(entry.playerId);
+
+        this.frames.broadcast(
+          [entry.sessionId],
+          create(DofusMessageSchema, {
+            payload: {
+              case: "spellList",
+              value: create(SpellListSchema, { spells: spellData }),
+            },
+          })
+        );
+      }
+
+      await this.stats.sendStats(entry.sessionId, entry.playerId);
+    }
   }
 
   /**

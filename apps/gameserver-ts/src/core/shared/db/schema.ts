@@ -599,16 +599,22 @@ export type LivingObjectTemplateRow = Selectable<LivingObjectTemplatesTable>;
 export type NewLivingObjectTemplate = Insertable<LivingObjectTemplatesTable>;
 export type LivingObjectTemplateUpdate = Updateable<LivingObjectTemplatesTable>;
 
-export interface ClassStarterSpellsTable {
+/**
+ * The spell progression of a breed: which spells it owns and the player
+ * level each one is learned at (`learn_level = 1` is a starter spell).
+ * Seeded from the 1.29 lang bundles by migration 0048, which replaced
+ * the starters-only `class_starter_spells`.
+ */
+export interface ClassSpellsTable {
   classId: number;
   spellId: number;
-  level: number;
+  learnLevel: number;
   position: number;
 }
 
-export type ClassStarterSpellRow = Selectable<ClassStarterSpellsTable>;
-export type NewClassStarterSpell = Insertable<ClassStarterSpellsTable>;
-export type ClassStarterSpellUpdate = Updateable<ClassStarterSpellsTable>;
+export type ClassSpellRow = Selectable<ClassSpellsTable>;
+export type NewClassSpell = Insertable<ClassSpellsTable>;
+export type ClassSpellUpdate = Updateable<ClassSpellsTable>;
 
 export interface SpellCooldownsTable {
   playerId: string;
@@ -900,11 +906,27 @@ export interface HousesTable {
   lockCode: string;
   doors: Json;
   purchasedAt: TimestampTz | null;
+  /** Interior map the door opens onto, and the cell the player lands on. */
+  entryMapId: number | null;
+  entryCellId: number | null;
+  /** Every map that belongs to this house — ground floor plus upper floors. */
+  interiorMapIds: Json;
 }
 
 export type HouseRow = Selectable<HousesTable>;
 export type NewHouse = Insertable<HousesTable>;
 export type HouseUpdate = Updateable<HousesTable>;
+
+/** One row per clickable door cell; 40 houses have more than one. */
+export interface HouseDoorsTable {
+  mapId: number;
+  cellId: number;
+  houseId: string;
+}
+
+export type HouseDoorRow = Selectable<HouseDoorsTable>;
+export type NewHouseDoor = Insertable<HouseDoorsTable>;
+export type HouseDoorUpdate = Updateable<HouseDoorsTable>;
 
 export interface HouseStorageItemsTable {
   id: Generated<string>;
@@ -1244,6 +1266,10 @@ export interface InteractiveObjectsTemplatesTable {
   durationMs: number;
   walkable: boolean;
   unknown: number;
+  /** 1.29 `IO.d[id].t` — 1 resource, 2 workbench, 3 zaap, 5 house door, 6 storage, 10 zaapi… */
+  type: number;
+  /** 1.29 `IO.d[id].sk`, comma-separated: the skill ids the popup menu offers. */
+  skills: string;
 }
 
 export type InteractiveObjectTemplateRow =
@@ -1784,7 +1810,7 @@ export type DB = {
   playerSoulStones: PlayerSoulStonesTable;
   livingObjects: LivingObjectsTable;
   livingObjectTemplates: LivingObjectTemplatesTable;
-  classStarterSpells: ClassStarterSpellsTable;
+  classSpells: ClassSpellsTable;
   spellCooldowns: SpellCooldownsTable;
   chatSubscriptions: ChatSubscriptionsTable;
   modReports: ModReportsTable;
@@ -1807,6 +1833,7 @@ export type DB = {
   mountPaddockData: MountPaddockDataTable;
   mountBreedingLog: MountBreedingLogTable;
   houses: HousesTable;
+  houseDoors: HouseDoorsTable;
   houseStorageItems: HouseStorageItemsTable;
   prisms: PrismsTable;
   prismModules: PrismModulesTable;

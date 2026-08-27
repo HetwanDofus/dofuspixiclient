@@ -8,6 +8,7 @@ import {
   hideContextMenu,
   showContextMenu,
 } from "@/game/stores/context-menu-store";
+import { IMPLEMENTED_INTERACTIVE_SKILLS } from "@/game/types";
 import {
   clearMonsterGroupHover,
   setMonsterGroupHover,
@@ -15,9 +16,6 @@ import {
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("BattlefieldPicking");
-
-/** Zaap interactive object type (from interactive-objects.json). */
-const ZAAP_TYPE = 3;
 
 export interface BattlefieldPickingDeps {
   pickingSystem(): PickingSystem | null;
@@ -31,6 +29,11 @@ export interface BattlefieldPickingDeps {
    * PvM auto-trigger on cell arrival.
    */
   onCellPickThrough?: (cellId: number) => void;
+  /**
+   * Fired when the player picks an action in an element's menu. The game
+   * client walks to the cell first, then sends `GA;500;<cellId>;<skillId>`.
+   */
+  onInteractiveUse?: (cellId: number, skillId: number) => void;
 }
 
 interface InteractiveCallbacks {
@@ -46,8 +49,18 @@ interface InteractiveCallbacks {
  *   - hover routing to nameplate show/hide
  */
 export class BattlefieldPicking {
+  /**
+   * Monotonic, and deliberately never reset. Ids identify entries in the
+   * player tables as much as in the tile ones; restarting the count on a
+   * map reload hands a fresh door the id a departed actor still owns
+   * there, and the door then opens that actor's menu.
+   */
   private nextPickableId = 1;
   private readonly pickableIdToGfxId = new Map<number, number>();
+  /** pickableId → the cell the element stands on, the id `GA;500` carries. */
+  private readonly pickableIdToCellId = new Map<number, number>();
+  /** Pickables owned by the tile layers — the set `clearTiles` drops. */
+  private readonly tilePickableIds = new Set<number>();
   private readonly pickableIdToPlayerId = new Map<number, number>();
   private readonly playerIdToPickableId = new Map<number, number>();
   private readonly callbacks = new Map<number, InteractiveCallbacks>();
@@ -170,8 +183,12 @@ export class BattlefieldPicking {
     }
   }
 
-  /** Register an interactive tile (zaap, door, etc). Returns the pickable ID. */
-  registerTile(sprite: Sprite, gfxId: number): number {
+  /**
+   * Register an interactive tile (zaap, door, chest…). The cell id is what the
+   * server is told when the player picks an action — `GA;500;<cellId>;<skillId>`
+   * names the cell, never the sprite — so it has to be kept here.
+   */
+  registerTile(sprite: Sprite, gfxId: number, cellId: number): number {
     const pickableId = this.nextPickableId++;
     const pickingSystem = this.deps.pickingSystem();
 
@@ -181,6 +198,8 @@ export class BattlefieldPicking {
 
     pickingSystem.registerObject({ id: pickableId, sprite });
     this.pickableIdToGfxId.set(pickableId, gfxId);
+    this.pickableIdToCellId.set(pickableId, cellId);
+    this.tilePickableIds.add(pickableId);
     return pickableId;
   }
 
@@ -397,11 +416,36 @@ export class BattlefieldPicking {
     }
   }
 
-  /** Wipe all tile-level pickables (kept on map reload). */
+  /**
+   * Drop the tile-level pickables — every map reload and every zoom
+   * rebuild replaces the sprites they point at.
+   *
+   * Only the tiles: `PickingSystem.clear()` would take the actors with
+   * them, and the zoom rebuild runs while actors are on screen and
+   * registered. They are unregistered one by one instead.
+   */
   clearTiles(): void {
-    this.deps.pickingSystem()?.clear();
+    const pickingSystem = this.deps.pickingSystem();
+
+    for (const pickableId of this.tilePickableIds) {
+      pickingSystem?.unregisterObject(pickableId);
+    }
+
+    this.tilePickableIds.clear();
     this.pickableIdToGfxId.clear();
-    this.nextPickableId = 1;
+    this.pickableIdToCellId.clear();
+  }
+
+  /**
+   * Drop every actor pickable. Call this whenever the actor renderer is
+   * about to be destroyed — on a map change it takes all its sprites with
+   * it, and the registrations it leaves behind name sprites that no longer
+   * exist.
+   */
+  clearPlayers(): void {
+    for (const playerId of [...this.playerIdToPickableId.keys()]) {
+      this.unregisterPlayer(playerId);
+    }
   }
 
   onObjectClick(result: PickResult): void {
@@ -439,17 +483,50 @@ export class BattlefieldPicking {
     }
 
     const gfxId = this.pickableIdToGfxId.get(result.object.id);
+    const cellId = this.pickableIdToCellId.get(result.object.id);
 
-    if (!gfxId) {
+    if (gfxId === undefined || cellId === undefined) {
       return;
     }
 
     const objData = this.deps.interactiveObjects().get(gfxId);
-    log.debug("Clicked interactive object:", gfxId, objData);
 
-    if (objData?.type === ZAAP_TYPE) {
-      this.showZaapContextMenu(result.x, result.y);
+    if (!objData) {
+      log.debug("Clicked interactive object with no IO entry:", gfxId);
+      return;
     }
+
+    this.showInteractiveContextMenu(objData, cellId, result.x, result.y);
+  }
+
+  /**
+   * The 1.29 element menu — `DofusBattlefield.onObjectRelease` builds exactly
+   * this: the element's name as the header, then one entry per skill in its
+   * `IO.d[id].sk` list, greyed out when the action is unavailable.
+   *
+   * Picking an entry does not fire it immediately. Canonical `useRessource`
+   * calls `onCellRelease(mcCell)` first — the player walks to the element and
+   * only then does the action go out — which is what `onInteractiveUse`
+   * arranges on the game-client side.
+   */
+  private showInteractiveContextMenu(
+    objData: InteractiveObjectData,
+    cellId: number,
+    screenX: number,
+    screenY: number
+  ): void {
+    const { x, y } = this.pixiToPageCoords(screenX, screenY);
+    const options = objData.skills.map((skill) => ({
+      label: skill.label,
+      disabled: !IMPLEMENTED_INTERACTIVE_SKILLS.has(skill.id),
+      onClick: () => this.deps.onInteractiveUse?.(cellId, skill.id),
+    }));
+
+    if (options.length === 0) {
+      return;
+    }
+
+    showContextMenu(objData.name, options, x, y);
   }
 
   onObjectHover(result: PickResult | null): void {
@@ -486,21 +563,6 @@ export class BattlefieldPicking {
       x: rect.left + pixiX / resolution,
       y: rect.top + pixiY / resolution,
     };
-  }
-
-  private showZaapContextMenu(screenX: number, screenY: number): void {
-    const { x, y } = this.pixiToPageCoords(screenX, screenY);
-    showContextMenu(
-      "Zaap",
-      [
-        {
-          label: "Use",
-          onClick: () => log.debug("Zaap: Use action triggered"),
-        },
-      ],
-      x,
-      y
-    );
   }
 
   private showPlayerContextMenu(

@@ -2,9 +2,11 @@ import type { DofusPathfinding } from "@dofus/grid";
 import { getDirOffsets } from "@dofus/grid";
 
 import type { CellData } from "@/game/datacenter/cell";
+import type { MapScale } from "@/game/datacenter/map";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
 import type { ActivePlayer } from "@/game/scene/player/types";
+import { projectCellPosition } from "@/game/datacenter/map";
 import {
   advanceMovement,
   getCellPositionWithSlope,
@@ -29,6 +31,11 @@ const CHILD_INDEX_TO_DIR = [2, 6, 4, 0, 3, 5, 1, 7];
 export interface PlayerMovementDeps {
   mapWidth(): number;
   groundLevel(): number;
+  /**
+   * Map-fitting transform baked into the terrain's sprite positions.
+   * Identity in fight mode, which carries it on its own container.
+   */
+  mapProjection(): MapScale;
   cellDataMap(): Map<number, CellData>;
   pathfinding(): DofusPathfinding | null;
   pickingSystem(): PickingSystem | null;
@@ -133,8 +140,12 @@ export class PlayerMovement {
       if (player.moveDistance > remaining) {
         // Mid-segment advance by remaining.
         const offset = getMovementOffset(this.snapshotState(player), remaining);
-        player.container.x += offset.x;
-        player.container.y += offset.y;
+        // Segment geometry is computed from raw cell positions, so the
+        // per-frame step has to be scaled the same way `cellPos` scales
+        // the endpoints it snaps to.
+        const scale = this.deps.mapProjection().scale;
+        player.container.x += offset.x * scale;
+        player.container.y += offset.y * scale;
         player.moveDistance -= remaining;
         return;
       }
@@ -144,8 +155,9 @@ export class PlayerMovement {
       // machine to either cross into the next cell or finish.
       const used = player.moveDistance;
       const offset = getMovementOffset(this.snapshotState(player), used);
-      player.container.x += offset.x;
-      player.container.y += offset.y;
+      const endScale = this.deps.mapProjection().scale;
+      player.container.x += offset.x * endScale;
+      player.container.y += offset.y * endScale;
       remaining -= used;
       player.moveDistance = 0;
 
@@ -324,11 +336,14 @@ export class PlayerMovement {
   }
 
   private cellPos(cellId: number): { x: number; y: number } {
-    return getCellPositionWithSlope(
-      cellId,
-      this.deps.mapWidth(),
-      this.deps.groundLevel(),
-      this.deps.cellDataMap()
+    return projectCellPosition(
+      getCellPositionWithSlope(
+        cellId,
+        this.deps.mapWidth(),
+        this.deps.groundLevel(),
+        this.deps.cellDataMap()
+      ),
+      this.deps.mapProjection()
     );
   }
 }

@@ -51,6 +51,36 @@ export class SpellsService implements SpellPort {
   }
 
   /**
+   * Brings a spell book in line with what the character's class knows at
+   * `level`, and returns the spell ids that were actually added.
+   *
+   * Deliberately *reconciling* rather than incremental: it offers every
+   * spell learned at or below the level and lets the (player, spell)
+   * primary key drop the ones already owned. So it costs one insert of
+   * at most 21 rows, it is safe to call twice, and a character that
+   * levelled while this feature did not exist — or that gained several
+   * levels in one fight — catches up on the next call instead of
+   * staying short a spell forever.
+   */
+  async learnClassSpells(
+    playerId: string,
+    classId: number,
+    level: number
+  ): Promise<number[]> {
+    const owed = await this.repo.findClassSpells(classId, level);
+    const learned = await this.repo.addPlayerSpells(playerId, owed);
+
+    if (learned.length > 0) {
+      this.logger.log(
+        `learnClassSpells player=${playerId} class=${classId} ` +
+          `level=${level} learned=[${learned.join(", ")}]`
+      );
+    }
+
+    return learned;
+  }
+
+  /**
    * Build the full SpellList payload for a player — one SpellData per
    * known spell, hydrated with the level row so the client has
    * everything needed to render + gate the spell-cast UI locally
