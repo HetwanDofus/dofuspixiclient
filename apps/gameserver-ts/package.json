@@ -11,6 +11,7 @@
     "start:core": "bun run src/core/main.ts",
     "build": "bun build src/gateway/main.ts --target=bun --outfile=dist/gateway.js && bun build src/core/main.ts --target=bun --outfile=dist/core.js",
     "db:make": "bunx kysely migrate:make",
+    "db:check": "bun run scripts/check-migrations.ts",
     "db:migrate": "bunx kysely migrate:latest",
     "db:rollback": "bunx kysely migrate:down",
     "db:status": "bunx kysely migrate:list",

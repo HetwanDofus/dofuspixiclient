@@ -60,8 +60,14 @@ langs-link:
         echo "linked assets/dist/langs -> apps/electrobun/public/assets/langs" )
 
 # Run database migrations
+#
+# `db:check` runs first and stops on a migration recorded in the database
+# whose file this checkout does not have — a database migrated on a feature
+# branch, then abandoned by a `git checkout`. Kysely catches it too, but
+# calls it "corrupted migrations" and buries the cause; the check names the
+# branch each missing file is on and the rollback that reconciles the two.
 db-migrate: langs-link
-    cd apps/gameserver-ts && bun run db:migrate
+    cd apps/gameserver-ts && bun run db:check && bun run db:migrate
 
 # Seed one dev account (dev/dev) + one game server row
 db-seed:
