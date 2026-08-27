@@ -172,18 +172,27 @@ describe("ShortcutsService.move", () => {
     expect(h.frames).toEqual([]);
   });
 
-  test("overwrites the destination", async () => {
+  test("swaps with an occupied destination", async () => {
     const h = harness([
       { unicId: "10", playerId: PLAYER, templateId: 1182 },
       { unicId: "11", playerId: PLAYER, templateId: 289 },
     ]);
     await h.service.add(SESSION, PLAYER, 3, 10);
     await h.service.add(SESSION, PLAYER, 4, 11);
+    h.frames.length = 0;
 
     await h.service.move(SESSION, PLAYER, 3, 4);
 
     expect(h.slots.get(4)).toBe(1182);
-    expect(h.slots.has(3)).toBe(false);
+    // The source keeps the destination's shortcut instead of emptying:
+    // rearranging a full bar must not cost the player a slot.
+    expect(h.slots.get(3)).toBe(289);
+    // No OrR — neither slot ends up empty, and an OrR here would blank
+    // the source on the client before its OrA refilled it.
+    expect(h.frames).toEqual([
+      { kind: "add", slot: 3, templateId: 289 },
+      { kind: "add", slot: 4, templateId: 1182 },
+    ]);
   });
 });
 

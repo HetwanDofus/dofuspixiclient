@@ -35,6 +35,12 @@ export interface SpellEntry {
    * not the cast-time AOE — preview should show only the placement cell.
    */
   singleTargetSpawn: boolean;
+  /**
+   * Character level the spell is learned at. The spell book sorts on it
+   * — `position` used to stand in for obtention order, and stopped being
+   * able to the moment dragging the hotbar started rewriting it.
+   */
+  learnLevel: number;
   // Localized display data resolved server-side from `@dofus/dofus-lang`
   // against the currently-selected locale (see gameserver
   // spells.service.ts::buildSpellList). The HUD renders these directly so
@@ -86,6 +92,7 @@ export function applySpellList(list: readonly SpellData[]): void {
       areaSize: s.areaSize,
       targetMask: s.targetMask,
       singleTargetSpawn: s.singleTargetSpawn,
+      learnLevel: s.learnLevel,
       name: s.name,
       description: s.description,
       cooldownRemaining: existingCooldown,

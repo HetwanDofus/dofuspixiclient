@@ -132,6 +132,9 @@ export class SpellsService implements SpellPort {
         singleTargetSpawn:
           primary !== undefined &&
           (primary.id === 400 || primary.id === 401 || primary.id === 185),
+        // Falls back to 1 when the level-1 row is missing: an unknown
+        // learn level sorts with the starters rather than off the end.
+        learnLevel: row.learnLevel ?? 1,
         name: lang?.name ?? row.templateName,
         description: lang?.description ?? "",
         // The hotbar icon is now a per-spell_id dofasset composed at build

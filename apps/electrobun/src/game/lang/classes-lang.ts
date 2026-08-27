@@ -7,19 +7,26 @@ const BUNDLE_URL = `/assets/langs/${LOCALE}/classes.json`;
 
 /**
  * Which spells belong to which breed, from the `classes` lang bundle
- * (`G[classId].s` — the breed's spell list in learn order).
+ * (`G[classId].s`), each mapped to its index in that list.
  *
- * The spell book's "Type de sort" filter needs this: a character's
- * spell list mixes breed spells with spells granted by other means, and
- * "Classe" shows only the former. Nothing on the wire distinguishes
- * them — in Dofus 1.29 the client has always read this from the bundle.
+ * The spell book's "Type de sort" filter needs the membership: a
+ * character's spell list mixes breed spells with spells granted by
+ * other means, and "Classe" shows only the former. Nothing on the wire
+ * distinguishes them — in Dofus 1.29 the client has always read this
+ * from the bundle.
+ *
+ * The *index* is kept because the bundle's order is the tie-break the
+ * book sorts on. `s` is not itself in learn order (a Féca's three
+ * starters sit at the end of its array), so ordering the book means
+ * learn level first, this index second — the same rule migration 0048
+ * used to number `class_spells.position`.
  */
-let byClass: Map<number, Set<number>> | null = null;
-let loading: Promise<Map<number, Set<number>>> | null = null;
+let byClass: Map<number, Map<number, number>> | null = null;
+let loading: Promise<Map<number, Map<number, number>>> | null = null;
 const listeners = new Set<() => void>();
 
-function parseBundle(json: unknown): Map<number, Set<number>> {
-  const out = new Map<number, Set<number>>();
+function parseBundle(json: unknown): Map<number, Map<number, number>> {
+  const out = new Map<number, Map<number, number>>();
   const data = (json as { data?: { G?: Record<string, { s?: unknown }> } }).data
     ?.G;
   if (!data) {
@@ -30,18 +37,21 @@ function parseBundle(json: unknown): Map<number, Set<number>> {
     if (!Number.isFinite(classId) || !Array.isArray(raw?.s)) {
       continue;
     }
-    const ids = new Set<number>();
+    const ranks = new Map<number, number>();
     for (const value of raw.s) {
       if (typeof value === "number" && Number.isFinite(value)) {
-        ids.add(value);
+        // First occurrence wins; a duplicated id keeps its earliest rank.
+        if (!ranks.has(value)) {
+          ranks.set(value, ranks.size);
+        }
       }
     }
-    out.set(classId, ids);
+    out.set(classId, ranks);
   }
   return out;
 }
 
-export function loadClassesLang(): Promise<Map<number, Set<number>>> {
+export function loadClassesLang(): Promise<Map<number, Map<number, number>>> {
   if (byClass) {
     return Promise.resolve(byClass);
   }
@@ -68,7 +78,7 @@ export function loadClassesLang(): Promise<Map<number, Set<number>>> {
   return loading;
 }
 
-function finish(): Map<number, Set<number>> {
+function finish(): Map<number, Map<number, number>> {
   for (const cb of listeners) {
     cb();
   }
@@ -86,9 +96,19 @@ export function subscribeClassesLang(cb: () => void): () => void {
  * is never briefly empty on open.
  */
 export function isClassSpell(classId: number, spellId: number): boolean {
-  const ids = byClass?.get(classId);
-  if (!ids) {
+  const ranks = byClass?.get(classId);
+  if (!ranks) {
     return true;
   }
-  return ids.has(spellId);
+  return ranks.has(spellId);
+}
+
+/**
+ * Where `spellId` sits in `classId`'s bundle list — the spell book's
+ * tie-break between two spells learned at the same level. Anything the
+ * bundle does not list (or every spell, before it loads) sorts last,
+ * where an unordered spell belongs.
+ */
+export function classSpellRank(classId: number, spellId: number): number {
+  return byClass?.get(classId)?.get(spellId) ?? Number.POSITIVE_INFINITY;
 }

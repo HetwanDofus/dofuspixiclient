@@ -117,6 +117,13 @@ message SpellData {
   // describe the spawned entity's trigger / aura, not a cast-time AOE.
   bool     single_target_spawn = 23;
 
+  // Character level at which this spell is learned — `spell_levels`
+  // level 1's `min_player_level`, the same datum 0048 read to build
+  // `class_spells.learn_level`. The spell book orders on it: 1.29 lists
+  // a book in the order the spells were obtained, and `position` cannot
+  // stand in for that any more now that dragging the hotbar rewrites it.
+  int32    learn_level = 24;
+
   // Localized display info, resolved server-side from @dofus/dofus-lang.
   // Ships in the SpellList on enter-game so the HUD doesn't need a second
   // round-trip (or client-side lang bundle) to render tooltips + grid.

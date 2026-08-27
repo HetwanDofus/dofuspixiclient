@@ -64,39 +64,55 @@ export class SpellsRepository {
    * `enter-game` hitches on high-level characters with full spell books.
    */
   findPlayerSpellsWithLevels(playerId: string) {
-    return this.txHost.tx
-      .selectFrom("playerSpells")
-      .innerJoin("spellLevels", (join) =>
-        join
-          .onRef("spellLevels.spellId", "=", "playerSpells.spellId")
-          .onRef("spellLevels.level", "=", "playerSpells.level")
-      )
-      .innerJoin("spellTemplates", "spellTemplates.id", "playerSpells.spellId")
-      .select([
-        "playerSpells.spellId",
-        "playerSpells.level",
-        "playerSpells.position",
-        "spellLevels.apCost",
-        "spellLevels.rangeMin",
-        "spellLevels.rangeMax",
-        "spellLevels.lineOfSight",
-        "spellLevels.modifiableRange",
-        "spellLevels.emptyCell",
-        "spellLevels.lineOnly",
-        "spellLevels.castPerTurn",
-        "spellLevels.castPerTarget",
-        "spellLevels.cooldown",
-        "spellLevels.criticalRate",
-        "spellLevels.failureRate",
-        "spellLevels.effects",
-        // Fallback display name when the lang bundle has no entry for this
-        // spell (e.g. new spells without translations). The localized name
-        // lives in the lang bundle and is merged into the SpellList payload
-        // by the service.
-        "spellTemplates.name as templateName",
-      ])
-      .where("playerSpells.playerId", "=", playerId)
-      .execute();
+    return (
+      this.txHost.tx
+        .selectFrom("playerSpells")
+        .innerJoin("spellLevels", (join) =>
+          join
+            .onRef("spellLevels.spellId", "=", "playerSpells.spellId")
+            .onRef("spellLevels.level", "=", "playerSpells.level")
+        )
+        .innerJoin(
+          "spellTemplates",
+          "spellTemplates.id",
+          "playerSpells.spellId"
+        )
+        // Level 1's `min_player_level` is the level the spell is learned
+        // at — what the spell book orders on. Left-joined because a spell
+        // whose level-1 row is missing from the import must still appear
+        // in the book rather than drop out of the list.
+        .leftJoin("spellLevels as firstLevel", (join) =>
+          join
+            .onRef("firstLevel.spellId", "=", "playerSpells.spellId")
+            .on("firstLevel.level", "=", 1)
+        )
+        .select([
+          "playerSpells.spellId",
+          "playerSpells.level",
+          "playerSpells.position",
+          "spellLevels.apCost",
+          "spellLevels.rangeMin",
+          "spellLevels.rangeMax",
+          "spellLevels.lineOfSight",
+          "spellLevels.modifiableRange",
+          "spellLevels.emptyCell",
+          "spellLevels.lineOnly",
+          "spellLevels.castPerTurn",
+          "spellLevels.castPerTarget",
+          "spellLevels.cooldown",
+          "spellLevels.criticalRate",
+          "spellLevels.failureRate",
+          "spellLevels.effects",
+          "firstLevel.minPlayerLevel as learnLevel",
+          // Fallback display name when the lang bundle has no entry for this
+          // spell (e.g. new spells without translations). The localized name
+          // lives in the lang bundle and is merged into the SpellList payload
+          // by the service.
+          "spellTemplates.name as templateName",
+        ])
+        .where("playerSpells.playerId", "=", playerId)
+        .execute()
+    );
   }
 
   findPlayerSpell(playerId: string, spellId: number) {

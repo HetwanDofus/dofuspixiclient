@@ -75,10 +75,12 @@ export class ShortcutsService {
   /**
    * OrM — drag a shortcut from one slot to another.
    *
-   * The destination is overwritten, matching how a spell dropped onto an
-   * occupied slot evicts its occupant (`MouseShortcuts.spellMove`). The
-   * client is told about both ends: OrR for the slot vacated, OrA for
-   * the slot claimed.
+   * An occupied destination **swaps**: the two shortcuts trade slots
+   * rather than the destination losing its own. Dropping onto a full
+   * bar is how the bar gets rearranged, and a move that silently
+   * deleted whatever it landed on made that unusable — a mis-aimed drop
+   * cost a shortcut. Only an empty destination leaves a hole behind, and
+   * that is the one case that sends OrR.
    */
   async move(
     sessionId: string,
@@ -99,6 +101,18 @@ export class ShortcutsService {
 
       if (!row) {
         return { ok: false, reason: "empty-slot" as const };
+      }
+
+      const occupant = await this.shortcuts.findSlot(playerId, to);
+
+      if (occupant) {
+        await this.shortcuts.put(playerId, from, occupant.templateId);
+        await this.shortcuts.put(playerId, to, row.templateId);
+
+        this.frames.sendAdd(sessionId, from, occupant.templateId);
+        this.frames.sendAdd(sessionId, to, row.templateId);
+
+        return { ok: true as const };
       }
 
       await this.shortcuts.deleteSlot(playerId, from);

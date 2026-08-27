@@ -29,6 +29,7 @@ function spell(spellId: number, position: number): SpellEntry {
     areaSize: 0,
     targetMask: 0,
     singleTargetSpawn: false,
+    learnLevel: 1,
     name: `Sort ${spellId}`,
     description: "",
     cooldownRemaining: 0,
@@ -68,6 +69,19 @@ describe("spells-store hotbar slots", () => {
     // The server sends its own SR for the evicted spell, but the two
     // frames race — the bar must never render one slot twice.
     expect(positionOf(101)).toBe(UNSLOTTED_POSITION);
+  });
+
+  it("lands a swap on its feet, whichever SM arrives first", () => {
+    seed(spell(101, 3), spell(202, 7));
+
+    // The two frames the server sends when a bar spell is dropped on an
+    // occupied slot. The mover's SM evicts 202 on its way in; 202's own
+    // SM then claims the slot 101 left.
+    applySpellMove(101, 7);
+    applySpellMove(202, 3);
+
+    expect(positionOf(101)).toBe(7);
+    expect(positionOf(202)).toBe(3);
   });
 
   it("takes a spell out of the bar on SR", () => {

@@ -63,6 +63,18 @@ function readPayload(e: DragEvent): HotbarDragPayload | undefined {
 }
 
 /**
+ * Marks the element a drag source should drag the *picture* of.
+ *
+ * Put it on the icon of a source whose clickable area is larger than
+ * its icon — the spell book's rows are full-width strips with a name, a
+ * level and a `+` button, and dragging the strip drags all of it. What
+ * lands in a hotbar slot is the icon, so the icon is what should follow
+ * the cursor. Sources that are already icon-shaped (the bag's cells,
+ * the bar's own cells) need no marker.
+ */
+export const HOTBAR_DRAG_IMAGE_ATTR = "data-hotbar-drag-image";
+
+/**
  * Props for a drag *source*: the spell book's cells, the inventory's
  * cells, and the bar's own cells.
  *
@@ -78,6 +90,18 @@ export function hotbarDragProps(
     onDragStart: (e: DragEvent) => {
       e.dataTransfer.setData(HOTBAR_MIME, JSON.stringify(payload));
       e.dataTransfer.effectAllowed = "move";
+
+      const icon = e.currentTarget.querySelector(`[${HOTBAR_DRAG_IMAGE_ATTR}]`);
+
+      if (icon instanceof HTMLElement) {
+        // Grabbed by the middle, so the icon sits under the cursor and
+        // the drop lands on the slot being pointed at.
+        e.dataTransfer.setDragImage(
+          icon,
+          icon.offsetWidth / 2,
+          icon.offsetHeight / 2
+        );
+      }
     },
     onDragEnd: (e: DragEvent) => {
       // "none" means no target accepted the drop — the pointer was
