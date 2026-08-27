@@ -3,6 +3,12 @@ import type { DB } from "@shared/db/schema";
 import { Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 
+/**
+ * `player_spells.position` for a spell that is not in the hotbar — the
+ * column default since 0001.
+ */
+export const UNSLOTTED_POSITION = -1;
+
 @Injectable()
 export class SpellsRepository {
   constructor(
@@ -58,39 +64,55 @@ export class SpellsRepository {
    * `enter-game` hitches on high-level characters with full spell books.
    */
   findPlayerSpellsWithLevels(playerId: string) {
-    return this.txHost.tx
-      .selectFrom("playerSpells")
-      .innerJoin("spellLevels", (join) =>
-        join
-          .onRef("spellLevels.spellId", "=", "playerSpells.spellId")
-          .onRef("spellLevels.level", "=", "playerSpells.level")
-      )
-      .innerJoin("spellTemplates", "spellTemplates.id", "playerSpells.spellId")
-      .select([
-        "playerSpells.spellId",
-        "playerSpells.level",
-        "playerSpells.position",
-        "spellLevels.apCost",
-        "spellLevels.rangeMin",
-        "spellLevels.rangeMax",
-        "spellLevels.lineOfSight",
-        "spellLevels.modifiableRange",
-        "spellLevels.emptyCell",
-        "spellLevels.lineOnly",
-        "spellLevels.castPerTurn",
-        "spellLevels.castPerTarget",
-        "spellLevels.cooldown",
-        "spellLevels.criticalRate",
-        "spellLevels.failureRate",
-        "spellLevels.effects",
-        // Fallback display name when the lang bundle has no entry for this
-        // spell (e.g. new spells without translations). The localized name
-        // lives in the lang bundle and is merged into the SpellList payload
-        // by the service.
-        "spellTemplates.name as templateName",
-      ])
-      .where("playerSpells.playerId", "=", playerId)
-      .execute();
+    return (
+      this.txHost.tx
+        .selectFrom("playerSpells")
+        .innerJoin("spellLevels", (join) =>
+          join
+            .onRef("spellLevels.spellId", "=", "playerSpells.spellId")
+            .onRef("spellLevels.level", "=", "playerSpells.level")
+        )
+        .innerJoin(
+          "spellTemplates",
+          "spellTemplates.id",
+          "playerSpells.spellId"
+        )
+        // Level 1's `min_player_level` is the level the spell is learned
+        // at — what the spell book orders on. Left-joined because a spell
+        // whose level-1 row is missing from the import must still appear
+        // in the book rather than drop out of the list.
+        .leftJoin("spellLevels as firstLevel", (join) =>
+          join
+            .onRef("firstLevel.spellId", "=", "playerSpells.spellId")
+            .on("firstLevel.level", "=", 1)
+        )
+        .select([
+          "playerSpells.spellId",
+          "playerSpells.level",
+          "playerSpells.position",
+          "spellLevels.apCost",
+          "spellLevels.rangeMin",
+          "spellLevels.rangeMax",
+          "spellLevels.lineOfSight",
+          "spellLevels.modifiableRange",
+          "spellLevels.emptyCell",
+          "spellLevels.lineOnly",
+          "spellLevels.castPerTurn",
+          "spellLevels.castPerTarget",
+          "spellLevels.cooldown",
+          "spellLevels.criticalRate",
+          "spellLevels.failureRate",
+          "spellLevels.effects",
+          "firstLevel.minPlayerLevel as learnLevel",
+          // Fallback display name when the lang bundle has no entry for this
+          // spell (e.g. new spells without translations). The localized name
+          // lives in the lang bundle and is merged into the SpellList payload
+          // by the service.
+          "spellTemplates.name as templateName",
+        ])
+        .where("playerSpells.playerId", "=", playerId)
+        .execute()
+    );
   }
 
   findPlayerSpell(playerId: string, spellId: number) {
@@ -170,6 +192,35 @@ export class SpellsRepository {
       .execute();
 
     return inserted.map((row) => row.spellId);
+  }
+
+  /** Whichever spell currently occupies a hotbar slot, if any. */
+  findPlayerSpellAtPosition(playerId: string, position: number) {
+    return this.txHost.tx
+      .selectFrom("playerSpells")
+      .selectAll()
+      .where("playerId", "=", playerId)
+      .where("position", "=", position)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Put a spell in a hotbar slot, or take it out of the bar with
+   * `UNSLOTTED_POSITION`. `player_spells.position` defaults to that
+   * sentinel (0001), so "out of the bar" and "never placed" are the
+   * same state — which is what the client's SpellList reader assumes.
+   */
+  async setPlayerSpellPosition(
+    playerId: string,
+    spellId: number,
+    position: number
+  ): Promise<void> {
+    await this.txHost.tx
+      .updateTable("playerSpells")
+      .set({ position })
+      .where("playerId", "=", playerId)
+      .where("spellId", "=", spellId)
+      .execute();
   }
 
   async playerHasSpell(playerId: string, spellId: number): Promise<boolean> {

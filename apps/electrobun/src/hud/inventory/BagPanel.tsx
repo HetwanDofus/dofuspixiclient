@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ItemData, ItemTemplateData } from "@/game/network/protocol";
 import { showContextMenu } from "@/game/stores/context-menu-store";
+import { hotbarDragProps } from "@/hud/banner/hotbar-dnd";
 
 import { Scrollbar } from "../components/Scrollbar";
 import { useTooltip } from "../components/Tooltip";
@@ -383,6 +384,10 @@ function BagCell({
           );
         }
       }}
+      // Drag source for the hotbar's "Obj." tab. The unic id goes on the
+      // wire; the server turns it into a template so the shortcut
+      // outlives this particular stack.
+      {...hotbarDragProps({ kind: "item", unicId: item.unicId })}
       onMouseEnter={(e) => {
         if (template) {
           tooltip.show(

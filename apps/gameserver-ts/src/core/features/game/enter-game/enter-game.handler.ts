@@ -20,6 +20,7 @@ import { PlayerPresenceService } from "@modules/player-presence/player-presence.
 import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
 import { PlayersProgressionService } from "@modules/players/players.progression.service";
 import { PlayersRepository } from "@modules/players/players.repository";
+import { ShortcutsFramesService } from "@modules/shortcuts/shortcuts.frames.service";
 import { SpellsService } from "@modules/spells/spells.service";
 import { StatsService } from "@modules/stats/stats.service";
 import { Injectable, Logger } from "@nestjs/common";
@@ -44,7 +45,8 @@ export class EnterGameHandler {
     private readonly stats: StatsService,
     private readonly spells: SpellsService,
     private readonly accessories: AccessoriesService,
-    private readonly items: InventoryFramesService
+    private readonly items: InventoryFramesService,
+    private readonly shortcuts: ShortcutsFramesService
   ) {}
 
   @MessageHandler(GameCreateRequestSchema)
@@ -126,6 +128,10 @@ export class EnterGameHandler {
     // this is what resolves it to a name, description, icon and legal
     // equip positions, same as `sendInventory` above must precede it.
     await this.items.sendTemplatesForPlayer(ctx.sessionId, session.characterId);
+    // Item shortcuts are replayed as one OrA per slot — 1.29 has no bulk
+    // frame for them. Must follow the templates above: the client needs
+    // the template to draw the icon the shortcut points at.
+    await this.shortcuts.sendAll(ctx.sessionId, session.characterId);
 
     // Catch-up before the snapshot is built, so a character whose level
     // was raised outside a fight — by hand in SQL, which is how every

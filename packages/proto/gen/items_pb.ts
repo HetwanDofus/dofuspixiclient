@@ -449,13 +449,20 @@ export const ItemTemplatesSchema: GenMessage<ItemTemplates> = /*@__PURE__*/
   messageDesc(file_items, 14);
 
 /**
- * OrA - Shortcut added
+ * OrA - Shortcut added.
+ *
+ * `object_id` is a *template* id, not the unic id of one stack. A
+ * shortcut outlives the stack it was created from: 1.29's
+ * `InventoryShortcutItem.findRealItem()` rescans the inventory for any
+ * stack of the same template on every render, and greys the slot out
+ * when it finds none. Pinning a unic id would delete the shortcut the
+ * moment its last potion is drunk.
  *
  * @generated from message dofus.InventoryShortcutAdd
  */
 export type InventoryShortcutAdd = Message<"dofus.InventoryShortcutAdd"> & {
   /**
-   * Hotbar slot
+   * Hotbar slot, 1-based
    *
    * @generated from field: int32 position = 1;
    */
@@ -767,6 +774,11 @@ export const ItemReinitializeRequestSchema: GenMessage<ItemReinitializeRequest> 
 
 /**
  * Client sends OrA<position>;<objectId>
+ *
+ * Here `object_id` is the *unic* id of the dragged stack — 1.29's
+ * `MouseShortcuts.drop` sends `oCursor.ID`, the real item's id. The
+ * server resolves it to a template before storing, which is what comes
+ * back on the `InventoryShortcutAdd` frame.
  *
  * @generated from message dofus.InventoryShortcutAddRequest
  */

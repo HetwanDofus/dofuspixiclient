@@ -18,13 +18,15 @@ import {
   chatStore,
   closeAllPanels,
   hudStore,
+  toggleHotbarTab,
   togglePanel,
   toggleWorldMap,
 } from "@/game/stores";
 import { SideChatContainer } from "@/hud/chat/SideChatContainer";
 import { GameClientContext } from "@/hud/contexts/GameClientContext";
 import { PixiAppContext } from "@/hud/contexts/PixiAppContext";
-import { Keybindings } from "@/hud/core/keybindings";
+import { activateSlot } from "@/hud/banner/hotbar-actions";
+import { HOTBAR_SHORTCUTS, Keybindings } from "@/hud/core/keybindings";
 import { HudOverlay } from "@/hud/HudOverlay";
 
 const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
@@ -179,6 +181,21 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
 
         keybindings.on("MAP", () => {
           toggleWorldMap();
+        });
+
+        // The hotbar: SWAP flips the Spells/Items tabs, SH1..SH14
+        // activate the cell at that index of the *visible* page. Both go
+        // through `hotbar-actions` so the keyboard and the mouse can
+        // never drift apart. Casting from a spell cell stays inert
+        // outside a fight, which is the 1.29 rule.
+        keybindings.on("SWAP", () => {
+          toggleHotbarTab();
+        });
+
+        HOTBAR_SHORTCUTS.forEach((shortcut, index) => {
+          keybindings?.on(shortcut, () => {
+            activateSlot(gameClientRef.current, index);
+          });
         });
 
         keybindings.on("DEBUG_TOGGLE", () => {

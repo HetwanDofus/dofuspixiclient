@@ -103,10 +103,18 @@ const characterName = process.argv[4] ?? "Dev";
  */
 const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 10_300);
 /**
- * Feca. Drives both `players.class` and which `class_spells` rows the
- * character gets; `players.gfx` below is hard-coded to match.
+ * Feca by default. Drives both `players.class` and which `class_spells` rows
+ * the character gets. Override with `CHARACTER_CLASS=2` (1..12, the 1.29
+ * breed ids) to seed a second, visually distinct character for two-player
+ * testing; `CHARACTER_SEX=1` for the female sprite.
  */
-const CHARACTER_CLASS = 1;
+const CHARACTER_CLASS = Number(process.env.CHARACTER_CLASS ?? 1);
+const CHARACTER_SEX = Number(process.env.CHARACTER_SEX ?? 0);
+/**
+ * The 1.29 sprite id is `breed * 10 + sex` — class 1 sex 0 is 10, class 2
+ * sex 1 is 21.
+ */
+const CHARACTER_GFX = CHARACTER_CLASS * 10 + CHARACTER_SEX;
 /** Used only when the spawn map has no row yet — see the walkability note. */
 const FALLBACK_SPAWN_CELL = 311;
 
@@ -377,9 +385,9 @@ const character = await db
     accountId: account.id,
     serverId: server.id,
     name: characterName,
-    sex: 0,
+    sex: CHARACTER_SEX,
     class: CHARACTER_CLASS,
-    gfx: 10, // class 1, sex 0 → sprite 10
+    gfx: CHARACTER_GFX,
     level: 1,
     kamas: String(STARTING_KAMAS),
     mapId: SPAWN_MAP_ID,

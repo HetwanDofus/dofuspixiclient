@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-import { isClassSpell, loadClassesLang } from "@/game/lang/classes-lang";
+import {
+  classSpellRank,
+  isClassSpell,
+  loadClassesLang,
+} from "@/game/lang/classes-lang";
 import { characterStore } from "@/game/stores";
 import {
   MAX_SPELL_LEVEL,
@@ -8,6 +12,10 @@ import {
   spellsStore,
   spellUpgradeCost,
 } from "@/game/stores/spells-store";
+import {
+  HOTBAR_DRAG_IMAGE_ATTR,
+  hotbarDragProps,
+} from "@/hud/banner/hotbar-dnd";
 
 import { Panel } from "../components/Panel";
 import { Scrollbar } from "../components/Scrollbar";
@@ -90,11 +98,22 @@ export function SpellsPanel({
       filter === "class"
         ? known.filter((s) => isClassSpell(classId, s.spellId))
         : known;
-    return filtered.sort((a, b) => {
-      const aPos = a.position > 0 ? a.position : Number.POSITIVE_INFINITY;
-      const bPos = b.position > 0 ? b.position : Number.POSITIVE_INFINITY;
-      if (aPos !== bPos) {
-        return aPos - bPos;
+    // Obtention order, always — never `position`. The book listed
+    // itself by hotbar slot until the bar became draggable, at which
+    // point rearranging the bar reshuffled the book underneath it.
+    // Learn level first, the class bundle's own order for the spells
+    // that share one (three starters all say level 1), spell id last so
+    // the sort is total.
+    return [...filtered].sort((a, b) => {
+      if (a.learnLevel !== b.learnLevel) {
+        return a.learnLevel - b.learnLevel;
+      }
+      // Subtracting would turn "both unlisted" (∞ − ∞) into NaN, so
+      // compare instead: two unlisted spells tie and fall through.
+      const aRank = classSpellRank(classId, a.spellId);
+      const bRank = classSpellRank(classId, b.spellId);
+      if (aRank !== bRank) {
+        return aRank < bRank ? -1 : 1;
       }
       return a.spellId - b.spellId;
     });
@@ -320,6 +339,9 @@ function SpellRow({
       }}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
+      // Drag source for the hotbar. The bar sends the SM frame; this
+      // row only says which spell left the book.
+      {...hotbarDragProps({ kind: "spell", spellId: spell.spellId })}
       style={{
         position: "relative",
         width: p(width),
@@ -335,6 +357,10 @@ function SpellRow({
       }}
     >
       <div
+        // The row is the drag source, but the icon is what gets dragged:
+        // without this the cursor tows the whole strip — name, level and
+        // `+` button — instead of the thing that lands in the slot.
+        {...{ [HOTBAR_DRAG_IMAGE_ATTR]: "" }}
         style={{
           position: "relative",
           width: p(M.iconSize),
