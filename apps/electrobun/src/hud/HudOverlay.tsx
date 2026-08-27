@@ -19,6 +19,7 @@ import { MountPanel } from "./mount/MountPanel";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
+import { ChatBubble } from "./world/ChatBubble";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 import { PlayerNameplate } from "./world/PlayerNameplate";
 import { WorldMapPanel } from "./worldmap/WorldMapPanel";
@@ -154,6 +155,7 @@ export function HudOverlay({
             store updates positions per-tick so they follow movement
             and camera pans without DOM-side rAF. */}
         <PlayerNameplate />
+        <ChatBubble />
 
         <BannerReact
           {...(gameClient

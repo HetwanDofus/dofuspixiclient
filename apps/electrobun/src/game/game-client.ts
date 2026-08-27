@@ -19,6 +19,7 @@ import {
   CharacterHandler,
   type CharacterInfo,
 } from "@/game/network/handlers/character.handler";
+import { ChatHandler } from "@/game/network/handlers/chat.handler";
 import { FightHandler } from "@/game/network/handlers/fight.handler";
 import { InventoryHandler } from "@/game/network/handlers/inventory.handler";
 import { MapHandler } from "@/game/network/handlers/map.handler";
@@ -49,6 +50,7 @@ import {
   SpellMoveRequestSchema,
   SpellUpgradeRequestSchema,
 } from "@/game/network/protocol";
+import { numericId } from "@/game/network/sprite-id";
 import { HighlightType } from "@/game/scene/overlays/cell-highlighter";
 import { PlayerAnimation } from "@/game/scene/player/animation";
 import { characterStore } from "@/game/stores";
@@ -91,6 +93,7 @@ export class GameClient {
   private readonly audioManager: AudioManager;
 
   private readonly authHandler: AuthHandler;
+  private readonly chatHandler: ChatHandler;
   private readonly characterHandler: CharacterHandler;
   private readonly fightHandler: FightHandler;
   private readonly mapHandler: MapHandler;
@@ -167,6 +170,17 @@ export class GameClient {
       this.audioManager,
       this.characterHandler,
       () => this.battlefield
+    );
+    this.chatHandler = new ChatHandler(
+      this.messageHandler,
+      this.connection,
+      // Roleplay actors live on the world-actor renderer; `getPlayerRenderer()`
+      // is the fight one and is null outside combat — and bubbles are a
+      // roleplay-only affordance.
+      (senderId, text) =>
+        this.battlefield
+          ?.getWorldActorRenderer()
+          ?.showBubble(numericId(senderId), text)
     );
 
     this.connection.addEventListener((event: ConnectionEvent) => {
@@ -1303,6 +1317,16 @@ export class GameClient {
         create(AccountUseBoostSchema, { statId: wireStatId, quantity: 1 })
       )
     );
+  }
+
+  /**
+   * Put one chat line on the wire. `destination` is a channel letter or a player
+   * name to whisper. Parsing what the player typed, the local flood guard and
+   * the error lines are the container's job — see
+   * `hud/chat/BannerChatContainer.tsx`.
+   */
+  sendChat(destination: string, message: string): void {
+    this.chatHandler.send(destination, message);
   }
 
   private handleCellClick(targetCellId: number): void {

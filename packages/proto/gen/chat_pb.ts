@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file chat.proto.
  */
 export const file_chat: GenFile = /*@__PURE__*/
-  fileDesc("CgpjaGF0LnByb3RvEgVkb2Z1cyK2AQoLQ2hhdE1lc3NhZ2USDwoHc3VjY2VzcxgBIAEoCBIjCgdjaGFubmVsGAIgASgOMhIuZG9mdXMuQ2hhdENoYW5uZWwSEQoJc2VuZGVyX2lkGAMgASgJEhMKC3NlbmRlcl9uYW1lGAQgASgJEg8KB21lc3NhZ2UYBSABKAkSEgoKaXRlbXNfZGF0YRgGIAEoCRIQCghldmVudF9pZBgHIAEoBRISCgpldmVudF90eXBlGAggASgFIloKEUNoYXRTZXJ2ZXJNZXNzYWdlEg8KB2NoYW5uZWwYASABKAkSEQoJc2VuZGVyX2lkGAIgASgDEhMKC3NlbmRlcl9uYW1lGAMgASgJEgwKBGJvZHkYBCABKAkiMgoKQ2hhdFNtaWxleRIRCglzcHJpdGVfaWQYASABKAkSEQoJc21pbGV5X2lkGAIgASgFIjsKFENoYXRTdWJzY3JpYmVDaGFubmVsEhEKCXN1YnNjcmliZRgBIAEoCBIQCghjaGFubmVscxgCIAEoCSIlChJCYXNpY3NQb3B1cE1lc3NhZ2USDwoHbWVzc2FnZRgBIAEoCSIoChNCYXNpY3NSZWZlcmVuY2VUaW1lEhEKCXRpbWVzdGFtcBgBIAEoAyI2CgpCYXNpY3NEYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFImQKC0Jhc2ljc1dob0lzEg8KB3N1Y2Nlc3MYASABKAgSDAoEbmFtZRgCIAEoCRINCgVzdGF0ZRgDIAEoBRIWCg5jaGFyYWN0ZXJfbmFtZRgEIAEoCRIPCgdhcmVhX2lkGAUgASgFIkEKG0Jhc2ljc1N1YnNjcmliZXJSZXN0cmljdGlvbhIPCgdlbmFibGVkGAEgASgIEhEKCWRpYWxvZ19pZBgCIAEoBSI1Cg9CYXNpY3NGaWxlQ2hlY2sSEAoIY2hlY2tfaWQYASABKAUSEAoIZmlsZW5hbWUYAiABKAkiDAoKQmFzaWNzUGluZyLLAgoTQmFzaWNzQWRtaW5SZXNwb25zZRI1CgR0eXBlGAEgASgOMicuZG9mdXMuQmFzaWNzQWRtaW5SZXNwb25zZS5SZXNwb25zZVR5cGUSEAoIY29tbWFuZHMYAiABKAkSDgoGb3V0cHV0GAMgASgJEhAKCGxpbmVfbnVtGAQgASgFEhEKCWxpbmVfdHlwZRgFIAEoBRIMCgR0ZXh0GAYgASgJEg4KBnJpZ2h0cxgHIAEoAyKXAQoMUmVzcG9uc2VUeXBlEhgKFFJFU1BPTlNFX1VOU1BFQ0lGSUVEEAASCwoHTElTVElORxABEgsKB1NVQ0NFU1MQAhIICgRMSU5FEAMSCgoGUFJPTVBUEAQSCQoFQ0xFQVIQBRIJCgVFUlJPUhAGEhIKDklOVEVSRkFDRV9PUEVOEAcSEwoPSU5URVJGQUNFX0NMT1NFEAgiMgoRQmFzaWNzUmVwb3J0SW5mb3MSDAoEc3RlcBgBIAEoBRIPCgdwYXlsb2FkGAIgASgJIi4KCEluZm9NYXBzEhIKCm1lc3NhZ2VfaWQYASABKAUSDgoGcGFyYW1zGAIgAygJIjIKC0luZm9Db21wYXNzEg0KBWNsZWFyGAEgASgIEgkKAXgYAiABKAUSCQoBeRgDIAEoBSJCChhJbmZvQ29vcmRpbmF0ZXNIaWdobGlnaHQSJgoJcGhvZW5peGVzGAEgAygLMhMuZG9mdXMuUGhvZW5peFBvaW50IjQKDFBob2VuaXhQb2ludBIJCgF4GAEgASgFEgkKAXkYAiABKAUSDgoGbWFwX2lkGAMgASgFIh4KC0luZm9NZXNzYWdlEg8KB21lc3NhZ2UYASABKAkiMgoMSW5mb1F1YW50aXR5EhAKCGFjdG9yX2lkGAEgASgDEhAKCHF1YW50aXR5GAIgASgFIiwKCkluZm9PYmplY3QSEAoIYWN0b3JfaWQYASABKAMSDAoEaW5mbxgCIAEoCSJEChRJbmZvTGlmZVJlc3RvcmVUaW1lchIPCgdzdGFydGVkGAEgASgIEgwKBHJhdGUYAiABKAUSDQoFZGVsdGEYAyABKAUiNQoSRGlhbG9nQ3VzdG9tQWN0aW9uEhEKCWFjdGlvbl9pZBgBIAEoBRIMCgRhcmdzGAIgASgJIi8KDERpYWxvZ0NyZWF0ZRIPCgdzdWNjZXNzGAEgASgIEg4KBm5wY19pZBgCIAEoAyI1Cg5EaWFsb2dRdWVzdGlvbhITCgtxdWVzdGlvbl9pZBgBIAEoBRIOCgZwYXJhbXMYAiADKAkiDQoLRGlhbG9nTGVhdmUiDQoLRGlhbG9nUGF1c2UiEgoQU2VydmVyRGlzY29ubmVjdCIzCg1TZXJ2ZXJNZXNzYWdlEhQKDG1lc3NhZ2VfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgJIowBCghQaW5nUG9uZxImCgR0eXBlGAEgASgOMhguZG9mdXMuUGluZ1BvbmcuUGluZ1R5cGUSDAoEZGF0YRgCIAEoCSJKCghQaW5nVHlwZRIZChVQSU5HX1RZUEVfVU5TUEVDSUZJRUQQABIICgRQT05HEAESDgoKUVVJQ0tfUE9ORxACEgkKBVJQT05HEAMiSwoPQ2hhdFNlbmRNZXNzYWdlEhMKC2Rlc3RpbmF0aW9uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEgoKaXRlbXNfZGF0YRgDIAEoCSJeChFDaGF0UmVwb3J0TWVzc2FnZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoBSIiCg1DaGF0VXNlU21pbGV5EhEKCXNtaWxleV9pZBgBIAEoBSJBChtDaGF0U3Vic2NyaWJlQ2hhbm5lbFJlcXVlc3QSEQoJc3Vic2NyaWJlGAEgASgIEg8KB2NoYW5uZWwYAiABKAkiJQoSQmFzaWNzQWRtaW5Db21tYW5kEg8KB2NvbW1hbmQYASABKAkiJwoPQmFzaWNzQWRtaW5Nb3ZlEgkKAXgYASABKAUSCQoBeRgCIAEoBSJGCg9CYXNpY3NBZG1pbktpY2sSEwoLcGxheWVyX25hbWUYASABKAkSDQoFdGVtcG8YAiABKAUSDwoHbWVzc2FnZRgDIAEoCSIiChJCYXNpY3NXaG9Jc1JlcXVlc3QSDAoEbmFtZRgBIAEoCSIWChRCYXNpY3NHZXREYXRlUmVxdWVzdCIlChFCYXNpY3NLaWNrUmVxdWVzdBIQCghjZWxsX251bRgBIAEoBSIPCg1CYXNpY3NTZXRBd2F5IhQKEkJhc2ljc1NldEludmlzaWJsZSI8ChVCYXNpY3NGaWxlQ2hlY2tBbnN3ZXISEAoIY2hlY2tfaWQYASABKAUSEQoJZmlsZV9zaXplGAIgASgFIjYKDkJhc2ljc1NhbmN0aW9uEhMKC3NhbmN0aW9uX2lkGAEgASgFEg8KB3dvcmRfaWQYAiABKAUiTQoOQmFzaWNzU2VuZFBpbmcSEAoIYXZnX3BpbmcYASABKAUSFAoMcGFja2V0X2NvdW50GAIgASgFEhMKC2J1ZmZlcl9zaXplGAMgASgFIk8KGEJhc2ljc1JlcG9ydEluZm9zUmVxdWVzdBIMCgRzdGVwGAEgASgFEg8KB3RhcmdldHMYAiABKAkSFAoMYWxsX2FjY291bnRzGAMgASgIIisKGURpYWxvZ0N1c3RvbUFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJIhQKEkRpYWxvZ0xlYXZlUmVxdWVzdGIGcHJvdG8z", [file_common]);
+  fileDesc("CgpjaGF0LnByb3RvEgVkb2Z1cyK2AQoLQ2hhdE1lc3NhZ2USDwoHc3VjY2VzcxgBIAEoCBIjCgdjaGFubmVsGAIgASgOMhIuZG9mdXMuQ2hhdENoYW5uZWwSEQoJc2VuZGVyX2lkGAMgASgJEhMKC3NlbmRlcl9uYW1lGAQgASgJEg8KB21lc3NhZ2UYBSABKAkSEgoKaXRlbXNfZGF0YRgGIAEoCRIQCghldmVudF9pZBgHIAEoBRISCgpldmVudF90eXBlGAggASgFIooBChBDaGF0TWVzc2FnZUVycm9yEiMKB2NoYW5uZWwYASABKA4yEi5kb2Z1cy5DaGF0Q2hhbm5lbBImCgZyZWFzb24YAiABKA4yFi5kb2Z1cy5DaGF0RXJyb3JSZWFzb24SGQoRcmVtYWluaW5nX3NlY29uZHMYAyABKAUSDgoGZGV0YWlsGAQgASgJIloKEUNoYXRTZXJ2ZXJNZXNzYWdlEg8KB2NoYW5uZWwYASABKAkSEQoJc2VuZGVyX2lkGAIgASgDEhMKC3NlbmRlcl9uYW1lGAMgASgJEgwKBGJvZHkYBCABKAkiMgoKQ2hhdFNtaWxleRIRCglzcHJpdGVfaWQYASABKAkSEQoJc21pbGV5X2lkGAIgASgFIjsKFENoYXRTdWJzY3JpYmVDaGFubmVsEhEKCXN1YnNjcmliZRgBIAEoCBIQCghjaGFubmVscxgCIAEoCSIlChJCYXNpY3NQb3B1cE1lc3NhZ2USDwoHbWVzc2FnZRgBIAEoCSIoChNCYXNpY3NSZWZlcmVuY2VUaW1lEhEKCXRpbWVzdGFtcBgBIAEoAyI2CgpCYXNpY3NEYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFImQKC0Jhc2ljc1dob0lzEg8KB3N1Y2Nlc3MYASABKAgSDAoEbmFtZRgCIAEoCRINCgVzdGF0ZRgDIAEoBRIWCg5jaGFyYWN0ZXJfbmFtZRgEIAEoCRIPCgdhcmVhX2lkGAUgASgFIkEKG0Jhc2ljc1N1YnNjcmliZXJSZXN0cmljdGlvbhIPCgdlbmFibGVkGAEgASgIEhEKCWRpYWxvZ19pZBgCIAEoBSI1Cg9CYXNpY3NGaWxlQ2hlY2sSEAoIY2hlY2tfaWQYASABKAUSEAoIZmlsZW5hbWUYAiABKAkiDAoKQmFzaWNzUGluZyLLAgoTQmFzaWNzQWRtaW5SZXNwb25zZRI1CgR0eXBlGAEgASgOMicuZG9mdXMuQmFzaWNzQWRtaW5SZXNwb25zZS5SZXNwb25zZVR5cGUSEAoIY29tbWFuZHMYAiABKAkSDgoGb3V0cHV0GAMgASgJEhAKCGxpbmVfbnVtGAQgASgFEhEKCWxpbmVfdHlwZRgFIAEoBRIMCgR0ZXh0GAYgASgJEg4KBnJpZ2h0cxgHIAEoAyKXAQoMUmVzcG9uc2VUeXBlEhgKFFJFU1BPTlNFX1VOU1BFQ0lGSUVEEAASCwoHTElTVElORxABEgsKB1NVQ0NFU1MQAhIICgRMSU5FEAMSCgoGUFJPTVBUEAQSCQoFQ0xFQVIQBRIJCgVFUlJPUhAGEhIKDklOVEVSRkFDRV9PUEVOEAcSEwoPSU5URVJGQUNFX0NMT1NFEAgiMgoRQmFzaWNzUmVwb3J0SW5mb3MSDAoEc3RlcBgBIAEoBRIPCgdwYXlsb2FkGAIgASgJIi4KCEluZm9NYXBzEhIKCm1lc3NhZ2VfaWQYASABKAUSDgoGcGFyYW1zGAIgAygJIjIKC0luZm9Db21wYXNzEg0KBWNsZWFyGAEgASgIEgkKAXgYAiABKAUSCQoBeRgDIAEoBSJCChhJbmZvQ29vcmRpbmF0ZXNIaWdobGlnaHQSJgoJcGhvZW5peGVzGAEgAygLMhMuZG9mdXMuUGhvZW5peFBvaW50IjQKDFBob2VuaXhQb2ludBIJCgF4GAEgASgFEgkKAXkYAiABKAUSDgoGbWFwX2lkGAMgASgFIh4KC0luZm9NZXNzYWdlEg8KB21lc3NhZ2UYASABKAkiMgoMSW5mb1F1YW50aXR5EhAKCGFjdG9yX2lkGAEgASgDEhAKCHF1YW50aXR5GAIgASgFIiwKCkluZm9PYmplY3QSEAoIYWN0b3JfaWQYASABKAMSDAoEaW5mbxgCIAEoCSJEChRJbmZvTGlmZVJlc3RvcmVUaW1lchIPCgdzdGFydGVkGAEgASgIEgwKBHJhdGUYAiABKAUSDQoFZGVsdGEYAyABKAUiNQoSRGlhbG9nQ3VzdG9tQWN0aW9uEhEKCWFjdGlvbl9pZBgBIAEoBRIMCgRhcmdzGAIgASgJIi8KDERpYWxvZ0NyZWF0ZRIPCgdzdWNjZXNzGAEgASgIEg4KBm5wY19pZBgCIAEoAyI1Cg5EaWFsb2dRdWVzdGlvbhITCgtxdWVzdGlvbl9pZBgBIAEoBRIOCgZwYXJhbXMYAiADKAkiDQoLRGlhbG9nTGVhdmUiDQoLRGlhbG9nUGF1c2UiEgoQU2VydmVyRGlzY29ubmVjdCIzCg1TZXJ2ZXJNZXNzYWdlEhQKDG1lc3NhZ2VfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgJIowBCghQaW5nUG9uZxImCgR0eXBlGAEgASgOMhguZG9mdXMuUGluZ1BvbmcuUGluZ1R5cGUSDAoEZGF0YRgCIAEoCSJKCghQaW5nVHlwZRIZChVQSU5HX1RZUEVfVU5TUEVDSUZJRUQQABIICgRQT05HEAESDgoKUVVJQ0tfUE9ORxACEgkKBVJQT05HEAMiSwoPQ2hhdFNlbmRNZXNzYWdlEhMKC2Rlc3RpbmF0aW9uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEgoKaXRlbXNfZGF0YRgDIAEoCSJeChFDaGF0UmVwb3J0TWVzc2FnZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoBSIiCg1DaGF0VXNlU21pbGV5EhEKCXNtaWxleV9pZBgBIAEoBSJBChtDaGF0U3Vic2NyaWJlQ2hhbm5lbFJlcXVlc3QSEQoJc3Vic2NyaWJlGAEgASgIEg8KB2NoYW5uZWwYAiABKAkiJQoSQmFzaWNzQWRtaW5Db21tYW5kEg8KB2NvbW1hbmQYASABKAkiJwoPQmFzaWNzQWRtaW5Nb3ZlEgkKAXgYASABKAUSCQoBeRgCIAEoBSJGCg9CYXNpY3NBZG1pbktpY2sSEwoLcGxheWVyX25hbWUYASABKAkSDQoFdGVtcG8YAiABKAUSDwoHbWVzc2FnZRgDIAEoCSIiChJCYXNpY3NXaG9Jc1JlcXVlc3QSDAoEbmFtZRgBIAEoCSIWChRCYXNpY3NHZXREYXRlUmVxdWVzdCIlChFCYXNpY3NLaWNrUmVxdWVzdBIQCghjZWxsX251bRgBIAEoBSIPCg1CYXNpY3NTZXRBd2F5IhQKEkJhc2ljc1NldEludmlzaWJsZSI8ChVCYXNpY3NGaWxlQ2hlY2tBbnN3ZXISEAoIY2hlY2tfaWQYASABKAUSEQoJZmlsZV9zaXplGAIgASgFIjYKDkJhc2ljc1NhbmN0aW9uEhMKC3NhbmN0aW9uX2lkGAEgASgFEg8KB3dvcmRfaWQYAiABKAUiTQoOQmFzaWNzU2VuZFBpbmcSEAoIYXZnX3BpbmcYASABKAUSFAoMcGFja2V0X2NvdW50GAIgASgFEhMKC2J1ZmZlcl9zaXplGAMgASgFIk8KGEJhc2ljc1JlcG9ydEluZm9zUmVxdWVzdBIMCgRzdGVwGAEgASgFEg8KB3RhcmdldHMYAiABKAkSFAoMYWxsX2FjY291bnRzGAMgASgIIisKGURpYWxvZ0N1c3RvbUFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJIhQKEkRpYWxvZ0xlYXZlUmVxdWVzdCqsAgoPQ2hhdEVycm9yUmVhc29uEiEKHUNIQVRfRVJST1JfUkVBU09OX1VOU1BFQ0lGSUVEEAASGwoXQ0hBVF9FUlJPUl9SRUFTT05fRkxPT0QQARIeChpDSEFUX0VSUk9SX1JFQVNPTl9OT19HVUlMRBACEh4KGkNIQVRfRVJST1JfUkVBU09OX05PX1BBUlRZEAMSIgoeQ0hBVF9FUlJPUl9SRUFTT05fTk9UX0lOX0ZJR0hUEAQSJgoiQ0hBVF9FUlJPUl9SRUFTT05fUExBWUVSX05PVF9GT1VORBAFEigKJENIQVRfRVJST1JfUkVBU09OX0NBTlRfV0lTUF9ZT1VSU0VMRhAGEiMKH0NIQVRfRVJST1JfUkVBU09OX0VNUFRZX01FU1NBR0UQB2IGcHJvdG8z", [file_common]);
 
 /**
  * cM - Chat message received
@@ -73,10 +73,48 @@ export const ChatMessageSchema: GenMessage<ChatMessage> = /*@__PURE__*/
   messageDesc(file_chat, 0);
 
 /**
+ * cMK - Chat message rejected. Sent to the author's session only.
+ *
+ * @generated from message dofus.ChatMessageError
+ */
+export type ChatMessageError = Message<"dofus.ChatMessageError"> & {
+  /**
+   * @generated from field: dofus.ChatChannel channel = 1;
+   */
+  channel: ChatChannel;
+
+  /**
+   * @generated from field: dofus.ChatErrorReason reason = 2;
+   */
+  reason: ChatErrorReason;
+
+  /**
+   * FLOOD only
+   *
+   * @generated from field: int32 remaining_seconds = 3;
+   */
+  remainingSeconds: number;
+
+  /**
+   * target name for PLAYER_NOT_FOUND
+   *
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message dofus.ChatMessageError.
+ * Use `create(ChatMessageErrorSchema)` to create a new message.
+ */
+export const ChatMessageErrorSchema: GenMessage<ChatMessageError> = /*@__PURE__*/
+  messageDesc(file_chat, 1);
+
+/**
  * cs - Server message.
  * Legacy 1.29 wire: "cs<channel>|<senderID>|<senderName>|<body>" where
- * channel is a single char (e.g. '*' general, '%' guild, '#' party,
- * '$' private). Producer: pkg/chat/interfaces/register.go:253 senderAdapter.
+ * channel is a single char (e.g. '*' general, '%' guild, '$' party,
+ * '#' team). Producer: pkg/chat/interfaces/register.go:253 senderAdapter.
  * The "muted" notice also reuses this message with senderID=0, sender_name="Server".
  *
  * @generated from message dofus.ChatServerMessage
@@ -112,7 +150,7 @@ export type ChatServerMessage = Message<"dofus.ChatServerMessage"> & {
  * Use `create(ChatServerMessageSchema)` to create a new message.
  */
 export const ChatServerMessageSchema: GenMessage<ChatServerMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 1);
+  messageDesc(file_chat, 2);
 
 /**
  * cS - Smiley used
@@ -136,7 +174,7 @@ export type ChatSmiley = Message<"dofus.ChatSmiley"> & {
  * Use `create(ChatSmileySchema)` to create a new message.
  */
 export const ChatSmileySchema: GenMessage<ChatSmiley> = /*@__PURE__*/
-  messageDesc(file_chat, 2);
+  messageDesc(file_chat, 3);
 
 /**
  * cC - Channel subscription update
@@ -164,7 +202,7 @@ export type ChatSubscribeChannel = Message<"dofus.ChatSubscribeChannel"> & {
  * Use `create(ChatSubscribeChannelSchema)` to create a new message.
  */
 export const ChatSubscribeChannelSchema: GenMessage<ChatSubscribeChannel> = /*@__PURE__*/
-  messageDesc(file_chat, 3);
+  messageDesc(file_chat, 4);
 
 /**
  * BM - Popup message (server broadcast)
@@ -183,7 +221,7 @@ export type BasicsPopupMessage = Message<"dofus.BasicsPopupMessage"> & {
  * Use `create(BasicsPopupMessageSchema)` to create a new message.
  */
 export const BasicsPopupMessageSchema: GenMessage<BasicsPopupMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 4);
+  messageDesc(file_chat, 5);
 
 /**
  * BT - Reference time
@@ -202,7 +240,7 @@ export type BasicsReferenceTime = Message<"dofus.BasicsReferenceTime"> & {
  * Use `create(BasicsReferenceTimeSchema)` to create a new message.
  */
 export const BasicsReferenceTimeSchema: GenMessage<BasicsReferenceTime> = /*@__PURE__*/
-  messageDesc(file_chat, 5);
+  messageDesc(file_chat, 6);
 
 /**
  * BD - Server date
@@ -231,7 +269,7 @@ export type BasicsDate = Message<"dofus.BasicsDate"> & {
  * Use `create(BasicsDateSchema)` to create a new message.
  */
 export const BasicsDateSchema: GenMessage<BasicsDate> = /*@__PURE__*/
-  messageDesc(file_chat, 6);
+  messageDesc(file_chat, 7);
 
 /**
  * BW - Who is response
@@ -272,7 +310,7 @@ export type BasicsWhoIs = Message<"dofus.BasicsWhoIs"> & {
  * Use `create(BasicsWhoIsSchema)` to create a new message.
  */
 export const BasicsWhoIsSchema: GenMessage<BasicsWhoIs> = /*@__PURE__*/
-  messageDesc(file_chat, 7);
+  messageDesc(file_chat, 8);
 
 /**
  * BP - Subscriber restriction
@@ -298,7 +336,7 @@ export type BasicsSubscriberRestriction = Message<"dofus.BasicsSubscriberRestric
  * Use `create(BasicsSubscriberRestrictionSchema)` to create a new message.
  */
 export const BasicsSubscriberRestrictionSchema: GenMessage<BasicsSubscriberRestriction> = /*@__PURE__*/
-  messageDesc(file_chat, 8);
+  messageDesc(file_chat, 9);
 
 /**
  * BC - File check request (server -> client)
@@ -322,7 +360,7 @@ export type BasicsFileCheck = Message<"dofus.BasicsFileCheck"> & {
  * Use `create(BasicsFileCheckSchema)` to create a new message.
  */
 export const BasicsFileCheckSchema: GenMessage<BasicsFileCheck> = /*@__PURE__*/
-  messageDesc(file_chat, 9);
+  messageDesc(file_chat, 10);
 
 /**
  * Bp - Ping acknowledgement.
@@ -339,7 +377,7 @@ export type BasicsPing = Message<"dofus.BasicsPing"> & {
  * Use `create(BasicsPingSchema)` to create a new message.
  */
 export const BasicsPingSchema: GenMessage<BasicsPing> = /*@__PURE__*/
-  messageDesc(file_chat, 10);
+  messageDesc(file_chat, 11);
 
 /**
  * BA - Admin command response
@@ -400,7 +438,7 @@ export type BasicsAdminResponse = Message<"dofus.BasicsAdminResponse"> & {
  * Use `create(BasicsAdminResponseSchema)` to create a new message.
  */
 export const BasicsAdminResponseSchema: GenMessage<BasicsAdminResponse> = /*@__PURE__*/
-  messageDesc(file_chat, 11);
+  messageDesc(file_chat, 12);
 
 /**
  * @generated from enum dofus.BasicsAdminResponse.ResponseType
@@ -472,7 +510,7 @@ export enum BasicsAdminResponse_ResponseType {
  * Describes the enum dofus.BasicsAdminResponse.ResponseType.
  */
 export const BasicsAdminResponse_ResponseTypeSchema: GenEnum<BasicsAdminResponse_ResponseType> = /*@__PURE__*/
-  enumDesc(file_chat, 11, 0);
+  enumDesc(file_chat, 12, 0);
 
 /**
  * Br - Report infos response (moderator reports UI).
@@ -498,7 +536,7 @@ export type BasicsReportInfos = Message<"dofus.BasicsReportInfos"> & {
  * Use `create(BasicsReportInfosSchema)` to create a new message.
  */
 export const BasicsReportInfosSchema: GenMessage<BasicsReportInfos> = /*@__PURE__*/
-  messageDesc(file_chat, 12);
+  messageDesc(file_chat, 13);
 
 /**
  * IM - Info map messages.
@@ -524,7 +562,7 @@ export type InfoMaps = Message<"dofus.InfoMaps"> & {
  * Use `create(InfoMapsSchema)` to create a new message.
  */
 export const InfoMapsSchema: GenMessage<InfoMaps> = /*@__PURE__*/
-  messageDesc(file_chat, 13);
+  messageDesc(file_chat, 14);
 
 /**
  * IC - Compass direction.
@@ -557,7 +595,7 @@ export type InfoCompass = Message<"dofus.InfoCompass"> & {
  * Use `create(InfoCompassSchema)` to create a new message.
  */
 export const InfoCompassSchema: GenMessage<InfoCompass> = /*@__PURE__*/
-  messageDesc(file_chat, 14);
+  messageDesc(file_chat, 15);
 
 /**
  * IH - Highlight coordinates (phoenix revival list).
@@ -578,7 +616,7 @@ export type InfoCoordinatesHighlight = Message<"dofus.InfoCoordinatesHighlight">
  * Use `create(InfoCoordinatesHighlightSchema)` to create a new message.
  */
 export const InfoCoordinatesHighlightSchema: GenMessage<InfoCoordinatesHighlight> = /*@__PURE__*/
-  messageDesc(file_chat, 15);
+  messageDesc(file_chat, 16);
 
 /**
  * @generated from message dofus.PhoenixPoint
@@ -605,7 +643,7 @@ export type PhoenixPoint = Message<"dofus.PhoenixPoint"> & {
  * Use `create(PhoenixPointSchema)` to create a new message.
  */
 export const PhoenixPointSchema: GenMessage<PhoenixPoint> = /*@__PURE__*/
-  messageDesc(file_chat, 16);
+  messageDesc(file_chat, 17);
 
 /**
  * Im - Info message
@@ -624,7 +662,7 @@ export type InfoMessage = Message<"dofus.InfoMessage"> & {
  * Use `create(InfoMessageSchema)` to create a new message.
  */
 export const InfoMessageSchema: GenMessage<InfoMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 17);
+  messageDesc(file_chat, 18);
 
 /**
  * IQ - Quantity prompt (mount equip-quantity dialog).
@@ -649,7 +687,7 @@ export type InfoQuantity = Message<"dofus.InfoQuantity"> & {
  * Use `create(InfoQuantitySchema)` to create a new message.
  */
 export const InfoQuantitySchema: GenMessage<InfoQuantity> = /*@__PURE__*/
-  messageDesc(file_chat, 18);
+  messageDesc(file_chat, 19);
 
 /**
  * IO - Object info (head icon "+"/"-" badge for job recipes).
@@ -678,7 +716,7 @@ export type InfoObject = Message<"dofus.InfoObject"> & {
  * Use `create(InfoObjectSchema)` to create a new message.
  */
 export const InfoObjectSchema: GenMessage<InfoObject> = /*@__PURE__*/
-  messageDesc(file_chat, 19);
+  messageDesc(file_chat, 20);
 
 /**
  * IL - Life restore timer.
@@ -716,7 +754,7 @@ export type InfoLifeRestoreTimer = Message<"dofus.InfoLifeRestoreTimer"> & {
  * Use `create(InfoLifeRestoreTimerSchema)` to create a new message.
  */
 export const InfoLifeRestoreTimerSchema: GenMessage<InfoLifeRestoreTimer> = /*@__PURE__*/
-  messageDesc(file_chat, 20);
+  messageDesc(file_chat, 21);
 
 /**
  * DA - Custom action.
@@ -741,7 +779,7 @@ export type DialogCustomAction = Message<"dofus.DialogCustomAction"> & {
  * Use `create(DialogCustomActionSchema)` to create a new message.
  */
 export const DialogCustomActionSchema: GenMessage<DialogCustomAction> = /*@__PURE__*/
-  messageDesc(file_chat, 21);
+  messageDesc(file_chat, 22);
 
 /**
  * DC - Dialog create (NPC dialog open).
@@ -767,7 +805,7 @@ export type DialogCreate = Message<"dofus.DialogCreate"> & {
  * Use `create(DialogCreateSchema)` to create a new message.
  */
 export const DialogCreateSchema: GenMessage<DialogCreate> = /*@__PURE__*/
-  messageDesc(file_chat, 22);
+  messageDesc(file_chat, 23);
 
 /**
  * DQ - Dialog question.
@@ -793,7 +831,7 @@ export type DialogQuestion = Message<"dofus.DialogQuestion"> & {
  * Use `create(DialogQuestionSchema)` to create a new message.
  */
 export const DialogQuestionSchema: GenMessage<DialogQuestion> = /*@__PURE__*/
-  messageDesc(file_chat, 23);
+  messageDesc(file_chat, 24);
 
 /**
  * DV - Dialog leave
@@ -808,7 +846,7 @@ export type DialogLeave = Message<"dofus.DialogLeave"> & {
  * Use `create(DialogLeaveSchema)` to create a new message.
  */
 export const DialogLeaveSchema: GenMessage<DialogLeave> = /*@__PURE__*/
-  messageDesc(file_chat, 24);
+  messageDesc(file_chat, 25);
 
 /**
  * DP - Dialog pause
@@ -823,7 +861,7 @@ export type DialogPause = Message<"dofus.DialogPause"> & {
  * Use `create(DialogPauseSchema)` to create a new message.
  */
 export const DialogPauseSchema: GenMessage<DialogPause> = /*@__PURE__*/
-  messageDesc(file_chat, 25);
+  messageDesc(file_chat, 26);
 
 /**
  * k - Server disconnect notification
@@ -838,7 +876,7 @@ export type ServerDisconnect = Message<"dofus.ServerDisconnect"> & {
  * Use `create(ServerDisconnectSchema)` to create a new message.
  */
 export const ServerDisconnectSchema: GenMessage<ServerDisconnect> = /*@__PURE__*/
-  messageDesc(file_chat, 26);
+  messageDesc(file_chat, 27);
 
 /**
  * M - Server message
@@ -862,7 +900,7 @@ export type ServerMessage = Message<"dofus.ServerMessage"> & {
  * Use `create(ServerMessageSchema)` to create a new message.
  */
 export const ServerMessageSchema: GenMessage<ServerMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 27);
+  messageDesc(file_chat, 28);
 
 /**
  * p/q/r - Ping/Pong
@@ -886,7 +924,7 @@ export type PingPong = Message<"dofus.PingPong"> & {
  * Use `create(PingPongSchema)` to create a new message.
  */
 export const PingPongSchema: GenMessage<PingPong> = /*@__PURE__*/
-  messageDesc(file_chat, 28);
+  messageDesc(file_chat, 29);
 
 /**
  * @generated from enum dofus.PingPong.PingType
@@ -923,7 +961,7 @@ export enum PingPong_PingType {
  * Describes the enum dofus.PingPong.PingType.
  */
 export const PingPong_PingTypeSchema: GenEnum<PingPong_PingType> = /*@__PURE__*/
-  enumDesc(file_chat, 28, 0);
+  enumDesc(file_chat, 29, 0);
 
 /**
  * Client sends BM<dest>|<message>|<itemsData>
@@ -956,7 +994,7 @@ export type ChatSendMessage = Message<"dofus.ChatSendMessage"> & {
  * Use `create(ChatSendMessageSchema)` to create a new message.
  */
 export const ChatSendMessageSchema: GenMessage<ChatSendMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 29);
+  messageDesc(file_chat, 30);
 
 /**
  * Client sends BR<charId>|<message>|<messageId>|<reason>
@@ -990,7 +1028,7 @@ export type ChatReportMessage = Message<"dofus.ChatReportMessage"> & {
  * Use `create(ChatReportMessageSchema)` to create a new message.
  */
 export const ChatReportMessageSchema: GenMessage<ChatReportMessage> = /*@__PURE__*/
-  messageDesc(file_chat, 30);
+  messageDesc(file_chat, 31);
 
 /**
  * Client sends BS<smileyId>
@@ -1009,7 +1047,7 @@ export type ChatUseSmiley = Message<"dofus.ChatUseSmiley"> & {
  * Use `create(ChatUseSmileySchema)` to create a new message.
  */
 export const ChatUseSmileySchema: GenMessage<ChatUseSmiley> = /*@__PURE__*/
-  messageDesc(file_chat, 31);
+  messageDesc(file_chat, 32);
 
 /**
  * Client sends cC[+/-]<channel>
@@ -1035,7 +1073,7 @@ export type ChatSubscribeChannelRequest = Message<"dofus.ChatSubscribeChannelReq
  * Use `create(ChatSubscribeChannelRequestSchema)` to create a new message.
  */
 export const ChatSubscribeChannelRequestSchema: GenMessage<ChatSubscribeChannelRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 32);
+  messageDesc(file_chat, 33);
 
 /**
  * Client sends BA<command>
@@ -1054,7 +1092,7 @@ export type BasicsAdminCommand = Message<"dofus.BasicsAdminCommand"> & {
  * Use `create(BasicsAdminCommandSchema)` to create a new message.
  */
 export const BasicsAdminCommandSchema: GenMessage<BasicsAdminCommand> = /*@__PURE__*/
-  messageDesc(file_chat, 33);
+  messageDesc(file_chat, 34);
 
 /**
  * Client sends BaM<x>,<y>
@@ -1078,7 +1116,7 @@ export type BasicsAdminMove = Message<"dofus.BasicsAdminMove"> & {
  * Use `create(BasicsAdminMoveSchema)` to create a new message.
  */
 export const BasicsAdminMoveSchema: GenMessage<BasicsAdminMove> = /*@__PURE__*/
-  messageDesc(file_chat, 34);
+  messageDesc(file_chat, 35);
 
 /**
  * Client sends BaK<playerName>|<tempo>|<message>
@@ -1107,7 +1145,7 @@ export type BasicsAdminKick = Message<"dofus.BasicsAdminKick"> & {
  * Use `create(BasicsAdminKickSchema)` to create a new message.
  */
 export const BasicsAdminKickSchema: GenMessage<BasicsAdminKick> = /*@__PURE__*/
-  messageDesc(file_chat, 35);
+  messageDesc(file_chat, 36);
 
 /**
  * Client sends BW<name>
@@ -1126,7 +1164,7 @@ export type BasicsWhoIsRequest = Message<"dofus.BasicsWhoIsRequest"> & {
  * Use `create(BasicsWhoIsRequestSchema)` to create a new message.
  */
 export const BasicsWhoIsRequestSchema: GenMessage<BasicsWhoIsRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 36);
+  messageDesc(file_chat, 37);
 
 /**
  * Client sends BD
@@ -1141,7 +1179,7 @@ export type BasicsGetDateRequest = Message<"dofus.BasicsGetDateRequest"> & {
  * Use `create(BasicsGetDateRequestSchema)` to create a new message.
  */
 export const BasicsGetDateRequestSchema: GenMessage<BasicsGetDateRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 37);
+  messageDesc(file_chat, 38);
 
 /**
  * Client sends BQ<cellNum>
@@ -1160,7 +1198,7 @@ export type BasicsKickRequest = Message<"dofus.BasicsKickRequest"> & {
  * Use `create(BasicsKickRequestSchema)` to create a new message.
  */
 export const BasicsKickRequestSchema: GenMessage<BasicsKickRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 38);
+  messageDesc(file_chat, 39);
 
 /**
  * Client sends BYA
@@ -1175,7 +1213,7 @@ export type BasicsSetAway = Message<"dofus.BasicsSetAway"> & {
  * Use `create(BasicsSetAwaySchema)` to create a new message.
  */
 export const BasicsSetAwaySchema: GenMessage<BasicsSetAway> = /*@__PURE__*/
-  messageDesc(file_chat, 39);
+  messageDesc(file_chat, 40);
 
 /**
  * Client sends BYI
@@ -1190,7 +1228,7 @@ export type BasicsSetInvisible = Message<"dofus.BasicsSetInvisible"> & {
  * Use `create(BasicsSetInvisibleSchema)` to create a new message.
  */
 export const BasicsSetInvisibleSchema: GenMessage<BasicsSetInvisible> = /*@__PURE__*/
-  messageDesc(file_chat, 40);
+  messageDesc(file_chat, 41);
 
 /**
  * Client sends BC<checkId>;<fileSize>
@@ -1214,7 +1252,7 @@ export type BasicsFileCheckAnswer = Message<"dofus.BasicsFileCheckAnswer"> & {
  * Use `create(BasicsFileCheckAnswerSchema)` to create a new message.
  */
 export const BasicsFileCheckAnswerSchema: GenMessage<BasicsFileCheckAnswer> = /*@__PURE__*/
-  messageDesc(file_chat, 41);
+  messageDesc(file_chat, 42);
 
 /**
  * Client sends BK<sanctionId>|<wordId>
@@ -1238,7 +1276,7 @@ export type BasicsSanction = Message<"dofus.BasicsSanction"> & {
  * Use `create(BasicsSanctionSchema)` to create a new message.
  */
 export const BasicsSanctionSchema: GenMessage<BasicsSanction> = /*@__PURE__*/
-  messageDesc(file_chat, 42);
+  messageDesc(file_chat, 43);
 
 /**
  * Client sends Bp<ping>|<packetCount>|<bufferSize>
@@ -1267,7 +1305,7 @@ export type BasicsSendPing = Message<"dofus.BasicsSendPing"> & {
  * Use `create(BasicsSendPingSchema)` to create a new message.
  */
 export const BasicsSendPingSchema: GenMessage<BasicsSendPing> = /*@__PURE__*/
-  messageDesc(file_chat, 43);
+  messageDesc(file_chat, 44);
 
 /**
  * Client sends Br<step>|<targets>|<allAccounts>
@@ -1296,7 +1334,7 @@ export type BasicsReportInfosRequest = Message<"dofus.BasicsReportInfosRequest">
  * Use `create(BasicsReportInfosRequestSchema)` to create a new message.
  */
 export const BasicsReportInfosRequestSchema: GenMessage<BasicsReportInfosRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 44);
+  messageDesc(file_chat, 45);
 
 /**
  * Client sends DA<action>
@@ -1315,7 +1353,7 @@ export type DialogCustomActionRequest = Message<"dofus.DialogCustomActionRequest
  * Use `create(DialogCustomActionRequestSchema)` to create a new message.
  */
 export const DialogCustomActionRequestSchema: GenMessage<DialogCustomActionRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 45);
+  messageDesc(file_chat, 46);
 
 /**
  * Client sends DV
@@ -1330,5 +1368,70 @@ export type DialogLeaveRequest = Message<"dofus.DialogLeaveRequest"> & {
  * Use `create(DialogLeaveRequestSchema)` to create a new message.
  */
 export const DialogLeaveRequestSchema: GenMessage<DialogLeaveRequest> = /*@__PURE__*/
-  messageDesc(file_chat, 46);
+  messageDesc(file_chat, 47);
+
+/**
+ * Why a ChatSendMessage was dropped. The retail client receives these as the
+ * "cMK<code>" variant of cM; we model them as their own message so the reason
+ * is typed rather than parsed out of a string.
+ *
+ * @generated from enum dofus.ChatErrorReason
+ */
+export enum ChatErrorReason {
+  /**
+   * @generated from enum value: CHAT_ERROR_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * per-channel cooldown not elapsed
+   *
+   * @generated from enum value: CHAT_ERROR_REASON_FLOOD = 1;
+   */
+  FLOOD = 1,
+
+  /**
+   * /g with no guild
+   *
+   * @generated from enum value: CHAT_ERROR_REASON_NO_GUILD = 2;
+   */
+  NO_GUILD = 2,
+
+  /**
+   * /p with no party
+   *
+   * @generated from enum value: CHAT_ERROR_REASON_NO_PARTY = 3;
+   */
+  NO_PARTY = 3,
+
+  /**
+   * /t outside a fight
+   *
+   * @generated from enum value: CHAT_ERROR_REASON_NOT_IN_FIGHT = 4;
+   */
+  NOT_IN_FIGHT = 4,
+
+  /**
+   * /w on an unknown or offline name
+   *
+   * @generated from enum value: CHAT_ERROR_REASON_PLAYER_NOT_FOUND = 5;
+   */
+  PLAYER_NOT_FOUND = 5,
+
+  /**
+   * @generated from enum value: CHAT_ERROR_REASON_CANT_WISP_YOURSELF = 6;
+   */
+  CANT_WISP_YOURSELF = 6,
+
+  /**
+   * @generated from enum value: CHAT_ERROR_REASON_EMPTY_MESSAGE = 7;
+   */
+  EMPTY_MESSAGE = 7,
+}
+
+/**
+ * Describes the enum dofus.ChatErrorReason.
+ */
+export const ChatErrorReasonSchema: GenEnum<ChatErrorReason> = /*@__PURE__*/
+  enumDesc(file_chat, 0);
 

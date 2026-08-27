@@ -232,22 +232,27 @@ enum SpriteType {
   SPRITE_TYPE_PRISM = 10;          // -10
 }
 
-// Chat channel types
+// Chat channel types. The letters are the 1.29 wire symbols, transcribed from
+// the decompiled client (assets/sources/client-code/dofus/aks/Chat.as) — the
+// earlier mapping had $ and % swapped and no party channel at all.
 enum ChatChannel {
   CHAT_CHANNEL_UNSPECIFIED = 0;
   CHAT_CHANNEL_GENERAL = 1;       // *
   CHAT_CHANNEL_TEAM = 2;          // #
-  CHAT_CHANNEL_GUILD = 3;         // $
-  CHAT_CHANNEL_ALIGNMENT = 4;     // %
+  CHAT_CHANNEL_GUILD = 3;         // %
+  CHAT_CHANNEL_ALIGNMENT = 4;     // !
   CHAT_CHANNEL_RECRUITMENT = 5;   // ?
   CHAT_CHANNEL_TRADE = 6;         // :
-  CHAT_CHANNEL_PVP = 7;           // !
+  // Deprecated: the retail alignment channel is CHAT_CHANNEL_ALIGNMENT. Kept so
+  // the field numbers stay stable; never emitted.
+  CHAT_CHANNEL_PVP = 7 [deprecated = true];
   CHAT_CHANNEL_ADVICE = 8;        // i
-  CHAT_CHANNEL_DATING = 9;        // ^
+  CHAT_CHANNEL_DATING = 9;        // ^ (Incarnam, the newbie channel)
   CHAT_CHANNEL_EVENT = 10;        // e
   CHAT_CHANNEL_WHISPER_FROM = 11; // F
   CHAT_CHANNEL_WHISPER_TO = 12;   // T
   CHAT_CHANNEL_ADMIN = 13;        // @
+  CHAT_CHANNEL_PARTY = 14;        // $
 }
 
 // Element types for damage/effects

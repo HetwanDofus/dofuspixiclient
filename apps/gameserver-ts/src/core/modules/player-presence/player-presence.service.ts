@@ -43,6 +43,9 @@ export class PlayerPresenceService
   private readonly byMap = new Map<number, Map<string, PlayerPresenceEntry>>();
   private readonly byCharacter = new Map<string, number>();
   private readonly bySession = new Map<string, string>();
+  // Lowercased name -> characterId. Chat whispers and /whois look players up by
+  // the name the user typed; without this every lookup is a scan of `byMap`.
+  private readonly byName = new Map<string, string>();
 
   enter(player: PlayerPresenceEntry): void {
     this.leaveByCharacter(player.characterId);
@@ -57,6 +60,7 @@ export class PlayerPresenceService
     bucket.set(player.characterId, player);
     this.byCharacter.set(player.characterId, player.mapId);
     this.bySession.set(player.sessionId, player.characterId);
+    this.byName.set(player.name.toLowerCase(), player.characterId);
   }
 
   leaveByCharacter(characterId: string): PlayerPresenceEntry | undefined {
@@ -79,6 +83,7 @@ export class PlayerPresenceService
 
     if (player) {
       this.bySession.delete(player.sessionId);
+      this.byName.delete(player.name.toLowerCase());
     }
 
     return player;
@@ -96,6 +101,18 @@ export class PlayerPresenceService
     return mapId !== undefined
       ? this.byMap.get(mapId)?.get(characterId)
       : undefined;
+  }
+
+  /** Case-insensitive lookup over online players only, as retail whispers are. */
+  getByName(name: string): PlayerPresenceEntry | undefined {
+    const characterId = this.byName.get(name.toLowerCase());
+
+    return characterId ? this.getByCharacter(characterId) : undefined;
+  }
+
+  /** Every live session, for the server-wide chat channels. */
+  allSessions(): string[] {
+    return Array.from(this.bySession.keys());
   }
 
   updatePosition(
@@ -153,6 +170,7 @@ export class PlayerPresenceService
     this.byMap.clear();
     this.byCharacter.clear();
     this.bySession.clear();
+    this.byName.clear();
 
     for (const p of players) {
       this.enter(p);

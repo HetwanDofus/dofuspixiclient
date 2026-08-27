@@ -19,12 +19,18 @@ export type {
 export { characterStore } from "./character-store";
 export {
   appendChatMessage,
+  appendErrorMessage,
   appendInfoMessage,
+  armCooldown,
   chatStore,
   clearChat,
+  entryColor,
+  isFilterVisible,
+  remainingCooldown,
+  setActiveChannel,
   setChannelVisible,
-  setChatPrefix,
   setChatSide,
+  setCooldown,
   toggleChatOpen,
 } from "./chat-store";
 export {

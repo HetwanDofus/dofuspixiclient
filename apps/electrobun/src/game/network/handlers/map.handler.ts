@@ -17,6 +17,7 @@ import {
   type MapCell,
   type SpriteMovementEntry,
 } from "@/game/network/protocol";
+import { numericId } from "@/game/network/sprite-id";
 import { hudStore } from "@/game/stores";
 import { createLogger } from "@/utils/logger";
 
@@ -382,25 +383,6 @@ function cellFromProto(c: MapCell): CellData {
     layerObject2Flip: c.layerObject2Flip,
     layerObject2Interactive: c.layerObject2Interactive,
   };
-}
-
-function numericId(spriteId: string): number {
-  const n = Number(spriteId);
-  if (Number.isFinite(n)) {
-    return n;
-  }
-  // Non-numeric sprite IDs — monster groups use "${mapId}_${groupIndex}"
-  // (enter-game.handler.ts). Hash to a stable NEGATIVE int so:
-  //   - distinct groups don't collide on 0,
-  //   - the legacy "< 0 = non-player" heuristic in picking.ts routes
-  //     the click to the cell pick-through branch (walk then auto-
-  //     trigger PvM), not the player context menu.
-  let h = 0;
-  for (let i = 0; i < spriteId.length; i++) {
-    h = (h * 31 + spriteId.charCodeAt(i)) | 0;
-  }
-  // Ensure a negative, non-zero value.
-  return -(Math.abs(h) || 1);
 }
 
 /**

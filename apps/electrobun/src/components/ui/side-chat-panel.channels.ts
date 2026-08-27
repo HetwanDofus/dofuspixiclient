@@ -16,14 +16,20 @@ type SideChatChannel =
   (typeof SIDE_CHAT_CHANNEL)[keyof typeof SIDE_CHAT_CHANNEL];
 
 /**
- * Channel → hex color — mirrors dofus/Constants.as:158-172. Values are
- * CSS variable references so the palette stays themable from globals.css.
+ * Filter bucket → the colour of its checkbox — mirrors dofus/Constants.as:158-172.
+ * Values are CSS variable references so the palette stays themable from
+ * globals.css.
+ *
+ * These colour the *checkboxes*, not the messages. Bucket 3 hides three channels
+ * at once ("Affiche / Cache les messages privés, de groupe et d'équipe") and its
+ * box takes the whisper blue; per-message colours live in
+ * `@/game/chat/chat-channels`.
  */
 const SIDE_CHAT_CHANNEL_COLORS: Record<SideChatChannel, string> = {
   [SIDE_CHAT_CHANNEL.INFOS]: "var(--color-side-chat-channel-infos)",
   [SIDE_CHAT_CHANNEL.ERRORS]: "var(--color-side-chat-channel-errors)",
   [SIDE_CHAT_CHANNEL.MESSAGES]: "var(--color-side-chat-channel-messages)",
-  [SIDE_CHAT_CHANNEL.WISP]: "var(--color-side-chat-channel-group)",
+  [SIDE_CHAT_CHANNEL.WISP]: "var(--color-side-chat-channel-whisper)",
   [SIDE_CHAT_CHANNEL.GUILD]: "var(--color-side-chat-channel-guild)",
   [SIDE_CHAT_CHANNEL.PVP]: "var(--color-side-chat-channel-pvp)",
   [SIDE_CHAT_CHANNEL.RECRUITMENT]: "var(--color-side-chat-channel-recruitment)",
