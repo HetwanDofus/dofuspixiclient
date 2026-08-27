@@ -43,6 +43,12 @@ import {
   parseGfxId,
 } from "@/game/scene/player/types";
 import {
+  bubbleLifetimeMs,
+  clearChatBubbles,
+  hideChatBubble,
+  setChatBubble,
+} from "@/hud/world/chat-bubble-store";
+import {
   clearPlayerNameplates,
   hidePlayerNameplate,
   setPlayerNameplate,
@@ -103,6 +109,12 @@ function buildHoverSelectFilter(): ColorMatrixFilter {
 const NAMEPLATE_OFFSET_Y = -50;
 
 /**
+ * Bubbles hang off the same overhead anchor as the nameplate — retail uses one
+ * `BUBBLE_Y_OFFSET = 50` for both (ank/battlefield/Constants.as:37).
+ */
+const BUBBLE_OFFSET_Y = -50;
+
+/**
  * Map-level coordinator that owns the player registry + the PIXI parent
  * container. Per-player concerns (sprite loading, animation, movement,
  * mount layers, HP, perf) live in focused collaborators that
@@ -154,6 +166,15 @@ export class PlayerRenderer {
    * exactly the visible set (no per-frame work for hidden ones).
    */
   private readonly visibleNameplateIds = new Set<number>();
+  /**
+   * Player ids currently showing a speech bubble, with the moment each one
+   * expires. Same reason as `visibleNameplateIds`: the post-tick hook only
+   * touches the sprites that actually have something on screen.
+   */
+  private readonly visibleBubbles = new Map<
+    number,
+    { text: string; expiresAt: number }
+  >();
 
   private readonly sprites: PlayerSpriteController;
   private readonly movement: PlayerMovement;
@@ -617,6 +638,75 @@ export class PlayerRenderer {
     }
   }
 
+  // ── Speech bubble ───────────────────────────────────────────────────
+
+  /**
+   * Put a line over a sprite's head. Retail keeps one bubble per sprite, the
+   * new one replacing the old (`TextHandler.addBubble` calls `removeBubble`
+   * first), and suppresses bubbles during fights — in combat the overhead slot
+   * belongs to the health bar.
+   */
+  showBubble(id: number, text: string): void {
+    const player = this.players.get(id);
+
+    if (!player || this.fightMode || text.length === 0) {
+      return;
+    }
+
+    const anchor = this.computeBubbleAnchor(player);
+    const expiresAt = Date.now() + bubbleLifetimeMs(text);
+
+    this.visibleBubbles.set(id, { text, expiresAt });
+    setChatBubble({
+      id,
+      text,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      expiresAt,
+    });
+  }
+
+  hideBubble(id: number): void {
+    if (!this.visibleBubbles.delete(id)) {
+      return;
+    }
+    hideChatBubble(id);
+  }
+
+  private computeBubbleAnchor(player: ActivePlayer): { x: number; y: number } {
+    const global = player.container.toGlobal({ x: 0, y: BUBBLE_OFFSET_Y });
+    return { x: global.x, y: global.y };
+  }
+
+  /**
+   * Follow moving speakers and drop expired bubbles. Runs in the same post-tick
+   * pass as the nameplates, so a bubble tracks its sprite through walks, camera
+   * pans and zoom changes without its own rAF loop.
+   */
+  private flushVisibleBubbles(): void {
+    if (this.visibleBubbles.size === 0) {
+      return;
+    }
+    const now = Date.now();
+    for (const [id, bubble] of this.visibleBubbles) {
+      const player = this.players.get(id);
+      // Expired, or the speaker left the map while still talking.
+      if (!player || bubble.expiresAt <= now) {
+        this.visibleBubbles.delete(id);
+        hideChatBubble(id);
+        continue;
+      }
+      const anchor = this.computeBubbleAnchor(player);
+      setChatBubble({
+        id,
+        text: bubble.text,
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        expiresAt: bubble.expiresAt,
+      });
+    }
+  }
+
   // ── Camera / map sync ───────────────────────────────────────────────
 
   setGhostView(enabled: boolean): void {
@@ -669,6 +759,7 @@ export class PlayerRenderer {
     // visible nameplate. Push the new positions immediately so the
     // panels don't lag behind the canvas until the next tick.
     this.flushVisibleNameplates();
+    this.flushVisibleBubbles();
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────
@@ -681,6 +772,8 @@ export class PlayerRenderer {
     }
     this.visibleNameplateIds.clear();
     clearPlayerNameplates();
+    this.visibleBubbles.clear();
+    clearChatBubbles();
   }
 
   destroy(): void {
@@ -1044,6 +1137,7 @@ export class PlayerRenderer {
     // store so the panels follow movement + camera pans without a
     // dedicated DOM-side rAF loop. No-op when nothing is visible.
     this.flushVisibleNameplates();
+    this.flushVisibleBubbles();
 
     this.perf.endFrame(
       Ticker.shared.deltaMS,

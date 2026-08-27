@@ -104,6 +104,7 @@ message DofusMessage {
     ChatServerMessage            chat_server_message            = 201; // cs
     ChatSmiley                   chat_smiley                    = 202; // cS
     ChatSubscribeChannel         chat_subscribe_channel         = 203; // cC
+    ChatMessageError             chat_message_error             = 204; // cMK
 
     // --- Basics (B) ---
     BasicsPopupMessage           basics_popup_message           = 210; // BM

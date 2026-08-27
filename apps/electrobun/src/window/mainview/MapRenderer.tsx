@@ -9,23 +9,21 @@ import {
 
 import type { GameClient } from "@/game/game-client";
 import { getLoadProgress } from "@/game/render/load-progress";
-import {
-  type ConnectionStatus,
-  connectionStore,
-} from "@/game/stores/connection-store";
 import { Battlefield } from "@/game/scene";
 import {
-  chatStore,
   closeAllPanels,
   hudStore,
   toggleHotbarTab,
   togglePanel,
   toggleWorldMap,
 } from "@/game/stores";
-import { SideChatContainer } from "@/hud/chat/SideChatContainer";
+import {
+  type ConnectionStatus,
+  connectionStore,
+} from "@/game/stores/connection-store";
+import { activateSlot } from "@/hud/banner/hotbar-actions";
 import { GameClientContext } from "@/hud/contexts/GameClientContext";
 import { PixiAppContext } from "@/hud/contexts/PixiAppContext";
-import { activateSlot } from "@/hud/banner/hotbar-actions";
 import { HOTBAR_SHORTCUTS, Keybindings } from "@/hud/core/keybindings";
 import { HudOverlay } from "@/hud/HudOverlay";
 
@@ -52,7 +50,6 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   const [pixiApp, setPixiApp] = useState<Application | null>(null);
   const [baseZoom, setBaseZoom] = useState(2);
   const [canvasRect, setCanvasRect] = useState({ left: 0, top: 0, w: 0, h: 0 });
-  const [containerWidth, setContainerWidth] = useState(0);
   // Live, not a snapshot: this used to be a useState set once during setup, so
   // the badge kept claiming "Connected" through core restarts and outright
   // socket deaths alike (QA-046).
@@ -67,11 +64,6 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   useEffect(() => {
     hudStore.setState({ connected });
   }, [connected]);
-
-  const { side: chatSide, isOpen: chatOpen } = useSyncExternalStore(
-    chatStore.subscribe,
-    chatStore.getSnapshot,
-  );
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -232,7 +224,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         keybindings.attach();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to initialize renderer",
+          err instanceof Error ? err.message : "Failed to initialize renderer"
         );
         console.error("Initialization error:", err);
         onReady?.();
@@ -282,7 +274,6 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         w: cr.width,
         h: cr.height,
       });
-      setContainerWidth(pr.width);
     }
     sync();
     const ro = new ResizeObserver(sync);
@@ -330,45 +321,6 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
             canvasRect={canvasRect}
             gameClient={gameClientRef.current}
           />
-
-          {/*
-            Side chat panel — fills the space between the game canvas edge
-            and the screen edge on whichever side is selected. Hidden when
-            the available side-space falls below 350 px (the minimum width
-            at which the filter row + action buttons still lay out cleanly).
-            The `left` / `width` come from measured DOM rects so they must
-            be inlined; everything else lives in Tailwind classes.
-          */}
-          {(() => {
-            if (!chatOpen || canvasRect.w <= 0) {
-              return null;
-            }
-            const rightWidth =
-              containerWidth - (canvasRect.left + canvasRect.w);
-            const sideWidth =
-              chatSide === "right" ? rightWidth : canvasRect.left;
-            if (sideWidth < 350) {
-              return null;
-            }
-            return chatSide === "right" ? (
-              <div
-                className="absolute top-0 bottom-0 pointer-events-auto z-20"
-                style={{
-                  left: canvasRect.left + canvasRect.w,
-                  width: sideWidth,
-                }}
-              >
-                <SideChatContainer />
-              </div>
-            ) : (
-              <div
-                className="absolute top-0 bottom-0 left-0 pointer-events-auto z-20"
-                style={{ width: sideWidth }}
-              >
-                <SideChatContainer />
-              </div>
-            );
-          })()}
 
           <style>{`
         .map-renderer {

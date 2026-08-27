@@ -24,10 +24,32 @@ message ChatMessage {
   int32       event_type = 8;
 }
 
+// Why a ChatSendMessage was dropped. The retail client receives these as the
+// "cMK<code>" variant of cM; we model them as their own message so the reason
+// is typed rather than parsed out of a string.
+enum ChatErrorReason {
+  CHAT_ERROR_REASON_UNSPECIFIED = 0;
+  CHAT_ERROR_REASON_FLOOD = 1;              // per-channel cooldown not elapsed
+  CHAT_ERROR_REASON_NO_GUILD = 2;           // /g with no guild
+  CHAT_ERROR_REASON_NO_PARTY = 3;           // /p with no party
+  CHAT_ERROR_REASON_NOT_IN_FIGHT = 4;       // /t outside a fight
+  CHAT_ERROR_REASON_PLAYER_NOT_FOUND = 5;   // /w on an unknown or offline name
+  CHAT_ERROR_REASON_CANT_WISP_YOURSELF = 6;
+  CHAT_ERROR_REASON_EMPTY_MESSAGE = 7;
+}
+
+// cMK - Chat message rejected. Sent to the author's session only.
+message ChatMessageError {
+  ChatChannel     channel = 1;
+  ChatErrorReason reason = 2;
+  int32           remaining_seconds = 3;  // FLOOD only
+  string          detail = 4;             // target name for PLAYER_NOT_FOUND
+}
+
 // cs - Server message.
 // Legacy 1.29 wire: "cs<channel>|<senderID>|<senderName>|<body>" where
-// channel is a single char (e.g. '*' general, '%' guild, '#' party,
-// '$' private). Producer: pkg/chat/interfaces/register.go:253 senderAdapter.
+// channel is a single char (e.g. '*' general, '%' guild, '$' party,
+// '#' team). Producer: pkg/chat/interfaces/register.go:253 senderAdapter.
 // The "muted" notice also reuses this message with senderID=0, sender_name="Server".
 message ChatServerMessage {
   string channel = 1;       // single-char channel code

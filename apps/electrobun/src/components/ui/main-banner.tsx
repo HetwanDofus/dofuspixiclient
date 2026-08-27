@@ -170,34 +170,30 @@ function MainBannerChatScrollBar({ expanded = false }: { expanded?: boolean }) {
   );
 }
 
-const CHAT_FILTERS = [
-  { label: "General", colorClassName: "bg-[#009900]" },
-  { label: "Team", colorClassName: "bg-[#000000]" },
-  { label: "Party", colorClassName: "bg-[#0066ff]" },
-  { label: "Guild", colorClassName: "bg-[#663399]" },
-  { label: "Alignment", colorClassName: "bg-[#ff8400]" },
-  { label: "Trade", colorClassName: "bg-[#737373]" },
-  { label: "Recruitment", colorClassName: "bg-[#663300]" },
-  { label: "Event", colorClassName: "bg-[#a301da]" },
-] as const;
-
+/**
+ * One channel-visibility checkbox. The colour is a value, not a class: Tailwind
+ * cannot compile a class from a runtime hex, and the previous hard-coded
+ * `bg-[#…]` list had drifted three colours away from the retail palette.
+ */
 function ChatFilterCheckbox({
-  colorClassName,
+  color,
   label,
-  defaultChecked = true,
+  title,
+  checked,
   onChange,
 }: {
-  colorClassName: string;
+  color: string;
   label: string;
-  defaultChecked?: boolean;
-  onChange?: (checked: boolean) => void;
+  title?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
 }) {
-  const [checked, setChecked] = useState(defaultChecked);
   const id = useId();
 
   return (
     <label
       htmlFor={id}
+      title={title}
       className={cn(
         "relative inline-block cursor-pointer",
         "w-[calc(12px*var(--resolution-factor))]",
@@ -209,18 +205,15 @@ function ChatFilterCheckbox({
         type="checkbox"
         checked={checked}
         aria-label={label}
-        onChange={(e) => {
-          setChecked(e.target.checked);
-          onChange?.(e.target.checked);
-        }}
+        onChange={(e) => onChange(e.target.checked)}
         className="sr-only"
       />
       <div
         className={cn(
           "absolute inset-0",
-          "border-[calc(1px*var(--resolution-factor))] border-[#d5cfaa]",
-          colorClassName
+          "border-[calc(1px*var(--resolution-factor))] border-[#d5cfaa]"
         )}
+        style={{ backgroundColor: color }}
       />
       {checked && (
         <svg
@@ -243,7 +236,22 @@ function ChatFilterCheckbox({
   );
 }
 
-function MainBannerChatFilters() {
+export interface MainBannerChatFilter {
+  /** Stable key — the retail `ChatManager.TYPE_*` bucket id. */
+  id: number;
+  color: string;
+  label: string;
+  title?: string;
+  checked: boolean;
+}
+
+function MainBannerChatFilters({
+  filters,
+  onToggle,
+}: {
+  filters: readonly MainBannerChatFilter[];
+  onToggle: (id: number, checked: boolean) => void;
+}) {
   return (
     <div
       className={cn(
@@ -253,11 +261,14 @@ function MainBannerChatFilters() {
         "gap-[calc(2px*var(--resolution-factor))]"
       )}
     >
-      {CHAT_FILTERS.map(({ label, colorClassName }) => (
+      {filters.map((filter) => (
         <ChatFilterCheckbox
-          key={label}
-          label={label}
-          colorClassName={colorClassName}
+          key={filter.id}
+          label={filter.label}
+          color={filter.color}
+          checked={filter.checked}
+          {...(filter.title === undefined ? {} : { title: filter.title })}
+          onChange={(checked) => onToggle(filter.id, checked)}
         />
       ))}
     </div>
@@ -394,9 +405,16 @@ function MainBannerChatHeaderButton({
 function MainBannerChat({
   className,
   children,
+  filters,
+  onToggleFilter,
+  logRef,
 }: {
   className?: string;
   children?: ReactNode;
+  filters: readonly MainBannerChatFilter[];
+  onToggleFilter: (id: number, checked: boolean) => void;
+  /** The scrolling log viewport, so the container can pin it to the bottom. */
+  logRef?: React.Ref<HTMLDivElement>;
 }) {
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
@@ -470,11 +488,16 @@ function MainBannerChat({
         <ButtonSitDown className="absolute inset-0 w-full h-full hidden group-active/chatbtn-3:block" />
       </MainBannerChatHeaderButton>
       {emoteOpen && <MainBannerChatEmotePopup />}
-      <MainBannerChatFilters />
+      <MainBannerChatFilters filters={filters} onToggle={onToggleFilter} />
       <MainBannerChatScrollBar expanded={chatExpanded} />
       <div
+        ref={logRef}
         className={cn(
-          "absolute overflow-hidden",
+          // The banner draws its own scrollbar art on the left, so the native
+          // one is hidden — this element still scrolls, the container just
+          // keeps it pinned to the newest line.
+          "absolute overflow-y-auto overflow-x-hidden pointer-events-auto",
+          "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           "left-[calc(20px*var(--resolution-factor))]",
           "top-[calc(20px*var(--resolution-factor))]",
           "w-[calc(330px*var(--resolution-factor))]",
@@ -492,6 +515,136 @@ function MainBannerChat({
   );
 }
 
+export interface MainBannerChatChannelOption {
+  /** Stable key — the proto `ChatChannel` value. */
+  id: number;
+  label: string;
+  color: string;
+  /** Slash command shown as a hint, e.g. "/b". */
+  shortcut: string;
+  /** Seconds still to wait before this channel accepts a message. */
+  cooldownSeconds: number;
+}
+
+/**
+ * The star at the bottom-left of the chat: picks the channel a message with no
+ * slash command goes to. Retail tints it with the active channel's colour, and
+ * that is the only indication on screen of where a plain line will land, so it
+ * matters that the tint tracks the selection.
+ */
+function MainBannerChatChannelButton({
+  options,
+  activeId,
+  onSelect,
+}: {
+  options: readonly MainBannerChatChannelOption[];
+  activeId: number;
+  onSelect: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const active = options.find((o) => o.id === activeId);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Choisir le canal"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={active ? `Canal actif : ${active.label}` : "Choisir le canal"}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "absolute cursor-pointer border-none bg-transparent p-0",
+          "pointer-events-auto",
+          "left-[calc(2px*var(--resolution-factor))]",
+          "top-[calc(105px*var(--resolution-factor))]",
+          "w-[calc(17px*var(--resolution-factor))]",
+          "h-[calc(17px*var(--resolution-factor))]"
+        )}
+      >
+        <img
+          src="/assets/hud/banner/chat-command-all.webp"
+          alt=""
+          className="absolute inset-0 h-full w-full"
+        />
+        {/* A dot in the active channel's colour — the star itself is a fixed
+            asset, so the tint rides on top of it. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute rounded-full",
+            "right-0 bottom-0",
+            "w-[calc(6px*var(--resolution-factor))]",
+            "h-[calc(6px*var(--resolution-factor))]",
+            "border-[calc(1px*var(--resolution-factor))] border-white"
+          )}
+          style={{ backgroundColor: active?.color ?? "transparent" }}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Canaux"
+          className={cn(
+            "absolute z-30 pointer-events-auto",
+            "left-[calc(2px*var(--resolution-factor))]",
+            "bottom-[calc(20px*var(--resolution-factor))]",
+            "border-[calc(1px*var(--resolution-factor))] border-white",
+            "bg-[#514a3c]",
+            "py-[calc(2px*var(--resolution-factor))]",
+            "font-[Verdana,sans-serif]",
+            "text-[calc(10px*var(--resolution-factor))]"
+          )}
+        >
+          {options.map((option) => {
+            const blocked = option.cooldownSeconds > 0;
+
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={option.id === activeId}
+                disabled={blocked}
+                onClick={() => {
+                  onSelect(option.id);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-[calc(4px*var(--resolution-factor))]",
+                  "cursor-pointer border-none bg-transparent text-left",
+                  "px-[calc(6px*var(--resolution-factor))]",
+                  "py-[calc(2px*var(--resolution-factor))]",
+                  "whitespace-nowrap text-[#d5cfaa]",
+                  blocked
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:text-[#ff6600]",
+                  option.id === activeId && "font-bold"
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "inline-block shrink-0",
+                    "w-[calc(8px*var(--resolution-factor))]",
+                    "h-[calc(8px*var(--resolution-factor))]"
+                  )}
+                  style={{ backgroundColor: option.color }}
+                />
+                <span className="flex-1">{option.label}</span>
+                <span className="opacity-70">
+                  {blocked ? `${option.cooldownSeconds}s` : option.shortcut}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 function MainBannerChatInput({
   className,
   ...props
@@ -504,6 +657,7 @@ function MainBannerChatInput({
         "left-[calc(21px*var(--resolution-factor))]",
         "top-[calc(107px*var(--resolution-factor))]",
         "w-[calc(385px*var(--resolution-factor))]",
+        "pointer-events-auto",
         "h-[calc(16px*var(--resolution-factor))]",
         "text-[calc(10px*var(--resolution-factor))]",
         className
@@ -1250,6 +1404,7 @@ export {
   MainBanner,
   MainBannerButtons,
   MainBannerChat,
+  MainBannerChatChannelButton,
   MainBannerChatInput,
   MainBannerCircle,
   MainBannerFightControls,

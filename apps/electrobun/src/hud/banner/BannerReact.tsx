@@ -4,8 +4,6 @@ import { useMemo, useSyncExternalStore } from "react";
 import {
   MainBanner,
   MainBannerButtons,
-  MainBannerChat,
-  MainBannerChatInput,
   MainBannerCircle,
   MainBannerGrid,
   MainBannerGridSlot,
@@ -42,6 +40,7 @@ import {
   hotbarDragProps,
   hotbarDropProps,
 } from "@/hud/banner/hotbar-dnd";
+import { BannerChatContainer } from "@/hud/chat/BannerChatContainer";
 import { useGameClient } from "@/hud/contexts/GameClientContext";
 import { useFightMode } from "@/hud/fight/useFightMode";
 import { ItemIcon } from "@/hud/inventory/ItemIcon";
@@ -490,8 +489,7 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
   return (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-auto z-10">
       <MainBanner mode={isFighting ? "fight" : "normal"}>
-        <MainBannerChat />
-        <MainBannerChatInput placeholder="Chat here..." />
+        <BannerChatContainer />
 
         <MainBannerCircle>
           <Minimap />
