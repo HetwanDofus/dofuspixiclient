@@ -87,6 +87,9 @@ export class MoveHandler {
       mapId: placed.mapId,
       endCell: validated.endCell,
       endDirection: validated.endDirection,
+      // Kept so an interruption can be checked against the path that
+      // was actually authorised — see `MoveAckHandler`.
+      steps: validated.steps,
     });
 
     const targets = this.presence.sessionsOnMap(placed.mapId);

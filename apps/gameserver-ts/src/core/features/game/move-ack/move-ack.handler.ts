@@ -7,6 +7,7 @@ import {
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { FightStartService } from "@features/game/fight-start/fight-start.service";
+import { resolveMoveLanding } from "@features/game/move-ack/move-ack.landing";
 import { MapCacheService } from "@modules/maps/maps.cache.service";
 import { detectExitDirection, resolveLandingCell } from "@modules/maps/maps.edge";
 import { MapsRepository } from "@modules/maps/maps.repository";
@@ -52,16 +53,31 @@ export class MoveAckHandler {
       return;
     }
 
+    // `GKK` says the walk played out; `GKE` says the player cut it short
+    // and names the cell they stopped on. Everything after this is the
+    // same either way — the landing cell is the only thing that
+    // differs, and arriving somewhere always means the same thing
+    // (commit it, tell the map, then run whatever that cell triggers).
+    const landing = resolveMoveLanding(move, msg);
+
+    if (landing.refusedClaim !== null) {
+      this.logger.warn(
+        `move cancel: cell ${landing.refusedClaim} is not on the authorised ` +
+          `path session=${ctx.sessionId} action=${move.actionId} — ` +
+          `committing destination ${move.endCell} instead`
+      );
+    }
+
     this.presence.updatePosition(
       move.characterId,
-      move.endCell,
-      move.endDirection
+      landing.cell,
+      landing.direction
     );
 
     await this.players.updatePosition(
       move.characterId,
-      move.endCell,
-      move.endDirection
+      landing.cell,
+      landing.direction
     );
 
     this.frames.broadcast(
@@ -81,7 +97,7 @@ export class MoveAckHandler {
       ctx.sessionId,
       move.characterId,
       move.mapId,
-      move.endCell
+      landing.cell
     );
 
     if (scripted) {
@@ -92,7 +108,7 @@ export class MoveAckHandler {
       ctx.sessionId,
       move.characterId,
       move.mapId,
-      move.endCell
+      landing.cell
     );
 
     if (pvmTriggered) {
@@ -103,7 +119,7 @@ export class MoveAckHandler {
       ctx.sessionId,
       move.characterId,
       move.mapId,
-      move.endCell
+      landing.cell
     );
   }
 

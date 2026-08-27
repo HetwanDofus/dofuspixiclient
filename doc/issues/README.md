@@ -91,15 +91,15 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**89 entrées**, dont **85 encore ouvertes**.
+**92 entrées**, dont **88 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 34 | 34 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 31 | 31 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 35 | 35 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 33 | 33 |
 | P3 — finition, confort, cosmétique | 16 | 17 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 34 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 21 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 24 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -125,10 +125,10 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`fight/`](fight/) | 13 | 13 |
 | [`hud-banner/`](hud-banner/) | 9 | 9 |
 | [`hud-panels/`](hud-panels/) | 13 | 14 |
-| [`input/`](input/) | 3 | 4 |
-| [`inventory/`](inventory/) | 3 | 3 |
+| [`input/`](input/) | 4 | 5 |
+| [`inventory/`](inventory/) | 4 | 4 |
 | [`network/`](network/) | 5 | 5 |
-| [`progression/`](progression/) | 3 | 3 |
+| [`progression/`](progression/) | 4 | 4 |
 | [`server-runtime/`](server-runtime/) | 4 | 4 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 5 | 5 |
@@ -182,6 +182,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-085](network/QA-085-aucun-protocole-d-objet-interactif.md) | P1 | network | gap | fixed | Aucun protocole d'utilisation d'objet interactif — portes, zaaps et coffres inertes |
 | [QA-088](world-render/QA-088-largeur-de-carte-perimee-apres-changement.md) | P1 | world-render | bug | fixed | Les acteurs ignorent le recentrage de la carte — décalés hors du décor sur toute carte non 15x17 |
 | [QA-089](input/QA-089-identifiants-de-picking-recycles-apres-changement-de-carte.md) | P1 | input | bug | fixed | Après un changement de carte, cliquer un élément ouvre le menu d'un acteur de la carte précédente |
+| [QA-090](inventory/QA-090-equipement-visible-non-diffuse.md) | P1 | inventory | gap | fixed | Un changement d'équipement visible n'atteint aucun client avant le prochain changement de carte |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -218,6 +219,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-082](hud-panels/QA-082-icones-de-caracteristique-mal-nommees.md) | P2 | hud-panels | bug | fixed | Les icônes de caractéristique venaient du mauvais jeu d'assets |
 | [QA-086](world-content/QA-086-coffre-et-banque-sans-transfert-d-objets.md) | P2 | world-content | gap | open | Coffre et banque s'ouvrent mais ne transfèrent aucun objet |
 | [QA-087](server-runtime/QA-087-cellules-movement-1-traversables.md) | P2 | server-runtime | bug | open | Les cellules `movement = 1` sont traversables au lieu d'être des cases d'arrivée |
+| [QA-091](progression/QA-091-vie-regeneree-jamais-poussee-au-client.md) | P2 | progression | gap | fixed | La vie régénérée ne remonte au client qu'à la prochaine lecture de stats |
+| [QA-092](input/QA-092-clic-pendant-un-deplacement-ignore.md) | P2 | input | gap | fixed | Un clic pendant un déplacement est ignoré au lieu d'interrompre la marche |
 
 ## P3 — finition, confort, cosmétique
 

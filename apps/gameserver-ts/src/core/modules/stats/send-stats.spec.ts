@@ -3,12 +3,14 @@ import "reflect-metadata";
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { AccountStats } from "@dofus/proto/account_pb";
+import type { InfoLifeRestoreTimer } from "@dofus/proto/chat_pb";
 import type { DofusMessage } from "@dofus/proto/server_messages_pb";
 import type { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import type { InventoryRepository } from "@modules/inventory/inventory.repository";
 import type { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import type { PlayersRepository } from "@modules/players/players.repository";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
+import { REGEN_MS_PER_LIFE_STANDING } from "@modules/life-regen/life-regen";
 import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import {
   BASE_AP,
@@ -39,11 +41,26 @@ let service: StatsService;
 let persistedLife: { life: number; at: Date } | null;
 
 function lastStats(): AccountStats {
-  const frame = sent.at(-1);
-  if (frame?.payload.case !== "accountStats") {
-    throw new Error("no AccountStats frame was broadcast");
+  // Searched rather than taken from the end: `sendStats` also emits the
+  // `Ow` weight frame and the `IL` life-restore timer, and which one
+  // lands last is not what these tests are about.
+  for (let i = sent.length - 1; i >= 0; i--) {
+    const frame = sent[i];
+    if (frame?.payload.case === "accountStats") {
+      return frame.payload.value;
+    }
   }
-  return frame.payload.value;
+  throw new Error("no AccountStats frame was broadcast");
+}
+
+function lastLifeRestoreTimer(): InfoLifeRestoreTimer {
+  for (let i = sent.length - 1; i >= 0; i--) {
+    const frame = sent[i];
+    if (frame?.payload.case === "infoLifeRestoreTimer") {
+      return frame.payload.value;
+    }
+  }
+  throw new Error("no InfoLifeRestoreTimer frame was broadcast");
 }
 
 beforeEach(() => {
@@ -153,6 +170,29 @@ describe("StatsService.sendStats", () => {
 
     expect(lastStats().lp).toBe(maxLifePoints(20, 200));
     expect(persistedLife).toBeNull();
+  });
+
+  test("a character below its cap is handed the regeneration clock", async () => {
+    player.life = 300;
+    player.lifeUpdatedAt = new Date();
+
+    await service.sendStats(SESSION, CHARACTER);
+
+    // Without this frame the client has no rate to count with, and the
+    // heart sits frozen until something else asks for stats.
+    expect(lastLifeRestoreTimer()).toMatchObject({
+      started: true,
+      rate: REGEN_MS_PER_LIFE_STANDING,
+    });
+  });
+
+  test("a character at full life is told to stop counting", async () => {
+    player.life = maxLifePoints(20, 200);
+    player.lifeUpdatedAt = new Date();
+
+    await service.sendStats(SESSION, CHARACTER);
+
+    expect(lastLifeRestoreTimer().started).toBe(false);
   });
 
   test("derives max life rather than echoing the current-life column", async () => {

@@ -5,7 +5,7 @@ import type {
 } from "@/game/network/protocol";
 import type { CharacterStats } from "@/game/types/stats";
 import { loginActor } from "@/game/machines/actors";
-import { characterStore } from "@/game/stores";
+import { characterStore, fightStore } from "@/game/stores";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("CharacterHandler");
@@ -38,6 +38,17 @@ export interface CharacterCallbacks {
 export class CharacterHandler {
   private currentCharacter: CharacterInfo | null = null;
   private currentStats: CharacterStats | null = null;
+  /**
+   * Local half of the 1.29 life-restore timer (`IL`).
+   *
+   * The server resolves life from a timestamp and only recomputes it when
+   * something asks for stats, so the only way the heart fills while the
+   * player just stands there is for the client to count the points
+   * itself at the rate the server states. Every `As` frame is followed
+   * by an `IL`, which restarts this timer on the fresh value — so the
+   * count never drifts more than one period from the server's.
+   */
+  private lifeRestoreTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly messageHandler: MessageHandler,
@@ -125,12 +136,79 @@ export class CharacterHandler {
       });
     });
 
+    this.messageHandler.on("infoLifeRestoreTimer", (payload) => {
+      if (payload.started && payload.rate > 0) {
+        this.startLifeRestore(payload.rate);
+      } else {
+        this.stopLifeRestore();
+      }
+    });
+
     this.messageHandler.on("accountNewLevel", (payload) => {
       if (this.currentCharacter) {
         this.currentCharacter.level = payload.newLevel;
       }
       characterStore.setState({ level: payload.newLevel });
     });
+  }
+
+  /** Stop counting; called on teardown so no interval outlives the client. */
+  destroy(): void {
+    this.stopLifeRestore();
+  }
+
+  /**
+   * (Re)start the local count at one life point per `rateMs`.
+   *
+   * Always restarts rather than leaving a running timer alone: the frame
+   * that carries the rate arrives right after the authoritative life
+   * value, so realigning the phase here is what keeps the client's first
+   * counted point a full period after the server's last one.
+   */
+  private startLifeRestore(rateMs: number): void {
+    this.stopLifeRestore();
+    this.lifeRestoreTimer = setInterval(() => this.tickLifeRestore(), rateMs);
+  }
+
+  private stopLifeRestore(): void {
+    if (this.lifeRestoreTimer !== null) {
+      clearInterval(this.lifeRestoreTimer);
+      this.lifeRestoreTimer = null;
+    }
+  }
+
+  /**
+   * Add the one life point this period is worth.
+   *
+   * Paused — not stopped — for the whole of a fight: combat life is the
+   * fight store's, `GameEnd` is followed by a fresh `As` + `IL`, and a
+   * timer that kept counting through the fight would hand that frame a
+   * head start it did not earn.
+   */
+  private tickLifeRestore(): void {
+    const stats = this.currentStats;
+
+    if (!stats || fightStore.getSnapshot().mode !== "none") {
+      return;
+    }
+
+    if (stats.hp >= stats.maxHp) {
+      this.stopLifeRestore();
+      return;
+    }
+
+    const hp = Math.min(stats.maxHp, stats.hp + 1);
+    const next = { ...stats, hp };
+
+    this.currentStats = next;
+    characterStore.setState({
+      stats: next,
+      hp: { current: hp, max: stats.maxHp },
+    });
+
+    if (hp >= stats.maxHp) {
+      this.stopLifeRestore();
+    }
   }
 }
 

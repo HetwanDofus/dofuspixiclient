@@ -170,21 +170,40 @@ export class PlayerSpriteController {
   /** Reload every player's current animation at the new resolution. */
   reloadAll(players: Iterable<ActivePlayer>): void {
     for (const player of players) {
-      if (player.gfxId <= 0 || !player.currentAnimName) {
-        continue;
-      }
-
-      const animName = player.currentAnimName;
-      // Force cache miss so apply() accepts the new data.
-      player.currentAnimName = "";
-      void this.spriteLoader
-        .loadAnimation(player.gfxId, animName, player.look)
-        .then((anim) => {
-          if (anim && this.fighterExists(player.id)) {
-            this.apply(player, anim, animName);
-          }
-        });
+      this.reapplyCurrent(player);
     }
+  }
+
+  /**
+   * Re-render one player after its `look` changed — equipping a hat, a
+   * cape, a weapon.
+   *
+   * Animations are cached per `(gfxId, animName, look)`, so the new look
+   * misses on every direction at once. The current one is reloaded right
+   * away and the rest are warmed behind it: without the warm-up the first
+   * step taken after an equip falls back to a cold load mid-walk.
+   */
+  reload(player: ActivePlayer): void {
+    this.reapplyCurrent(player);
+    void this.preloadCommon(player.gfxId, player.look, player.mount);
+  }
+
+  /** Reload the animation currently on screen, bypassing the cache hit. */
+  private reapplyCurrent(player: ActivePlayer): void {
+    if (player.gfxId <= 0 || !player.currentAnimName) {
+      return;
+    }
+
+    const animName = player.currentAnimName;
+    // Force cache miss so apply() accepts the new data.
+    player.currentAnimName = "";
+    void this.spriteLoader
+      .loadAnimation(player.gfxId, animName, player.look)
+      .then((anim) => {
+        if (anim && this.fighterExists(player.id)) {
+          this.apply(player, anim, animName);
+        }
+      });
   }
 
   /**

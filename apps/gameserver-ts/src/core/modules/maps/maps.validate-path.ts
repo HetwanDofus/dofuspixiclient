@@ -27,6 +27,14 @@ export class InvalidPathError extends Error {
 
 export interface ValidatedPath {
   cells: number[];
+  /**
+   * The same steps as `cells`, each with the direction it was walked
+   * in. An interrupted move commits a cell taken from the middle of
+   * the path (`GKE`), and the character has to end up facing the way
+   * they were going — which only the step that reached that cell
+   * knows.
+   */
+  steps: PathStep[];
   endCell: number;
   endDirection: number;
   truncated: boolean;
@@ -71,6 +79,7 @@ export function validatePath(
   const offsets = directionOffsets(map.width);
   const cellCount = map.cells.length;
   const cells: number[] = [];
+  const steps: PathStep[] = [];
 
   let prev = startCell;
   let endDirection = 0;
@@ -123,9 +132,10 @@ export function validatePath(
     }
 
     cells.push(step.cell);
+    steps.push({ cell: step.cell, direction: step.direction });
     prev = step.cell;
     endDirection = step.direction;
   }
 
-  return { cells, endCell: prev, endDirection, truncated };
+  return { cells, steps, endCell: prev, endDirection, truncated };
 }
