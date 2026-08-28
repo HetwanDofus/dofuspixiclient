@@ -9,6 +9,7 @@ import {
   GameActionType,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { ExchangeService } from "@modules/exchange/exchange.service";
 import {
   type CachedMap,
   MapCacheService,
@@ -41,6 +42,7 @@ export class MoveHandler {
     private readonly mapCache: MapCacheService,
     private readonly presence: PlayerPresenceService,
     private readonly pending: PendingMovesService,
+    private readonly exchange: ExchangeService,
     private readonly sessions: SessionRegistry,
     private readonly frames: GatewayFrameService
   ) {}
@@ -54,6 +56,16 @@ export class MoveHandler {
     const session = this.sessions.get(ctx.sessionId);
 
     if (!session?.characterId) {
+      return;
+    }
+
+    // A trade pins both players where they stand until it ends. The
+    // canonical client will not even send this while the Exchange
+    // window is up, but ours has to be told, and the same-map rule the
+    // trade enforces would be meaningless if either side could walk
+    // off mid-deal. A bank or a chest does not block — see
+    // `ExchangeService.blocksMovement`.
+    if (this.exchange.blocksMovement(ctx.sessionId)) {
       return;
     }
 

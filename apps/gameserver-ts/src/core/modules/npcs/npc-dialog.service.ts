@@ -4,14 +4,18 @@ import { Injectable, Logger } from "@nestjs/common";
 /**
  * What picking an answer does, once its action rows have been read.
  *
- * `branch` — go to `nextQuestion`.
- * `end`    — close the dialog.
- * `blocked`— listed but greyed: the answer fires an effect this server does
- *            not implement yet (give an item, start a quest, teleport…).
+ * `branch`    — go to `nextQuestion`.
+ * `end`       — close the dialog.
+ * `open-bank` — open the account bank, then close.
+ * `blocked`   — listed but greyed: the answer fires an effect this server
+ *               does not implement yet (give an item, start a quest,
+ *               teleport…).
  */
 export type NpcDialogOutcome =
   | { kind: "branch"; nextQuestion: number }
   | { kind: "end" }
+  /** Open the account bank, then close the conversation. */
+  | { kind: "open-bank" }
   | { kind: "blocked" };
 
 export interface NpcDialogQuestion {
@@ -24,6 +28,19 @@ export interface NpcDialogQuestion {
 
 /** The reply action that carries navigation. Every other type is an effect. */
 const ACTION_NAVIGATE = 1;
+
+/**
+ * "Consulter son coffre personnel" — open the account bank.
+ *
+ * The dump gives it type `-1` and it occurs exactly **once** in the whole
+ * table, on answer 259 of the banker's question 318, alongside a
+ * navigate-to-`DV`. Its `nom` column names it outright, which is the only
+ * reason the negative id is legible at all.
+ */
+const ACTION_OPEN_BANK = -1;
+
+/** The effect types this server knows how to carry out. */
+const IMPLEMENTED_EFFECTS = new Set<number>([ACTION_OPEN_BANK]);
 
 /** `npc_reponses_actions.args` for a navigate action that ends the dialog. */
 const ARGS_LEAVE = "DV";
@@ -124,15 +141,22 @@ export class NpcDialogService {
 /**
  * Turns an answer's action rows into what the server will actually do.
  *
- * The rule is deliberately strict: an answer is followed only when navigation
- * is *all* it does. 181 answers carry several actions, and one that both
- * branches and hands over an item would, if followed, silently skip the item —
- * a wrong dialog is worse than a greyed one. So anything beyond a lone
- * `ACTION_NAVIGATE` is blocked.
+ * An answer is navigation plus a set of effects. The rule is deliberately
+ * strict about the effects: an answer is followed only when *every* effect
+ * it carries is one this server can actually perform. 181 answers carry
+ * several actions, and one that both branches and hands over an item
+ * would, if followed, silently skip the item — a wrong dialog is worse
+ * than a greyed one.
+ *
+ * What changed when the bank arrived is only which effects qualify. The
+ * rule used to be "navigation and nothing else", which greyed the
+ * banker's own answer because it carries `open-bank` *and* a navigate.
+ * Now an implemented effect is allowed to travel with its navigation, and
+ * everything still unimplemented is greyed exactly as before.
  *
  * Within navigation, `args` is either the next question id or the literal
- * `DV`. `DV` is by far the common case: 4 046 of the 4 904 navigate rows end
- * the conversation rather than continuing it.
+ * `DV`. `DV` is by far the common case: 4 046 of the 4 904 navigate rows
+ * end the conversation rather than continuing it.
  */
 export function classify(
   actions: readonly { type: number; args: string }[]
@@ -141,20 +165,36 @@ export function classify(
     return { kind: "end" };
   }
 
-  if (actions.length > 1 || actions[0]?.type !== ACTION_NAVIGATE) {
+  const navigations = actions.filter((a) => a.type === ACTION_NAVIGATE);
+  const effects = actions.filter((a) => a.type !== ACTION_NAVIGATE);
+
+  if (effects.some((effect) => !IMPLEMENTED_EFFECTS.has(effect.type))) {
     return { kind: "blocked" };
   }
 
-  const args = actions[0].args.trim();
+  // Two navigate rows on one answer would mean two next questions; there
+  // is no reading of that which is safe to guess at.
+  if (navigations.length > 1) {
+    return { kind: "blocked" };
+  }
 
-  if (args === ARGS_LEAVE) {
+  // An effect wins over the navigation that accompanies it: the banker's
+  // answer navigates to `DV`, and opening the bank already ends the
+  // conversation.
+  if (effects.some((effect) => effect.type === ACTION_OPEN_BANK)) {
+    return { kind: "open-bank" };
+  }
+
+  const args = navigations[0]?.args.trim();
+
+  if (args === undefined || args === ARGS_LEAVE) {
     return { kind: "end" };
   }
 
   const next = Number.parseInt(args, 10);
 
-  // A navigate row pointing at nothing (`-1`, or empty) is how the dump spells
-  // "no follow-up" outside `DV`; ending is the only sane reading.
+  // A navigate row pointing at nothing (`-1`, or empty) is how the dump
+  // spells "no follow-up" outside `DV`; ending is the only sane reading.
   return Number.isFinite(next) && next > 0
     ? { kind: "branch", nextQuestion: next }
     : { kind: "end" };

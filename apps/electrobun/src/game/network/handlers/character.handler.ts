@@ -101,6 +101,7 @@ export class CharacterHandler {
         );
 
         characterStore.setState({
+          id: payload.characterId,
           name: payload.characterName,
           gfxId: payload.gfxId,
           color1: payload.color1,

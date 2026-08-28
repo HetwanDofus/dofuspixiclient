@@ -45,6 +45,15 @@ export {
   hideContextMenu,
   showContextMenu,
 } from "./context-menu-store";
+export {
+  applyExchangeItem,
+  applyExchangeKamas,
+  closeExchange,
+  exchangeStore,
+  getExchangeItems,
+  openExchange,
+  setExchangeContents,
+} from "./exchange-store";
 export { fightStore } from "./fight-store";
 export { ExternalStore } from "./game-store";
 export {

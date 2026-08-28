@@ -4,12 +4,13 @@ import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { InventoryService } from "@modules/inventory/inventory.service";
 import { ItemPresentationCacheService } from "@modules/inventory/item-presentation.cache";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
+import { ItemsModule } from "@modules/items/items.module";
 import { LifeRegenModule } from "@modules/life-regen/life-regen.module";
 import { PlayersModule } from "@modules/players/players.module";
 import { Module } from "@nestjs/common";
 
 @Module({
-  imports: [PlayersModule, LifeRegenModule],
+  imports: [PlayersModule, LifeRegenModule, ItemsModule],
   providers: [
     InventoryRepository,
     ItemTemplateCacheService,

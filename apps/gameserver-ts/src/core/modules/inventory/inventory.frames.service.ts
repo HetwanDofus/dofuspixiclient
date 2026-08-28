@@ -1,4 +1,4 @@
-import type { ItemTemplateRow, PlayerItemRow } from "@shared/db/schema";
+import type { ItemRow, ItemTemplateRow } from "@shared/db/schema";
 import { create } from "@bufbuild/protobuf";
 import { ItemDataSchema, ItemEffectSchema } from "@dofus/proto/common_pb";
 import {
@@ -35,7 +35,7 @@ export class InventoryFramesService {
   ) {}
 
   /** Announce one newly-created (or newly-grown) stack. */
-  sendItemAdd(sessionId: string, item: PlayerItemRow): void {
+  sendItemAdd(sessionId: string, item: ItemRow): void {
     this.send(sessionId, [item]);
   }
 
@@ -192,7 +192,7 @@ export class InventoryFramesService {
     });
   }
 
-  private send(sessionId: string, items: readonly PlayerItemRow[]): void {
+  private send(sessionId: string, items: readonly ItemRow[]): void {
     this.frames.broadcast(
       [sessionId],
       create(DofusMessageSchema, {
@@ -227,7 +227,15 @@ function decodeParam3(raw: string): number {
   return HEX_INTEGER.test(raw) ? Number.parseInt(raw, 16) : 0;
 }
 
-function toItemData(item: PlayerItemRow) {
+/**
+ * An item row as the wire describes it.
+ *
+ * Exported because the bank, a chest and every later exchange have to
+ * describe an item exactly the way the inventory does — this file's own
+ * docblock promised that, and an exchange building its own `ItemData`
+ * would be the first place the two descriptions could drift.
+ */
+export function toItemData(item: ItemRow) {
   return create(ItemDataSchema, {
     itemId: item.templateId,
     // `player_items.id` is a bigserial and the 1.29 protocol carries the

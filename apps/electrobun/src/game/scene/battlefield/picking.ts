@@ -50,6 +50,15 @@ export interface BattlefieldPickingDeps {
    * wherever the player stands.
    */
   onNpcTalk?: (npcSpriteId: number) => void;
+  /**
+   * The local character's sprite id, or null before one is selected.
+   * The player menu needs it for the one distinction canonical
+   * `getPlayerPopupMenu` makes: clicking yourself offers a different
+   * list from clicking somebody else.
+   */
+  localCharacterId?: () => number | null;
+  /** Fired when the player picks "Echange" on another player. */
+  onPlayerExchange?: (targetSpriteId: number) => void;
 }
 
 interface InteractiveCallbacks {
@@ -521,7 +530,7 @@ export class BattlefieldPicking {
       }
       const name =
         this.deps.worldActorRenderer()?.getPlayerName(playerId) ?? "Player";
-      this.showPlayerContextMenu(name, result.x, result.y);
+      this.showPlayerContextMenu(name, playerId, result.x, result.y);
       return;
     }
 
@@ -655,23 +664,63 @@ export class BattlefieldPicking {
     };
   }
 
+  /**
+   * The player bubble — canonical `GameManager.getPlayerPopupMenu`
+   * (`assets/sources/client-code/dofus/managers/GameManager.as:1285`):
+   * the name as the header, then the actions in the order that function
+   * adds them, with the labels from `lang.json`.
+   *
+   * Only "Echange" is live. Everything else is listed and greyed rather
+   * than hidden, which is 1.29's own rule for an unavailable action
+   * (`Skill.getState` returns "I", not "X" — see `context-menu-store`)
+   * and what the NPC bubble above already does: the menu reads the same
+   * whether or not an entry works, and each one only needs its handler
+   * filled in.
+   *
+   * The conditional entries canonical builds — guild invite, "Rejoindre",
+   * "Mettre a la porte", the alignment attacks — are left out entirely
+   * rather than greyed: they depend on state this client does not track
+   * yet (guild rights, whose house this is, alignment), so showing them
+   * unconditionally would be *more* wrong than not showing them.
+   */
   private showPlayerContextMenu(
     name: string,
+    playerId: number,
     screenX: number,
     screenY: number
   ): void {
     const { x, y } = this.pixiToPageCoords(screenX, screenY);
-    showContextMenu(
-      name,
-      [
-        { label: "Slap", onClick: () => log.debug(`Slap: ${name}`) },
-        {
-          label: "Organize my shop",
-          onClick: () => log.debug(`Shop: ${name}`),
-        },
-      ],
-      x,
-      y
-    );
+    const isSelf = this.deps.localCharacterId?.() === playerId;
+
+    const soon = (label: string) => ({
+      label,
+      disabled: true,
+      onClick: () => {},
+    });
+
+    const options = isSelf
+      ? [
+          soon("Baffer"),
+          soon("Organiser mon magasin"),
+          soon("Passer en mode 'marchand'"),
+          soon("Changer son orientation"),
+        ]
+      : [
+          soon("Ignorer pour la session"),
+          soon("Informations"),
+          soon("Signaler le joueur"),
+          soon("Ajouter à mes amis"),
+          soon("Ajouter à mes ennemis"),
+          soon("Message privé"),
+          soon("Inviter dans mon groupe"),
+          {
+            label: "Echange",
+            disabled: false,
+            onClick: () => this.deps.onPlayerExchange?.(playerId),
+          },
+          soon("Défier"),
+        ];
+
+    showContextMenu(name, options, x, y);
   }
 }

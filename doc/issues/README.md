@@ -91,26 +91,26 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**100 entrées**, dont **96 encore ouvertes**.
+**122 entrées**, dont **118 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 41 | 41 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 34 | 34 |
-| P3 — finition, confort, cosmétique | 17 | 18 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 49 | 49 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 45 | 45 |
+| P3 — finition, confort, cosmétique | 20 | 21 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
 ## Par statut
 
 | Statut | Entrées |
 |---|---|
-| `open` — observé, non reproduit méthodiquement | 34 |
+| `open` — observé, non reproduit méthodiquement | 46 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 32 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 42 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -122,16 +122,17 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`auth/`](auth/) | 2 | 2 |
 | [`camera-zoom/`](camera-zoom/) | 3 | 3 |
 | [`chat/`](chat/) | 5 | 5 |
+| [`exchange/`](exchange/) | 17 | 17 |
 | [`fight/`](fight/) | 14 | 14 |
 | [`hud-banner/`](hud-banner/) | 9 | 9 |
 | [`hud-panels/`](hud-panels/) | 14 | 15 |
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
-| [`network/`](network/) | 5 | 5 |
+| [`network/`](network/) | 6 | 6 |
 | [`progression/`](progression/) | 4 | 4 |
-| [`server-runtime/`](server-runtime/) | 4 | 4 |
+| [`server-runtime/`](server-runtime/) | 7 | 7 |
 | [`session/`](session/) | 3 | 3 |
-| [`world-content/`](world-content/) | 8 | 8 |
+| [`world-content/`](world-content/) | 9 | 9 |
 | [`world-render/`](world-render/) | 10 | 10 |
 | [`worldmap/`](worldmap/) | 7 | 8 |
 
@@ -189,6 +190,14 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-097](world-content/QA-097-graphe-de-dialogue-pnj-jamais-importe.md) | P1 | world-content | gap | fixed | Le graphe de dialogue des PNJ est dans le dump mais rien ne l'importe |
 | [QA-098](hud-panels/QA-098-fenetre-de-dialogue-pnj.md) | P1 | hud-panels | feature | fixed | Parler à un PNJ n'ouvre aucune fenêtre de dialogue |
 | [QA-100](world-render/QA-100-vendeurs-hdv-reduits-a-un-fragment.md) | P1 | world-render | bug | fixed | Les vendeurs d'hôtel de vente sont invisibles — leur sprite ne contient qu'une pièce sur quatorze |
+| [QA-101](exchange/QA-101-modele-d-objet-polymorphe.md) | P1 | exchange | feature | fixed | Un objet change d'identité à chaque déplacement — quatre tables de contenants, quatre séquences |
+| [QA-102](exchange/QA-102-noyau-de-session-d-echange.md) | P1 | exchange | feature | fixed | Aucun noyau de session d'échange — ni état, ni verrou d'occupation, ni survie au redémarrage |
+| [QA-107](exchange/QA-107-echange-entre-joueurs.md) | P1 | exchange | feature | fixed | Aucun échange entre joueurs |
+| [QA-108](exchange/QA-108-hotel-de-vente.md) | P1 | exchange | feature | open | Hôtel de vente — les vendeurs sont posés, la table des lots ne correspond pas au protocole et n'est jamais alimentée |
+| [QA-115](exchange/QA-115-aucun-test-anti-dupe.md) | P1 | exchange | test-gap | fixed | Aucun test ne couvre la duplication d'objets ni les courses sur un solde |
+| [QA-116](exchange/QA-116-tableau-js-vers-jsonb.md) | P1 | exchange | bug | fixed | Un tableau JS passé à une colonne jsonb est encodé comme un tableau Postgres — les objets créés se dédoublent au lieu de se cumuler |
+| [QA-117](exchange/QA-117-kamas-de-coffre-de-maison.md) | P1 | exchange | bug | fixed | Les kamas d'un coffre de maison ne se transfèrent pas — seuls le joueur et la banque étaient reconnus |
+| [QA-118](exchange/QA-118-consulter-son-coffre-grise.md) | P1 | exchange | gap | fixed | « Consulter son coffre personnel » est grisé — une réponse ne pouvait porter qu'une navigation |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -223,11 +232,22 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-078](hud-panels/QA-078-inventaire-sans-skin-1-29.md) | P2 | hud-panels | bug | fixed | L'inventaire n'utilisait aucun des assets du skin 1.29 déjà en dépôt |
 | [QA-081](hud-panels/QA-081-fiche-objet-onglets-et-description.md) | P2 | hud-panels | bug | fixed | Barre de défilement parasite sur la fenêtre d'inventaire, onglet « Conditions » débordant, description écrasée |
 | [QA-082](hud-panels/QA-082-icones-de-caracteristique-mal-nommees.md) | P2 | hud-panels | bug | fixed | Les icônes de caractéristique venaient du mauvais jeu d'assets |
-| [QA-086](world-content/QA-086-coffre-et-banque-sans-transfert-d-objets.md) | P2 | world-content | gap | open | Coffre et banque s'ouvrent mais ne transfèrent aucun objet |
+| [QA-086](world-content/QA-086-coffre-et-banque-sans-transfert-d-objets.md) | P2 | world-content | gap | fixed | Coffre et banque s'ouvrent mais ne transfèrent aucun objet |
 | [QA-087](server-runtime/QA-087-cellules-movement-1-traversables.md) | P2 | server-runtime | bug | open | Les cellules `movement = 1` sont traversables au lieu d'être des cases d'arrivée |
 | [QA-091](progression/QA-091-vie-regeneree-jamais-poussee-au-client.md) | P2 | progression | gap | fixed | La vie régénérée ne remonte au client qu'à la prochaine lecture de stats |
 | [QA-092](input/QA-092-clic-pendant-un-deplacement-ignore.md) | P2 | input | gap | fixed | Un clic pendant un déplacement est ignoré au lieu d'interrompre la marche |
 | [QA-094](world-render/QA-094-membres-d-un-groupe-empiles-sur-une-case.md) | P2 | world-render | bug | fixed | Les membres d'un groupe de monstres sont empilés sur une seule case |
+| [QA-103](exchange/QA-103-exchangetype-diverge-du-client.md) | P2 | exchange | bug | fixed | L'énumération ExchangeType diverge du client décompilé sur 11 valeurs sur 19 |
+| [QA-104](exchange/QA-104-formes-de-messages-d-echange-inadaptees.md) | P2 | exchange | gap | fixed | ExchangeList et ExchangeItemMovement ne portent pas un objet sous la forme que le reste du protocole utilise |
+| [QA-105](exchange/QA-105-coffre-de-maison.md) | P2 | exchange | feature | open | Le coffre de maison n'a pas de contenant propre |
+| [QA-106](exchange/QA-106-boutique-pnj.md) | P2 | exchange | feature | open | Aucune boutique PNJ — le catalogue n'est même pas importé |
+| [QA-109](exchange/QA-109-mode-marchand.md) | P2 | exchange | feature | open | Aucun mode marchand |
+| [QA-112](server-runtime/QA-112-verrou-d-occupation-unifie.md) | P2 | server-runtime | gap | open | Trois états d'interaction exclusifs, trois Map indépendantes, aucun contrat commun |
+| [QA-113](server-runtime/QA-113-etat-d-interaction-perdu-au-redemarrage.md) | P2 | server-runtime | gap | open | Combats et dialogues ne survivent pas à un redémarrage du core, et rien ne le dit au client |
+| [QA-114](network/QA-114-aucun-controle-de-distance-hors-combat.md) | P2 | network | gap | open | Aucun contrôle de distance ni d'adjacence hors combat — on parle à un PNJ depuis l'autre bout de la carte |
+| [QA-119](world-content/QA-119-bankcost-litteral.md) | P2 | world-content | gap | open | Le banquier annonce un coût de consultation en affichant le littéral [bankCost] |
+| [QA-120](exchange/QA-120-aucun-controle-de-surcharge.md) | P2 | exchange | gap | open | Aucun contrôle de surcharge : un échange peut mettre le receveur en surpoids |
+| [QA-121](server-runtime/QA-121-aucun-evenement-d-interruption.md) | P2 | server-runtime | gap | open | Aucun événement de domaine hors session.* — un combat qui démarre n'interrompt rien |
 
 ## P3 — finition, confort, cosmétique
 
@@ -251,6 +271,9 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-073](fight/QA-073-duree-de-glyphe-comptee-par-tour.md) | P3 | fight | bug | in-progress | La durée d'un glyphe est décomptée par tour et non par round |
 | [QA-075](fight/QA-075-sort-declencheur-charge-au-niveau-1.md) | P3 | fight | bug | in-progress | Le sort déclencheur d'un glyphe ou d'un piège est toujours chargé au niveau 1 |
 | [QA-099](world-render/QA-099-pnj-mobiles-immobiles.md) | P3 | world-render | gap | fixed | Les PNJ marqués mobiles ne déambulent pas — leur chemin n'est jamais rejoué |
+| [QA-110](exchange/QA-110-percepteur.md) | P3 | exchange | feature | open | Aucun ramassage de percepteur |
+| [QA-111](exchange/QA-111-inventaire-de-monture-et-enclos.md) | P3 | exchange | feature | open | Ni inventaire de monture, ni étable, ni enclos |
+| [QA-122](exchange/QA-122-pas-de-liste-noire.md) | P3 | exchange | feature | open | Pas de bouton « Ignorer » sur une proposition d'échange, faute de liste noire |
 
 ## Sans gravité — vérifications sans défaut
 

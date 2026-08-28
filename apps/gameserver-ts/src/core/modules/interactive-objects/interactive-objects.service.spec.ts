@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import type { DecodedCell } from "@modules/maps/maps.cells-codec";
+import { ExchangeType } from "@dofus/proto/common_pb";
 import { InteractiveObjectsService } from "@modules/interactive-objects/interactive-objects.service";
+import { type ItemOwner, OwnerKind } from "@modules/items/item-owner";
 
 const HOUSE_DOOR_GFX = 6749;
 const ZAAP_GFX = 7000;
@@ -37,6 +39,7 @@ interface Recorded {
   }[];
   zaapMenus: number;
   storage: { totalSlots: number; usedSlots: number }[];
+  exchanges: { kind: number; ownerKind: number; ownerId: string }[];
 }
 
 interface HarnessOptions {
@@ -53,7 +56,12 @@ interface HarnessOptions {
 }
 
 function harness(options: HarnessOptions) {
-  const recorded: Recorded = { teleports: [], zaapMenus: 0, storage: [] };
+  const recorded: Recorded = {
+    teleports: [],
+    zaapMenus: 0,
+    storage: [],
+    exchanges: [],
+  };
   const templates = options.templates ?? {
     [HOUSE_DOOR_GFX]: { type: 5, skills: "97,100,84,108,98,81" },
     [ZAAP_GFX]: { type: 3, skills: "114" },
@@ -69,8 +77,14 @@ function harness(options: HarnessOptions) {
     },
     findHouseByDoor: async () => options.houseByDoor ?? undefined,
     findHouseByInteriorMap: async () => options.houseByInteriorMap ?? undefined,
-    countHouseStorage: async () => options.houseStorageCount ?? 0,
-    countAccountBank: async () => options.bankCount ?? 0,
+    // One method now, told apart by the owner the service built. That
+    // makes this fake assert something the old pair could not: which
+    // container the chest actually resolved to, not merely which of two
+    // methods got called.
+    countStacks: async (owner: ItemOwner) =>
+      owner.kind === OwnerKind.House
+        ? (options.houseStorageCount ?? 0)
+        : (options.bankCount ?? 0),
   };
 
   const mapCache = {
@@ -119,12 +133,30 @@ function harness(options: HarnessOptions) {
     },
   };
 
+  const exchange = {
+    openStorage: async (
+      _sessionId: string,
+      _accountId: string,
+      _characterId: string,
+      owner: ItemOwner,
+      kind: number
+    ) => {
+      recorded.exchanges.push({
+        kind,
+        ownerKind: owner.kind,
+        ownerId: owner.id,
+      });
+      return { ok: true as const };
+    },
+  };
+
   const service = new InteractiveObjectsService(
     repo as never,
     mapCache as never,
     presence as never,
     transition as never,
     waypoints as never,
+    exchange as never,
     frames as never
   );
 
@@ -215,6 +247,15 @@ describe("InteractiveObjectsService.use", () => {
     await service.use("s1", "acc1", "char1", 213, 104);
 
     expect(recorded.storage).toEqual([{ totalSlots: 100, usedSlots: 7 }]);
+    // `sI` announces the size; the contents are the exchange, and the
+    // bank is keyed by account so that a player's characters share it.
+    expect(recorded.exchanges).toEqual([
+      {
+        kind: ExchangeType.EXCHANGE_STORAGE,
+        ownerKind: OwnerKind.Bank,
+        ownerId: "acc1",
+      },
+    ]);
   });
 
   test("a chest inside a house opens that house's storage", async () => {
@@ -228,6 +269,13 @@ describe("InteractiveObjectsService.use", () => {
     await service.use("s1", "acc1", "char1", 154, 104);
 
     expect(recorded.storage).toEqual([{ totalSlots: 100, usedSlots: 3 }]);
+    expect(recorded.exchanges).toEqual([
+      {
+        kind: ExchangeType.EXCHANGE_STORAGE,
+        ownerKind: OwnerKind.House,
+        ownerId: "711",
+      },
+    ]);
   });
 
   test("does nothing for a skill that is offered but not implemented", async () => {

@@ -1,6 +1,7 @@
 import { CharacterListModule } from "@features/game/character-list/character-list.module";
 import { ChatModule } from "@features/game/chat/chat.module";
 import { EnterGameModule } from "@features/game/enter-game/enter-game.module";
+import { ExchangeSliceModule } from "@features/game/exchange/exchange.module";
 import { ExchangeTicketModule } from "@features/game/exchange-ticket/exchange-ticket.module";
 import { ExtraInfoModule } from "@features/game/extra-info/extra-info.module";
 import { FightChallengeModule } from "@features/game/fight-challenge/fight-challenge.module";
@@ -29,6 +30,7 @@ import { Module } from "@nestjs/common";
 
 @Module({
   imports: [
+    ExchangeSliceModule,
     FightModule,
     ExchangeTicketModule,
     CharacterListModule,

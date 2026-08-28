@@ -13,6 +13,8 @@ entre lots, le hors-périmètre, et la recette.
 | Sprint | Objectif | État |
 |---|---|---|
 | [S01](S01-noyau-jouable-securise-scalable.md) | Le noyau : jouable, sécurisé, scalable | à démarrer |
+| [S02](S02-echange-socle-et-banque.md) | L'échange : le socle, prouvé par la banque | à démarrer |
+| [S03](S03-echange-entre-joueurs.md) | L'échange entre joueurs : deux offres, deux validations, un rollback | à démarrer |
 
 ## Écrire un sprint
 

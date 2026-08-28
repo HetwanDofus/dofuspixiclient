@@ -59,9 +59,9 @@ export class ShortcutsService {
     }
 
     return this.txHost.withTransaction(async () => {
-      const item = await this.inventory.findById(String(itemUnicId));
+      const item = await this.inventory.findOwned(playerId, String(itemUnicId));
 
-      if (!item || item.playerId !== playerId) {
+      if (!item) {
         return { ok: false, reason: "not-found" as const };
       }
 

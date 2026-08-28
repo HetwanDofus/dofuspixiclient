@@ -1,6 +1,8 @@
 import { create } from "@bufbuild/protobuf";
+import { ExchangeType } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { StorageInformationsSchema } from "@dofus/proto/world_pb";
+import { ExchangeService } from "@modules/exchange/exchange.service";
 import {
   BANK_SLOTS,
   DEFAULT_LANDING_DIRECTION,
@@ -8,6 +10,7 @@ import {
   InteractiveSkill,
 } from "@modules/interactive-objects/interactive-objects.constants";
 import { InteractiveObjectsRepository } from "@modules/interactive-objects/interactive-objects.repository";
+import { bankOwner, houseOwner } from "@modules/items/item-owner";
 import { MapCacheService } from "@modules/maps/maps.cache.service";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
@@ -37,6 +40,7 @@ export class InteractiveObjectsService {
     private readonly presence: PlayerPresenceService,
     private readonly transition: MapTransitionService,
     private readonly waypoints: WaypointsService,
+    private readonly exchange: ExchangeService,
     private readonly frames: GatewayFrameService
   ) {}
 
@@ -91,7 +95,7 @@ export class InteractiveObjectsService {
         await this.waypoints.openZaapMenu(sessionId, characterId);
         return;
       case InteractiveSkill.OpenStorage:
-        await this.openStorage(sessionId, accountId, placed.mapId);
+        await this.openStorage(sessionId, accountId, characterId, placed.mapId);
         return;
       default:
         this.logger.log(
@@ -135,24 +139,28 @@ export class InteractiveObjectsService {
   }
 
   /**
-   * "Ouvrir" on a chest. The same sprite is a house's own storage indoors and
-   * the account bank in a bank building, told apart by whether the map belongs
-   * to a house.
+   * "Ouvrir" on a chest. The same sprite is a house's own storage indoors
+   * and the account bank in a bank building, told apart by whether the
+   * map belongs to a house.
    *
-   * Only the storage's size is answered here. Moving items in and out is the
-   * exchange protocol (`EC`/`EMO`/`EMG`/`EK`), which no handler implements and
-   * no client window renders yet — see QA-086.
+   * Two things go out, and the order matters. `sI` announces the
+   * storage's size — that is all it has ever meant in 1.29. The contents
+   * and every later movement are the exchange protocol, opened here
+   * rather than on a client request: the 1.29 client has no code path
+   * that sends `ER` for a storage, so the server is the only thing that
+   * can start one. See QA-086.
    */
   private async openStorage(
     sessionId: string,
     accountId: string,
+    characterId: string,
     mapId: number
   ): Promise<void> {
     const house = await this.repo.findHouseByInteriorMap(mapId);
 
-    const [totalSlots, usedSlots] = house
-      ? [HOUSE_STORAGE_SLOTS, await this.repo.countHouseStorage(house.id)]
-      : [BANK_SLOTS, await this.repo.countAccountBank(accountId)];
+    const owner = house ? houseOwner(house.id) : bankOwner(accountId);
+    const totalSlots = house ? HOUSE_STORAGE_SLOTS : BANK_SLOTS;
+    const usedSlots = await this.repo.countStacks(owner);
 
     this.frames.broadcast(
       [sessionId],
@@ -162,6 +170,14 @@ export class InteractiveObjectsService {
           value: create(StorageInformationsSchema, { totalSlots, usedSlots }),
         },
       })
+    );
+
+    await this.exchange.openStorage(
+      sessionId,
+      accountId,
+      characterId,
+      owner,
+      ExchangeType.EXCHANGE_STORAGE
     );
   }
 }

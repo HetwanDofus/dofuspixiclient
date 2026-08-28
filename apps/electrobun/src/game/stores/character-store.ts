@@ -3,6 +3,15 @@ import type { CharacterStats } from "@/game/types/stats";
 import { ExternalStore } from "./game-store";
 
 export interface CharacterState {
+  /**
+   * The local character's id — `0` until one is selected.
+   *
+   * Needed wherever the client has to tell "me" from "somebody else"
+   * out of a frame that names both: the player context menu, and the
+   * `ER` of a trade, which is one frame sent to both parties and read
+   * from opposite ends.
+   */
+  id: number;
   name: string;
   level: number;
   classId: number;
@@ -26,6 +35,7 @@ export interface CharacterState {
 const DEFAULT_COLOR = -1;
 
 const initialState: CharacterState = {
+  id: 0,
   name: "",
   level: 1,
   classId: 0,
