@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "turn-timeline",
+  "title": "TurnTimeline",
+  "description": "Horizontal turn timeline: pips per fighter, team-tinted, active/dead states. Port of Dofus 1.29 Timeline.as.",
+  "registryDependencies": [
+    "@dofus1/icons-fight"
+  ],
+  "files": [
+    {
+      "path": "registry/dofus1/ui/turn-timeline.tsx",
+      "content": "\"use client\";\n\nimport { cn } from \"@/lib/utils\";\n\nimport { TimelinePip } from \"./icons/fight/timeline-pip\";\n\nexport type TurnTimelineEntry = {\n  id: number;\n  name: string;\n  team: \"ally\" | \"enemy\";\n  active?: boolean;\n  dead?: boolean;\n};\n\ninterface TurnTimelineProps {\n  entries: TurnTimelineEntry[];\n  currentTurn?: number;\n  className?: string;\n  onSelect?: (id: number) => void;\n}\n\nfunction TurnTimeline({\n  entries,\n  currentTurn,\n  className,\n  onSelect,\n}: TurnTimelineProps) {\n  return (\n    <div\n      className={cn(\n        \"inline-flex items-center\",\n        \"gap-[calc(1px*var(--resolution-factor))]\",\n        \"bg-[#1a1610]/75 rounded-[calc(3px*var(--resolution-factor))]\",\n        \"p-[calc(2px*var(--resolution-factor))]\",\n        \"border border-[#402b15]\",\n        className,\n      )}\n    >\n      {currentTurn !== undefined && (\n        <span className=\"mr-[calc(4px*var(--resolution-factor))] font-[Verdana,sans-serif] text-[calc(9px*var(--resolution-factor))] font-bold text-white tabular-nums\">\n          T{currentTurn}\n        </span>\n      )}\n      {entries.map((entry) => (\n        <button\n          key={entry.id}\n          type=\"button\"\n          onClick={() => onSelect?.(entry.id)}\n          title={entry.name}\n          className={cn(\n            \"relative cursor-pointer outline-none\",\n            \"h-[calc(28px*var(--resolution-factor))]\",\n            \"w-[calc(24px*var(--resolution-factor))]\",\n            entry.active && \"-translate-y-[calc(2px*var(--resolution-factor))]\",\n          )}\n        >\n          <TimelinePip\n            team={entry.team}\n            active={entry.active}\n            dead={entry.dead}\n            className=\"h-full w-full\"\n          />\n        </button>\n      ))}\n    </div>\n  );\n}\n\nexport { TurnTimeline };\nexport type { TurnTimelineProps };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

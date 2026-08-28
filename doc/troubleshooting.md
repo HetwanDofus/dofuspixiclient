@@ -11,11 +11,6 @@ git-lfs is not installed, so you have pointer files. Install it, then:
 git lfs install --local && git lfs pull
 ```
 
-### `packages/dofus1-registry` is empty
-
-It is a submodule: `git submodule update --init --recursive`. Its manifest is
-also needed for `bun install --frozen-lockfile` inside Docker.
-
 ### Migration fails: `ENOENT ... assets/dist/langs/fr/spells.json`
 
 `assets/dist/` is the asset-pipeline's output directory and does not exist on
@@ -147,9 +142,8 @@ migrations take longer. The `test:integration` script passes
 
 ### `docker compose build` fails with "lockfile had changes, but lockfile is frozen"
 
-Every workspace manifest must be copied before `bun install --frozen-lockfile`
-— including `packages/dofus1-registry/package.json`. If you add a workspace,
-add its `COPY` line to the `Dockerfile`.
+Every workspace manifest must be copied before `bun install --frozen-lockfile`.
+If you add a workspace, add its `package.json` `COPY` line to the `Dockerfile`.
 
 ### Containers crash with `z.url is not a function`
 

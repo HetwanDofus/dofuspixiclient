@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-bitmini6: var(--font-bitmini6-face), monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Button */
+  --color-button-bg: var(--button-bg);
+  --color-button-border: var(--button-border);
+  --color-button-highlight: var(--button-highlight);
+  --color-button-bg-active: var(--button-bg-active);
+  --color-button-border-active: var(--button-border-active);
+  --color-button-highlight-active: var(--button-highlight-active);
+  --color-button-white-border: var(--button-white-border);
+  --color-button-white-border-active: var(--button-white-border-active);
+
+  /* MainBanner */
+  --color-main-banner-bg: var(--main-banner-bg);
+  --color-main-banner-header-bg: var(--main-banner-header-bg);
+  --color-main-banner-panel-bg: var(--main-banner-panel-bg);
+  --color-main-banner-chat-input-bg: var(--main-banner-chat-input-bg);
+  --color-main-banner-circle-border: var(--main-banner-circle-border);
+  --color-main-banner-circle-bg: var(--main-banner-circle-bg);
+  --color-main-banner-circle-viewport: var(--main-banner-circle-viewport);
+
+  /* ActionPopoutMenu */
+  --color-action-popout-menu-border: var(--action-popout-menu-border);
+  --color-action-popout-menu-bg: var(--action-popout-menu-bg);
+  --color-action-popout-menu-fg: var(--action-popout-menu-fg);
+  --color-action-popout-menu-static-bg: var(--action-popout-menu-static-bg);
+  --color-action-popout-menu-static-text: var(--action-popout-menu-static-text);
+  --color-action-popout-menu-item-text: var(--action-popout-menu-item-text);
+  --color-action-popout-menu-item-hover: var(--action-popout-menu-item-hover);
+
+  /* SideChatPanel (retroclient D1Chat.html) */
+  --color-side-chat-bg: var(--side-chat-bg);
+  --color-side-chat-filters-bg: var(--side-chat-filters-bg);
+  --color-side-chat-log-outer-bg: var(--side-chat-log-outer-bg);
+  --color-side-chat-log-inner-bg: var(--side-chat-log-inner-bg);
+  --color-side-chat-border: var(--side-chat-border);
+  --color-side-chat-input-bg: var(--side-chat-input-bg);
+  --color-side-chat-action-fg: var(--side-chat-action-fg);
+  --color-side-chat-action-bg: var(--side-chat-action-bg);
+  --color-side-chat-separator-bg: var(--side-chat-separator-bg);
+  --color-side-chat-filter-bg: var(--side-chat-filter-bg);
+  --color-side-chat-filter-border: var(--side-chat-filter-border);
+  --color-side-chat-filter-check: var(--side-chat-filter-check);
+  --color-side-chat-scrollbar-light-track: var(
+    --side-chat-scrollbar-light-track
+  );
+  --color-side-chat-scrollbar-light-thumb: var(
+    --side-chat-scrollbar-light-thumb
+  );
+  --color-side-chat-scrollbar-dark-track: var(--side-chat-scrollbar-dark-track);
+  --color-side-chat-scrollbar-dark-thumb: var(--side-chat-scrollbar-dark-thumb);
+  --color-side-chat-trash-fill: var(--side-chat-trash-fill);
+  --color-side-chat-trash-stroke: var(--side-chat-trash-stroke);
+  --color-side-chat-arrow-outline: var(--side-chat-arrow-outline);
+  --color-side-chat-arrow-gradient-start: var(--side-chat-arrow-gradient-start);
+  --color-side-chat-arrow-gradient-end: var(--side-chat-arrow-gradient-end);
+
+  /* SideChatPanel channel palette (dofus/Constants.as:158-172) */
+  --color-side-chat-channel-infos: var(--side-chat-channel-infos);
+  --color-side-chat-channel-errors: var(--side-chat-channel-errors);
+  --color-side-chat-channel-messages: var(--side-chat-channel-messages);
+  --color-side-chat-channel-emote: var(--side-chat-channel-emote);
+  --color-side-chat-channel-think: var(--side-chat-channel-think);
+  --color-side-chat-channel-whisper: var(--side-chat-channel-whisper);
+  --color-side-chat-channel-group: var(--side-chat-channel-group);
+  --color-side-chat-channel-guild: var(--side-chat-channel-guild);
+  --color-side-chat-channel-pvp: var(--side-chat-channel-pvp);
+  --color-side-chat-channel-recruitment: var(--side-chat-channel-recruitment);
+  --color-side-chat-channel-trade: var(--side-chat-channel-trade);
+  --color-side-chat-channel-meetic: var(--side-chat-channel-meetic);
+  --color-side-chat-channel-admin: var(--side-chat-channel-admin);
+  --color-side-chat-channel-commands: var(--side-chat-channel-commands);
+  --color-side-chat-channel-game-events: var(--side-chat-channel-game-events);
+  --color-side-chat-channel-game-hunt: var(--side-chat-channel-game-hunt);
+
+  /* Fight / Dofus palette (from dofus/Constants.as:174-190) */
+  --color-dofus-team-red: var(--dofus-team-red);
+  --color-dofus-team-blue: var(--dofus-team-blue);
+  --color-dofus-lifebar-red: var(--dofus-lifebar-red);
+  --color-dofus-lifebar-blue: var(--dofus-lifebar-blue);
+  --color-dofus-path-yellow: var(--dofus-path-yellow);
+  --color-dofus-path-used: var(--dofus-path-used);
+  --color-dofus-spell-range: var(--dofus-spell-range);
+  --color-dofus-move-range: var(--dofus-move-range);
+  --color-dofus-aoe-red: var(--dofus-aoe-red);
+  --color-dofus-ap-blue: var(--dofus-ap-blue);
+  --color-dofus-mp-green: var(--dofus-mp-green);
+  --color-dofus-hp-red: var(--dofus-hp-red);
+}
+
+:root {
+  --background: #1a1610;
+  --foreground: #d5cfaa;
+  --card: #241f18;
+  --card-foreground: #d5cfaa;
+  --primary: #ad9e7e;
+  --primary-foreground: #1a1610;
+  --secondary: #2e2820;
+  --secondary-foreground: #ad9e7e;
+  --muted: #2e2820;
+  --muted-foreground: #8a8060;
+  --accent: #3a3228;
+  --accent-foreground: #d5cfaa;
+  --border: #3a3228;
+  --input: #3a3228;
+  --ring: #ad9e7e;
+
+  /* Resolution scaling */
+  --dofus-base-width: 800;
+  --dofus-base-height: 600;
+  --dofus-aspect-ratio: calc(
+    var(--dofus-base-width) / var(--dofus-base-height)
+  );
+  --dofus-game-width: min(100vw, calc(100vh * var(--dofus-aspect-ratio)));
+  --resolution-factor: calc(
+    var(--dofus-game-width) / (var(--dofus-base-width) * 1px)
+  );
+
+  /* Button colors (from DefaultStylePackage / DofusStylePackage) */
+  --button-bg: #ff6100;
+  --button-border: #4e4028;
+  --button-highlight: #eca272;
+  --button-bg-active: #514a3c;
+  --button-border-active: #cccccc;
+  --button-highlight-active: #afa085;
+
+  /* White border variant (OrangeWhiteBorderButton) */
+  --button-white-border: #ffffff;
+  --button-white-border-active: #ffffff;
+
+  /* MainBanner colors (from SVG 1384) */
+  --main-banner-bg: #d5cfaa;
+  --main-banner-header-bg: #ffffff;
+  --main-banner-panel-bg: #b8b18f;
+  --main-banner-chat-input-bg: #ffffff;
+  --main-banner-circle-shadow: rgba(0, 0, 0, 0.2);
+  --main-banner-circle-border: #ffffff;
+  --main-banner-circle-bg: #514a3c;
+  --main-banner-circle-viewport: #202f3e;
+
+  /* ActionPopoutMenu colors */
+  --action-popout-menu-border: #ffffff;
+  --action-popout-menu-bg: #514a3c;
+  --action-popout-menu-fg: #d5cfaa;
+  --action-popout-menu-static-bg: #514a3c;
+  --action-popout-menu-static-text: #ad9e7e;
+  --action-popout-menu-item-text: #514a3c;
+  --action-popout-menu-item-hover: #ff6600;
+
+  /* SideChatPanel colors (retroclient D1Chat.html) */
+  --side-chat-bg: #d5cfaa;
+  --side-chat-filters-bg: #8c8368;
+  --side-chat-log-outer-bg: #8c8368;
+  --side-chat-log-inner-bg: #d5cfaa;
+  --side-chat-border: #d5cfaa;
+  --side-chat-input-bg: #ffffff;
+  --side-chat-action-fg: #494c4e;
+  --side-chat-action-bg: #ffffff;
+  /* Thin divider between the infos pane and the main chat. `#514A3C` is
+     the same dark brown used by `--button-bg-active` and the light-theme
+     scrollbar thumb — consistent with the rest of the retro chrome. */
+  --side-chat-separator-bg: #8c8368;
+  --side-chat-filter-bg: #000000;
+  --side-chat-filter-border: #d5cfaa;
+  --side-chat-filter-check: #ffffff;
+  --side-chat-scrollbar-light-track: #beb998;
+  --side-chat-scrollbar-light-thumb: #514a3c;
+  --side-chat-scrollbar-dark-track: #313131;
+  --side-chat-scrollbar-dark-thumb: #aaaaaa;
+  --side-chat-trash-fill: #f4b2b0;
+  --side-chat-trash-stroke: #b3404a;
+  --side-chat-arrow-outline: #204a87;
+  --side-chat-arrow-gradient-start: #82aad5;
+  --side-chat-arrow-gradient-end: #366aa2;
+
+  /* Chat channel colors — dofus/Constants.as:158-172. Filter checkboxes and
+     messages both paint with these. IDs match ChatManager.TYPE_* (lines 12-22). */
+  --side-chat-channel-infos: #009900; /* TYPE_INFOS = 0 */
+  --side-chat-channel-errors: #c10000; /* TYPE_ERRORS = 1 */
+  --side-chat-channel-messages: #111111; /* TYPE_MESSAGES = 2 */
+  --side-chat-channel-emote: #222222; /* EMOTE_CHAT_COLOR */
+  --side-chat-channel-think: #232323; /* THINK_CHAT_COLOR */
+  --side-chat-channel-whisper: #0066ff; /* MSGCHUCHOTE_CHAT_COLOR */
+  --side-chat-channel-group: #006699; /* TYPE_WISP = 3, GROUP_CHAT_COLOR */
+  --side-chat-channel-guild: #663399; /* TYPE_GUILD = 4 */
+  --side-chat-channel-pvp: #dd7700; /* TYPE_PVP = 5 */
+  --side-chat-channel-recruitment: #737373; /* TYPE_RECRUITMENT = 6 */
+  --side-chat-channel-trade: #663300; /* TYPE_TRADE = 7 */
+  --side-chat-channel-meetic: #0000cc; /* TYPE_MEETIC = 8 */
+  --side-chat-channel-admin: #ff00ff; /* TYPE_ADMIN = 9, ADMIN_CHAT_COLOR */
+  --side-chat-channel-commands: #e4287c; /* COMMANDS_CHAT_COLOR */
+  --side-chat-channel-game-events: #a3005a; /* TYPE_GAME_EVENTS = 10 */
+  --side-chat-channel-game-hunt: #eb420c; /* GAME_HUNT_CHAT */
+
+  /* Fight / Dofus palette — mirrors dofus/Constants.as:174-190.
+     Used for cell overlays (Pixi side reads the same hex), HUD
+     icons, gauges, and tactical-mode team tints. */
+  --dofus-team-red: #ff0000;
+  --dofus-team-blue: #0000ff;
+  --dofus-lifebar-red: #e82c0c;
+  --dofus-lifebar-blue: #0c4888;
+  --dofus-path-yellow: #ffff00;
+  --dofus-path-used: #246b76;
+  --dofus-spell-range: #246b76;
+  --dofus-move-range: #0099c0;
+  --dofus-aoe-red: #ff3030;
+  --dofus-ap-blue: #0066ff;
+  --dofus-mp-green: #00bb00;
+  --dofus-hp-red: #c81414;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Shiki: always use dark theme since our site is dark */
+.shiki,
+.shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: transparent !important;
+}
+.shiki {
+  background-color: var(--shiki-dark-bg) !important;
+}

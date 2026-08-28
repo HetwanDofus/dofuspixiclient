@@ -1,0 +1,261 @@
+---
+title: SideChatPanel
+description: Wide-screen side chat bar from Dofus Retro — filters, action buttons, chat log, info log, and prefix-aware input.
+---
+
+import {
+  SIDE_CHAT_CHANNEL,
+  SIDE_CHAT_CHANNEL_COLORS,
+  SIDE_CHAT_FILTER_CHANNELS,
+} from "@/registry/dofus1/ui/side-chat-panel.channels";
+import {
+  SideChatPanel,
+  SideChatPanelFilters,
+  SideChatPanelFilterGroup,
+  SideChatPanelFilter,
+  SideChatPanelActionButton,
+  SideChatSearchIcon,
+  SideChatTrashIcon,
+  SideChatPanelMovePanelButton,
+  SideChatPanelLog,
+  SideChatPanelInfoLog,
+  SideChatPanelInputRow,
+  SideChatPanelPrefixButton,
+  SideChatPanelTextInput,
+  SideChatPanelMessage,
+} from "@/registry/dofus1/ui/side-chat-panel";
+
+## Preview — Right side, light theme
+
+<PreviewCard className="!items-stretch">
+  <div className="h-[500px] w-[520px] border border-[#8C8368]">
+    <SideChatPanel side="right" theme="light">
+      <SideChatPanelFilters>
+        <SideChatPanelFilterGroup>
+          {SIDE_CHAT_FILTER_CHANNELS.map((ch) => (
+            <SideChatPanelFilter
+              key={ch}
+              color={SIDE_CHAT_CHANNEL_COLORS[ch]}
+              label={`Channel ${ch}`}
+              defaultChecked
+            />
+          ))}
+        </SideChatPanelFilterGroup>
+        <SideChatPanelActionButton aria-label="Search">
+          <SideChatSearchIcon />
+        </SideChatPanelActionButton>
+        <SideChatPanelActionButton aria-label="Clear chat">
+          <SideChatTrashIcon />
+        </SideChatPanelActionButton>
+        <SideChatPanelMovePanelButton />
+      </SideChatPanelFilters>
+      <SideChatPanelInfoLog className="max-h-[120px]">
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.INFOS]}>
+          Your account was last accessed on 18/04/2026 from the IP address ***.***.***.21
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.INFOS]}>
+          Your current IP address is ***.***.***.21
+        </SideChatPanelMessage>
+      </SideChatPanelInfoLog>
+      <SideChatPanelLog>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:32" channel="General" player="Akachauh">
+          Anyone doing Bouftou dungeon?
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:32" channel="General" player="Kyuubitsu">
+          i can help, meeting at zaap in 2 min
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.WISP]} time="20:33" channel="Group" player="Aduns">
+          regroup at zaap please
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:33" channel="Guild" player="Elyra">
+          just arrived in Amakna
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:34" channel="Guild" player="Morbax">
+          anyone up for percepteur defense?
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.PVP]} time="20:34" channel="PVP" player="Darkblade">
+          declared hostilities on &lt;Morbax&gt;
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.RECRUITMENT]} time="20:35" channel="Recruitment" player="Frigost">
+          Guild looking for lvl 150+ members, pm me
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.TRADE]} time="20:35" channel="Trade" player="Zaapy">
+          WTS Dofus Ocre 100kk pm
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.TRADE]} time="20:35" channel="Trade" player="Merchant">
+          WTB Gelatine Royale x50
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GAME_EVENTS]} time="20:36" channel="Event" player="System">
+          The Chafer invasion begins in 15 minutes.
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:36" channel="General" player="Akachauh">
+          thx Kyuu, heading there
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:37" channel="General" player="Elyra">
+          anyone got a spare recall potion?
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.WISP]} time="20:37" channel="Group" player="Aduns">
+          I have one, 500k each
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:38" channel="Guild" player="Morbax">
+          perco defended! we got 3 attackers
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:38" channel="Guild" player="Elyra">
+          nice! any drops?
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:39" channel="Guild" player="Morbax">
+          200k kamas and a rare rune
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.TRADE]} time="20:39" channel="Trade" player="Zaapy">
+          still have Dofus Ocre, serious buyers only
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.RECRUITMENT]} time="20:40" channel="Recruitment" player="Frigost">
+          still recruiting, active players welcome
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:40" channel="General" player="Kyuubitsu">
+          dungeon cleared, thx everyone
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:41" channel="General" player="Akachauh">
+          got the quest item, gg
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.PVP]} time="20:41" channel="PVP" player="Darkblade">
+          &lt;Morbax&gt; accepted combat
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:42" channel="Guild" player="Morbax">
+          in pvp, need backup at Astrub cemetery
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD]} time="20:42" channel="Guild" player="Elyra">
+          otw
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GAME_EVENTS]} time="20:43" channel="Event" player="System">
+          The Chafer invasion has started in Astrub Outpost.
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:43" channel="General" player="Kyuubitsu">
+          heading to Outpost, who's coming
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:44" channel="General" player="Aduns">
+          me, need xp
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.TRADE]} time="20:44" channel="Trade" player="Merchant">
+          WTS lvl 100 int amulet 800k
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.WISP]} time="20:45" channel="Group" player="Aduns">
+          at zaap, teleport to me
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:45" channel="General" player="Elyra">
+          finally a calm evening
+        </SideChatPanelMessage>
+        <SideChatPanelMessage color={SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.MESSAGES]} time="20:46" channel="General" player="Kyuubitsu">
+          bb all, dinner time
+        </SideChatPanelMessage>
+      </SideChatPanelLog>
+      <SideChatPanelInputRow>
+        <SideChatPanelPrefixButton prefix="/s" />
+        <SideChatPanelTextInput placeholder="Say something..." />
+      </SideChatPanelInputRow>
+    </SideChatPanel>
+  </div>
+</PreviewCard>
+
+## Installation
+
+```bash
+bunx shadcn@latest add side-chat-panel
+```
+
+## Composition
+
+`SideChatPanel` is the root and flex-col container. Children are layout slots:
+
+- `SideChatPanelFilters` — top header row (bg `#8C8368`, height `30px`). Holds `SideChatPanelFilter` checkboxes inside `SideChatPanelFilterGroup`, followed by `SideChatPanelActionButton` instances for **Search**, **Clear chat**, and the **move-panel** arrow — in that order. This matches the ship-order in the retroclient `D1Chat.html` (lines 249-268).
+- `SideChatPanelMovePanelButton` — pulls current `side` from context and flips direction. Pass `onMove(next)` to persist. Placed last in the filters row. Only one arrow is visible at a time: the arrow points to the opposite side of `side`, so the user sees the direction the panel will move.
+- `SideChatPanelInfoLog` — optional fixed-height info pane above the chat log.
+- `SideChatPanelLog` — fills remaining height with a scrollable chat feed. Each child becomes a `retroChatMessage`.
+- `SideChatPanelInputRow` — bottom input bar (bg `#D5CFAA`, height `40px`). Hosts `SideChatPanelPrefixButton` then `SideChatPanelTextInput` left-to-right.
+- `SideChatPanelPrefixButton` — opens your chat prefix menu (wire to `ActionPopoutMenu`). Controlled via `prefix` prop.
+
+### Channel palette
+
+The filter and message colors come straight from `dofus/Constants.as:158-172`. Use the exports so you never hand-pick hex:
+
+```tsx
+import {
+  SIDE_CHAT_CHANNEL,
+  SIDE_CHAT_CHANNEL_COLORS,
+  SIDE_CHAT_FILTER_CHANNELS,
+} from "@/components/ui/side-chat-panel.channels";
+
+// IDs mirror dofus.managers.ChatManager.TYPE_* (ChatManager.as:12-22).
+SIDE_CHAT_CHANNEL.GUILD; // => 4
+
+// Hex color as a CSS variable reference, themable via globals.css.
+SIDE_CHAT_CHANNEL_COLORS[SIDE_CHAT_CHANNEL.GUILD];
+// => "var(--color-side-chat-channel-guild)"   (resolves to #663399)
+
+// The 8 channels that appear as filter checkboxes in the Retro layout.
+SIDE_CHAT_FILTER_CHANNELS; // => [0, 2, 3, 4, 5, 6, 7, 10]
+```
+
+| ID | Constant | Const name | Hex |
+|----|----------|------------|-----|
+| 0  | `INFOS` | `INFO_CHAT_COLOR` | `#009900` |
+| 1  | `ERRORS` | `ERROR_CHAT_COLOR` | `#C10000` |
+| 2  | `MESSAGES` | `MSG_CHAT_COLOR` | `#111111` |
+| 3  | `WISP` | `GROUP_CHAT_COLOR` | `#006699` |
+| 4  | `GUILD` | `GUILD_CHAT_COLOR` | `#663399` |
+| 5  | `PVP` | `PVP_CHAT_COLOR` | `#DD7700` |
+| 6  | `RECRUITMENT` | `RECRUITMENT_CHAT_COLOR` | `#737373` |
+| 7  | `TRADE` | `TRADE_CHAT_COLOR` | `#663300` |
+| 8  | `MEETIC` | `MEETIC_CHAT_COLOR` | `#0000CC` |
+| 9  | `ADMIN` | `ADMIN_CHAT_COLOR` | `#FF00FF` |
+| 10 | `GAME_EVENTS` | `GAME_EVENTS_CHAT` | `#A3005A` |
+- `SideChatPanelTextInput` — controlled input. Emits `onSubmit(value)` on Enter, and `onFunctionKey` for Tab (9), PageUp (33), PageDown (34), ArrowUp (38), ArrowDown (40) — matches the Retro `onRetroChatFunctionKey` contract.
+
+## Props
+
+### `SideChatPanel`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `side` | `"left" \| "right"` | `"right"` | Tracks which side the panel is rendered on. Used by `SideChatPanelMovePanelButton` to pick the arrow direction. |
+| `theme` | `"light" \| "dark"` | `"light"` | Switches the scrollbar palette (light `#BEB998`/`#514A3C` vs. dark `#313131`/`#AAAAAA`). |
+
+### `SideChatPanelFilter`
+
+Extends `input` props (minus `type`, `color`).
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `color` | `string` | Channel color. Painted as the checkbox background (inline `backgroundColor` style). Unset falls back to `--color-side-chat-filter-bg` (black). |
+| `label` | `string` | Tooltip shown via the `title` attribute — use the channel name. |
+
+The ✔ mark is always rendered on top in `--color-side-chat-filter-check` (white) and toggles via `:checked`, so the colored box stays visible in both states.
+
+### `SideChatPanelTextInput`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onSubmit` | `(value: string) => void` | — | Fired when the user presses any key in `submitKeys`. |
+| `onFunctionKey` | `(e: SideChatPanelFunctionKeyEvent) => void` | — | Fires when the user presses any key in `functionKeys`. The event carries `key`, `code`, modifier flags, and `currentPrompt`. Hook history & autocomplete here. |
+| `submitKeys` | `readonly string[]` | `["Enter", "NumpadEnter"]` | `KeyboardEvent.code` / `.key` values that trigger `onSubmit`. |
+| `functionKeys` | `readonly string[]` | `["Tab", "PageUp", "PageDown", "ArrowUp", "ArrowDown"]` | `KeyboardEvent.code` / `.key` values that trigger `onFunctionKey`. Mirrors the Retro `onRetroChatFunctionKey` contract (keycodes 9, 33, 34, 38, 40). |
+
+Both `submitKeys` and `functionKeys` match against `event.code` first, falling back to `event.key` — so you can pass either form. The defaults are exported as `SIDE_CHAT_PANEL_DEFAULT_SUBMIT_KEYS` and `SIDE_CHAT_PANEL_DEFAULT_FUNCTION_KEYS`.
+
+### `SideChatPanelMovePanelButton`
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onMove` | `(next: "left" \| "right") => void` | Receives the target side the user wants to flip to. |
+
+## Notes
+
+Mirrors the Retro launcher chat BrowserView (`D1Chat.html`). Colors come straight from the original:
+
+- Panel bg: `#D5CFAA`
+- Filters row bg: `#8C8368`
+- Log background (outside content): `#8C8368` with `#D5CFAA` 10/5 px border frame
+- Input row bg: `#D5CFAA`
+- Input field bg: `#FFFFFF`
+
+The widescreen panel flag itself is driven by AS2: `Kernel.as` sets `DisplayStyle = "widescreenpanels"` when `EnableWidescreenPanels` is true and Electron is enabled (`setWidescreenEnabled(true)`). The component does **not** own that decision — it's a pure layout primitive; the host shell (Electron / main window) decides when to mount it.

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "dofus1",
+  "homepage": "https://hetwandofus.github.io/dofus1-registry",
+  "items": [
+    {
+      "name": "action-popout-menu",
+      "type": "registry:ui",
+      "title": "ActionPopoutMenu",
+      "description": "A context menu triggered by right-click or programmatically, styled like the Dofus Zaap menu.",
+      "dependencies": ["@base-ui/react"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/action-popout-menu.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "A pill-shaped button styled like the Dofus 1.29 UI with pressed state.",
+      "dependencies": ["@radix-ui/react-slot"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "scrollbar",
+      "type": "registry:ui",
+      "title": "Scrollbar",
+      "description": "A Dofus 1.29-styled scrollbar with vertical and horizontal axis variants.",
+      "dependencies": ["class-variance-authority"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/scrollbar.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "main-banner",
+      "type": "registry:ui",
+      "title": "MainBanner",
+      "description": "The bottom HUD bar from Dofus 1.29 with chat, minimap circle, action buttons, and fight mode.",
+      "dependencies": ["class-variance-authority"],
+      "registryDependencies": ["@dofus1/scrollbar"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/main-banner.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/chat-header-buttons.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/achievement.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/button-bg.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/event.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/friends.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/guild.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/inventory.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/job.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/less.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/map.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/more.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/mount.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/percent-sign.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/pvp.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/quests.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/spells.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/stats.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/title.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/banner/turn-button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "icons-fight",
+      "type": "registry:ui",
+      "title": "Fight icons",
+      "description": "Fight-mode icon set: ready, pass-turn, tactical, forfeit, lock, timeline-pip, AP/MP/HP glyphs, spell-slot frame. Colors follow dofus/Constants.as.",
+      "files": [
+        {
+          "path": "registry/dofus1/ui/icons/fight/ready.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/pass-turn.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/tactical.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/forfeit.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/lock.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/timeline-pip.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/ap.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/mp.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/hp.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/fight/spell-slot-frame.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "resource-gauge",
+      "type": "registry:ui",
+      "title": "ResourceGauge",
+      "description": "Numeric HP/AP/MP gauge used in the fight HUD. Icon + value/max pair in the Dofus palette.",
+      "dependencies": ["class-variance-authority", "ts-pattern"],
+      "registryDependencies": ["@dofus1/icons-fight"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/resource-gauge.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "turn-timeline",
+      "type": "registry:ui",
+      "title": "TurnTimeline",
+      "description": "Horizontal turn timeline: pips per fighter, team-tinted, active/dead states. Port of Dofus 1.29 Timeline.as.",
+      "registryDependencies": ["@dofus1/icons-fight"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/turn-timeline.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "side-chat-panel",
+      "type": "registry:ui",
+      "title": "SideChatPanel",
+      "description": "Wide-screen side chat bar from Dofus Retro: filter checkboxes, search/clear/side-flip action buttons, chat log, info log, prefix menu trigger, and keyboard-driven input with history/autocomplete hooks.",
+      "registryDependencies": ["@dofus1/scrollbar"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/side-chat-panel.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/side-chat-panel.channels.ts",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/side-chat-panel/search.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/side-chat-panel/trash.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "registry/dofus1/ui/icons/side-chat-panel/arrow.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "spell-slot",
+      "type": "registry:ui",
+      "title": "SpellSlot",
+      "description": "A spell bar slot with icon, shortcut label, selected/disabled/cooldown overlays.",
+      "registryDependencies": ["@dofus1/icons-fight"],
+      "files": [
+        {
+          "path": "registry/dofus1/ui/spell-slot.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    }
+  ]
+}

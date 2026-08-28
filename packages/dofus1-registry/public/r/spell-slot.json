@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "spell-slot",
+  "title": "SpellSlot",
+  "description": "A spell bar slot with icon, shortcut label, selected/disabled/cooldown overlays.",
+  "registryDependencies": [
+    "@dofus1/icons-fight"
+  ],
+  "files": [
+    {
+      "path": "registry/dofus1/ui/spell-slot.tsx",
+      "content": "\"use client\";\n\nimport type { ReactNode } from \"react\";\n\nimport { cn } from \"@/lib/utils\";\n\nimport { SpellSlotFrame } from \"./icons/fight/spell-slot-frame\";\n\ntype SpellSlotState = \"ready\" | \"disabled\" | \"selected\" | \"cooldown\";\n\ninterface SpellSlotProps {\n  state?: SpellSlotState;\n  cooldown?: number;\n  shortcut?: string;\n  onClick?: () => void;\n  title?: string;\n  className?: string;\n  children?: ReactNode;\n}\n\nfunction SpellSlot({\n  state = \"ready\",\n  cooldown,\n  shortcut,\n  onClick,\n  title,\n  className,\n  children,\n}: SpellSlotProps) {\n  const effectiveState: SpellSlotState =\n    cooldown && cooldown > 0 ? \"cooldown\" : state;\n  const disabled =\n    effectiveState === \"disabled\" || effectiveState === \"cooldown\";\n  return (\n    <button\n      type=\"button\"\n      onClick={disabled ? undefined : onClick}\n      title={title}\n      aria-disabled={disabled || undefined}\n      className={cn(\n        \"relative inline-flex items-center justify-center outline-none\",\n        \"h-[calc(40px*var(--resolution-factor))]\",\n        \"w-[calc(40px*var(--resolution-factor))]\",\n        !disabled && \"cursor-pointer hover:brightness-110\",\n        disabled && \"cursor-not-allowed\",\n        className,\n      )}\n    >\n      <SpellSlotFrame state={effectiveState} className=\"absolute inset-0\" />\n      <span\n        className={cn(\n          \"relative z-10 flex h-full w-full items-center justify-center\",\n          effectiveState === \"disabled\" && \"opacity-40 grayscale\",\n        )}\n      >\n        {children}\n      </span>\n      {shortcut && (\n        <span className=\"pointer-events-none absolute bottom-[calc(1px*var(--resolution-factor))] left-[calc(2px*var(--resolution-factor))] z-20 font-[Verdana,sans-serif] text-[calc(7px*var(--resolution-factor))] leading-none font-bold text-white [text-shadow:0_0_2px_black]\">\n          {shortcut}\n        </span>\n      )}\n      {effectiveState === \"cooldown\" && cooldown !== undefined && (\n        <span className=\"pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[calc(3px*var(--resolution-factor))] bg-black/60 font-[Verdana,sans-serif] text-[calc(14px*var(--resolution-factor))] font-bold text-white tabular-nums\">\n          {cooldown}\n        </span>\n      )}\n    </button>\n  );\n}\n\nexport { SpellSlot };\nexport type { SpellSlotProps, SpellSlotState };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

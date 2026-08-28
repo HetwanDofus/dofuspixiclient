@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "resource-gauge",
+  "title": "ResourceGauge",
+  "description": "Numeric HP/AP/MP gauge used in the fight HUD. Icon + value/max pair in the Dofus palette.",
+  "dependencies": [
+    "class-variance-authority",
+    "ts-pattern"
+  ],
+  "registryDependencies": [
+    "@dofus1/icons-fight"
+  ],
+  "files": [
+    {
+      "path": "registry/dofus1/ui/resource-gauge.tsx",
+      "content": "\"use client\";\n\nimport type { ReactNode } from \"react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\nimport { match } from \"ts-pattern\";\n\nimport { cn } from \"@/lib/utils\";\n\nimport { AP } from \"./icons/fight/ap\";\nimport { HP } from \"./icons/fight/hp\";\nimport { MP } from \"./icons/fight/mp\";\n\nconst gaugeVariants = cva(\n  [\n    \"inline-flex items-center gap-[calc(3px*var(--resolution-factor))]\",\n    \"h-[calc(18px*var(--resolution-factor))]\",\n    \"px-[calc(4px*var(--resolution-factor))]\",\n    \"rounded-[calc(3px*var(--resolution-factor))]\",\n    \"border-[calc(1px*var(--resolution-factor))]\",\n    \"bg-[#1a1610] text-white font-[Verdana,sans-serif] font-bold\",\n    \"text-[calc(9px*var(--resolution-factor))]\",\n  ],\n  {\n    variants: {\n      variant: {\n        hp: \"border-[var(--dofus-hp-red)] text-[var(--dofus-hp-red)]\",\n        ap: \"border-[var(--dofus-ap-blue)] text-[var(--dofus-ap-blue)]\",\n        mp: \"border-[var(--dofus-mp-green)] text-[var(--dofus-mp-green)]\",\n      },\n    },\n    defaultVariants: { variant: \"hp\" },\n  },\n);\n\ninterface ResourceGaugeProps extends VariantProps<typeof gaugeVariants> {\n  value: number;\n  max?: number;\n  className?: string;\n  icon?: ReactNode;\n}\n\nconst iconFor = (v: ResourceGaugeProps[\"variant\"]) =>\n  match(v)\n    .with(\"ap\", () => <AP />)\n    .with(\"mp\", () => <MP />)\n    .with(\"hp\", () => <HP />)\n    .otherwise(() => null);\n\nfunction ResourceGauge({\n  variant,\n  value,\n  max,\n  className,\n  icon,\n}: ResourceGaugeProps) {\n  return (\n    <div className={cn(gaugeVariants({ variant }), className)}>\n      <span className=\"inline-flex h-[calc(14px*var(--resolution-factor))] w-[calc(14px*var(--resolution-factor))] items-center justify-center\">\n        {icon ?? iconFor(variant)}\n      </span>\n      <span className=\"tabular-nums\">\n        {value}\n        {max !== undefined && (\n          <>\n            <span className=\"text-[#8a8060]\">/</span>\n            {max}\n          </>\n        )}\n      </span>\n    </div>\n  );\n}\n\nexport { ResourceGauge, gaugeVariants };\nexport type { ResourceGaugeProps };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}
