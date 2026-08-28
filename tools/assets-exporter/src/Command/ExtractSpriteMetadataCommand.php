@@ -204,18 +204,15 @@ class ExtractSpriteMetadataCommand extends Command
 
         $allFrameData = [];
 
-        // Process only the first outer frame that has a valid wrapper.
-        // The inner sprite contains the actual animation frames.
+        // Process only the first outer frame that carries the pose.
+        // Usually the animation places a single wrapper whose own timeline
+        // holds the frames; a minority place the body parts flat (see
+        // resolveBodyPartFrames).
         foreach ($frames as $frameIdx => $frame) {
             $objects = $this->getObjects($frame);
             if (empty($objects)) continue;
 
-            $wrapperObj = reset($objects);
-            $innerSprite = $this->getChildObject($wrapperObj);
-            if (!($innerSprite instanceof SpriteDefinition)) continue;
-
-            $innerTimeline = $innerSprite->timeline();
-            $innerFrames = $this->getFrames($innerTimeline);
+            $innerFrames = $this->resolveBodyPartFrames($frame, $objects);
             if (empty($innerFrames)) continue;
 
             foreach ($innerFrames as $innerFrameIdx => $innerFrame) {
@@ -282,6 +279,53 @@ class ExtractSpriteMetadataCommand extends Command
             break; // Only process the first valid outer frame
         }
         return empty($allFrameData) ? null : $allFrameData;
+    }
+
+    /**
+     * The frames whose placed objects are this animation's body parts.
+     *
+     * Nearly every sprite exports an animation clip that places a single
+     * child — a wrapper whose own timeline carries the pose frames — so
+     * descending into it is the usual reading.
+     *
+     * A minority place their body parts **flat** on the animation clip
+     * itself. `9073/staticR` (the auction-house vendor, shared by 55
+     * placements) places fourteen, at depths 1, 11, 13, 14, 17, 19, 22, 29,
+     * 30, 34, 35, 37, 56 and 57, with no wrapper at all. Descending there
+     * mistakes body part #1 for the wrapper and publishes *its* single child
+     * as the whole part list, dropping the other thirteen — the sprite then
+     * compiles down to a 5 px fragment. See QA-100.
+     *
+     * Object count alone does not separate the two: `1072/bonusR` places a
+     * wrapper *and* a second clip, and its real 7 parts live one level down.
+     * So both readings are built and the richer one wins — a wrapper always
+     * yields more parts than the handful of objects sitting beside it, and a
+     * flat pose always yields more than the one child of its first part.
+     *
+     * @return array frames to read body parts from — empty when the
+     *               animation holds nothing usable
+     */
+    private function resolveBodyPartFrames($frame, array $objects): array
+    {
+        $wrapped = [];
+
+        foreach ($objects as $candidate) {
+            $inner = $this->getChildObject($candidate);
+            if (!($inner instanceof SpriteDefinition)) continue;
+
+            $wrapped = $this->getFrames($inner->timeline());
+            break;
+        }
+
+        // No sprite child at all: `_liaison_` and friends. Nothing to read —
+        // skipping keeps them out of the metadata, as before.
+        if (empty($wrapped)) {
+            return count($objects) > 1 ? [$frame] : [];
+        }
+
+        $wrappedParts = count($this->getObjects(reset($wrapped)));
+
+        return $wrappedParts >= count($objects) ? $wrapped : [$frame];
     }
 
     /**

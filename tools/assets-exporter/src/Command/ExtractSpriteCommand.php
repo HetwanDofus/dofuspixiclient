@@ -402,16 +402,36 @@ class ExtractSpriteCommand extends Command
                 $spriteToUse = $character;
                 $animationName = (string) $name;
 
-                // Check if this is a wrapper with a single frame containing a child sprite
+                // Check if this is a wrapper with a single frame containing a
+                // child sprite.
+                //
+                // A minority of animations place their body parts flat on the
+                // exported clip instead of wrapping them — `9073/staticR`
+                // (the auction-house vendor, 55 placements) places fourteen.
+                // Descending into the first sprite child there renders body
+                // part #1 alone and throws away the other thirteen, so the
+                // frame comes out a few pixels wide. Take the richer reading:
+                // a real wrapper holds at least as many objects as sit beside
+                // it. Mirrors resolveBodyPartFrames() in
+                // ExtractSpriteMetadataCommand. See QA-100.
                 $wrapperFrameObject = null;
                 if (count($timeline->frames) === 1) {
                     $firstFrame = $timeline->frames[0];
+                    $placedCount = count($firstFrame->objects);
                     foreach ($firstFrame->objects as $obj) {
-                        if ($obj->object instanceof SpriteDefinition) {
-                            $spriteToUse = $obj->object;
-                            $wrapperFrameObject = $obj;
+                        if (!($obj->object instanceof SpriteDefinition)) {
+                            continue;
+                        }
+                        $innerFrames = $obj->object->timeline()->frames;
+                        if (empty($innerFrames)) {
                             break;
                         }
+                        if (count($innerFrames[0]->objects) < $placedCount) {
+                            break;
+                        }
+                        $spriteToUse = $obj->object;
+                        $wrapperFrameObject = $obj;
+                        break;
                     }
                 }
 

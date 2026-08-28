@@ -91,16 +91,16 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**92 entrées**, dont **88 encore ouvertes**.
+**100 entrées**, dont **96 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 35 | 35 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 33 | 33 |
-| P3 — finition, confort, cosmétique | 16 | 17 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 41 | 41 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 34 | 34 |
+| P3 — finition, confort, cosmétique | 17 | 18 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
 ## Par statut
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 34 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 24 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 32 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -122,17 +122,17 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`auth/`](auth/) | 2 | 2 |
 | [`camera-zoom/`](camera-zoom/) | 3 | 3 |
 | [`chat/`](chat/) | 5 | 5 |
-| [`fight/`](fight/) | 13 | 13 |
+| [`fight/`](fight/) | 14 | 14 |
 | [`hud-banner/`](hud-banner/) | 9 | 9 |
-| [`hud-panels/`](hud-panels/) | 13 | 14 |
+| [`hud-panels/`](hud-panels/) | 14 | 15 |
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
 | [`network/`](network/) | 5 | 5 |
 | [`progression/`](progression/) | 4 | 4 |
 | [`server-runtime/`](server-runtime/) | 4 | 4 |
 | [`session/`](session/) | 3 | 3 |
-| [`world-content/`](world-content/) | 5 | 5 |
-| [`world-render/`](world-render/) | 7 | 7 |
+| [`world-content/`](world-content/) | 8 | 8 |
+| [`world-render/`](world-render/) | 10 | 10 |
 | [`worldmap/`](worldmap/) | 7 | 8 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -183,6 +183,12 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-088](world-render/QA-088-largeur-de-carte-perimee-apres-changement.md) | P1 | world-render | bug | fixed | Les acteurs ignorent le recentrage de la carte — décalés hors du décor sur toute carte non 15x17 |
 | [QA-089](input/QA-089-identifiants-de-picking-recycles-apres-changement-de-carte.md) | P1 | input | bug | fixed | Après un changement de carte, cliquer un élément ouvre le menu d'un acteur de la carte précédente |
 | [QA-090](inventory/QA-090-equipement-visible-non-diffuse.md) | P1 | inventory | gap | fixed | Un changement d'équipement visible n'atteint aucun client avant le prochain changement de carte |
+| [QA-093](world-content/QA-093-pnj-importes-jamais-envoyes-au-client.md) | P1 | world-content | gap | fixed | Les PNJ sont en base mais aucun ne parvient au client |
+| [QA-095](fight/QA-095-combattants-sans-case-quand-le-bloc-de-placement-est-trop-petit.md) | P1 | fight | bug | fixed | Des combattants restent sans case quand le bloc de placement est plus petit que le groupe |
+| [QA-096](world-content/QA-096-couleurs-des-monstres-importees-en-decimal.md) | P1 | world-content | data | fixed | Les couleurs des monstres sont lues en décimal alors que le dump les écrit en hexadécimal |
+| [QA-097](world-content/QA-097-graphe-de-dialogue-pnj-jamais-importe.md) | P1 | world-content | gap | fixed | Le graphe de dialogue des PNJ est dans le dump mais rien ne l'importe |
+| [QA-098](hud-panels/QA-098-fenetre-de-dialogue-pnj.md) | P1 | hud-panels | feature | fixed | Parler à un PNJ n'ouvre aucune fenêtre de dialogue |
+| [QA-100](world-render/QA-100-vendeurs-hdv-reduits-a-un-fragment.md) | P1 | world-render | bug | fixed | Les vendeurs d'hôtel de vente sont invisibles — leur sprite ne contient qu'une pièce sur quatorze |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -221,6 +227,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-087](server-runtime/QA-087-cellules-movement-1-traversables.md) | P2 | server-runtime | bug | open | Les cellules `movement = 1` sont traversables au lieu d'être des cases d'arrivée |
 | [QA-091](progression/QA-091-vie-regeneree-jamais-poussee-au-client.md) | P2 | progression | gap | fixed | La vie régénérée ne remonte au client qu'à la prochaine lecture de stats |
 | [QA-092](input/QA-092-clic-pendant-un-deplacement-ignore.md) | P2 | input | gap | fixed | Un clic pendant un déplacement est ignoré au lieu d'interrompre la marche |
+| [QA-094](world-render/QA-094-membres-d-un-groupe-empiles-sur-une-case.md) | P2 | world-render | bug | fixed | Les membres d'un groupe de monstres sont empilés sur une seule case |
 
 ## P3 — finition, confort, cosmétique
 
@@ -243,6 +250,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-053](hud-banner/QA-053-libelles-accessibilite-casses.md) | P3 | hud-banner | bug | open | Libellés d'accessibilité cassés sur les boutons de menu |
 | [QA-073](fight/QA-073-duree-de-glyphe-comptee-par-tour.md) | P3 | fight | bug | in-progress | La durée d'un glyphe est décomptée par tour et non par round |
 | [QA-075](fight/QA-075-sort-declencheur-charge-au-niveau-1.md) | P3 | fight | bug | in-progress | Le sort déclencheur d'un glyphe ou d'un piège est toujours chargé au niveau 1 |
+| [QA-099](world-render/QA-099-pnj-mobiles-immobiles.md) | P3 | world-render | gap | fixed | Les PNJ marqués mobiles ne déambulent pas — leur chemin n'est jamais rejoué |
 
 ## Sans gravité — vérifications sans défaut
 
