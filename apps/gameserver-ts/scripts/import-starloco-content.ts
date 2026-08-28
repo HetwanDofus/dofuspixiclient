@@ -116,6 +116,72 @@ function num(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Ids of a `;`/`,`-separated list, in order, skipping anything non-numeric. */
+function idList(v: unknown): number[] {
+  const out: number[] = [];
+  for (const part of String(v ?? "").split(/[;,]/)) {
+    const n = Number.parseInt(part.trim(), 10);
+    if (Number.isFinite(n)) {
+      out.push(n);
+    }
+  }
+  return out;
+}
+
+/**
+ * Non-empty entries of a `;`/`,`-separated list, kept as text. Dialog question
+ * parameters are `#N` substitution values and are not all numeric — 16
+ * questions use them and some hold placeholders like `[name]`.
+ */
+function textList(v: unknown): string[] {
+  return String(v ?? "")
+    .split(/[;,]/)
+    .map((p) => p.trim())
+    .filter((p) => p !== "");
+}
+
+/**
+ * First id of a `;`/`,`-separated list, 0 when there is none. StarLoco stores
+ * several id lists as free text where a single id is the common case.
+ */
+function firstId(v: unknown): number {
+  for (const part of String(v ?? "").split(/[;,]/)) {
+    const n = Number.parseInt(part.trim(), 10);
+    if (Number.isFinite(n) && n > 0) {
+      return n;
+    }
+  }
+  return 0;
+}
+
+/**
+ * `monsters.colors` is a `c1,c2,c3` triple of **hexadecimal** RGB strings —
+ * the same encoding the canonical GM packet ships and that the 1.29 client
+ * reads back with `Number("0x" + value)`
+ * (`assets/sources/client-code/dofus/managers/CharactersManager.as:281-283`).
+ * `-1` means "leave that colour zone with the artwork's own palette".
+ *
+ * Reading it with `num()` was the bug behind QA-096: `Number("f9f9a5")` is
+ * `NaN` and fell back to -1, while a triple that happens to be all digits
+ * (`448051`) was kept as decimal instead of `0x448051`. 61 of the 1 388
+ * monsters carry a real colour and all 61 were destroyed — which is why five
+ * of the six pious rendered in the base blue even though the roster panel
+ * named them correctly. Their six sprites are the same drawing: the
+ * `.dofasset` files 1212 and 9202..9206 differ only in the id byte of their
+ * header, so the colour triple *is* the variant.
+ *
+ * NPCs are unaffected and must keep `num()`: `npc_template.color1/2/3` really
+ * are decimal integers in the same dump.
+ */
+function hexColor(v: unknown): number {
+  const raw = String(v ?? "").trim();
+  if (raw === "" || raw === "-1") {
+    return -1;
+  }
+  const n = Number.parseInt(raw, 16);
+  return Number.isFinite(n) ? n : -1;
+}
+
 /** Splits `'a|b|c'` into its non-empty parts. */
 function pipes(raw: string): string[] {
   return raw.split("|").filter((p) => p.length > 0);
@@ -363,7 +429,7 @@ for (const values of insertRows(dump, "monsters")) {
   }
 
   const lang = langMonsters[String(id)];
-  const [color1, color2, color3] = row.colors.split(",").map((v) => num(v, -1));
+  const [color1, color2, color3] = row.colors.split(",").map(hexColor);
   const aiProfileId = num(row.AI_Type);
 
   aiProfileIds.add(aiProfileId);
@@ -727,6 +793,19 @@ const NPC_TEMPLATE_COLUMNS = [
   "informations",
 ] as const;
 
+/** Column order of StarLoco's `npc_questions` table. */
+const NPC_QUESTION_COLUMNS = [
+  "ID",
+  "responses",
+  "params",
+  "cond",
+  "ifFalse",
+  "description",
+] as const;
+
+/** Column order of StarLoco's `npc_reponses_actions` table. */
+const NPC_RESPONSE_ACTION_COLUMNS = ["ID", "type", "args", "nom"] as const;
+
 /** Column order of StarLoco's `npcs` (placement) table. */
 const NPC_PLACEMENT_COLUMNS = [
   "mapid",
@@ -751,6 +830,11 @@ for (const values of insertRows(dump, "npc_template")) {
     id,
     name: (langNpcNames[String(id)]?.n ?? "").slice(0, 64),
     gfx: num(row.gfxID),
+    // Percentages, 100 = life size. The dump leaves them empty for most
+    // NPCs; `num`'s fallback is what makes that mean "life size" rather
+    // than a zero-sized sprite. Column added by migration 0051.
+    scaleX: num(row.scaleX, 100) || 100,
+    scaleY: num(row.scaleY, 100) || 100,
     sex: num(row.sex),
     color1: num(row.color1, -1),
     color2: num(row.color2, -1),
@@ -758,9 +842,14 @@ for (const values of insertRows(dump, "npc_template")) {
     accessories: row.accessories,
     extraClip: num(row.extraClip, -1),
     customArtwork: num(row.customArtWork),
-    // `initQuestion` is a text column holding a single id, `-1` when the NPC
-    // has no dialog at all.
-    initialQuestion: Math.max(0, num(row.initQuestion)),
+    // `initQuestion` is a text column: a single id, `-1` when the NPC has no
+    // dialog at all, and for 17 templates a `;`/`,` list of candidate roots
+    // (the dump's own conditional entry points). `num()` renders `NaN` on
+    // those, so take the first id instead — the canonical fallback, and the
+    // one branch that is always reachable.
+    initialQuestion: firstId(row.initQuestion),
+    // Patrol route, replayed only for placements flagged movable.
+    path: String(row.path ?? ""),
     // The dump lists an NPC's stock inline in `ventes`; there is no store id
     // to point at. See the header.
     saleStoreId: 0,
@@ -807,6 +896,7 @@ for (const values of insertRows(dump, "npcs")) {
     cellId: num(row.cellid),
     templateId,
     direction: num(row.orientation, 3),
+    isMovable: num(row.isMovable) === 1,
   });
 }
 
@@ -827,6 +917,73 @@ for (let i = 0; i < placements.length; i += BATCH) {
 console.log(
   `inserted ${placements.length} NPC placements ` +
     `(${placementsOffWorld} skipped: map not imported)`
+);
+
+// ── NPC dialog graph ────────────────────────────────────────────────────────
+
+// Questions and the actions their answers fire. The displayed text is not in
+// here — it is in the `dialog` lang bundle, keyed by these same ids
+// (`D.q[questionId]`, `D.a[responseId]`), which is why `description` and `nom`
+// are read and dropped: they are the dump's authoring notes, not what 1.29
+// shows. See `dofus/datacenter/Question.as:24-40`.
+
+const dialogQuestions: Record<string, unknown>[] = [];
+
+for (const values of insertRows(dump, "npc_questions")) {
+  const row = toRecord(NPC_QUESTION_COLUMNS, values);
+  const id = num(row.ID, -1);
+  if (id <= 0) {
+    continue;
+  }
+
+  dialogQuestions.push({
+    id,
+    // The dump separates answer ids with `;` in every row that has more than
+    // one, but a handful use `,`; splitting on both costs nothing and the
+    // order is display order.
+    responseIds: JSON.stringify(idList(row.responses)),
+    parameters: JSON.stringify(textList(row.params)),
+    cond: String(row.cond ?? ""),
+    ifFalse: num(row.ifFalse),
+  });
+}
+
+await upsert("npcDialogQuestions", ["id"], dialogQuestions);
+
+const dialogActions: Record<string, unknown>[] = [];
+const seenActions = new Set<string>();
+
+for (const values of insertRows(dump, "npc_reponses_actions")) {
+  const row = toRecord(NPC_RESPONSE_ACTION_COLUMNS, values);
+  const responseId = num(row.ID, -1);
+  if (responseId <= 0) {
+    continue;
+  }
+
+  const type = num(row.type, -1);
+  // `(ID, type)` is the dump's own primary key, so a repeat would be a
+  // corrupt dump rather than data — but the batched insert would fail the
+  // whole run on it, so drop the duplicate and keep the first.
+  const key = `${responseId}:${type}`;
+  if (seenActions.has(key)) {
+    continue;
+  }
+  seenActions.add(key);
+
+  dialogActions.push({ responseId, type, args: String(row.args ?? "") });
+}
+
+await upsert("npcDialogResponseActions", ["responseId", "type"], dialogActions);
+
+const branching = dialogActions.filter(
+  (a) => a.type === 1 && String(a.args).trim() !== "DV"
+).length;
+
+console.log(
+  `upserted ${dialogQuestions.length} dialog questions and ` +
+    `${dialogActions.length} answer actions ` +
+    `(${branching} branch to another question, the rest end the dialog ` +
+    `or fire an effect)`
 );
 
 // ── Report ──────────────────────────────────────────────────────────────────

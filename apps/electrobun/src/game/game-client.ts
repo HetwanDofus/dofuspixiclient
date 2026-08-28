@@ -23,6 +23,7 @@ import { ChatHandler } from "@/game/network/handlers/chat.handler";
 import { FightHandler } from "@/game/network/handlers/fight.handler";
 import { InventoryHandler } from "@/game/network/handlers/inventory.handler";
 import { MapHandler } from "@/game/network/handlers/map.handler";
+import { NpcDialogHandler } from "@/game/network/handlers/npc-dialog.handler";
 import { SpellHandler } from "@/game/network/handlers/spell.handler";
 import {
   createMessageHandler,
@@ -36,6 +37,9 @@ import {
   AccountSendIdentitySchema,
   AccountSendTicketSchema,
   AccountUseBoostSchema,
+  DialogCreateRequestSchema,
+  DialogLeaveRequestSchema,
+  DialogResponseRequestSchema,
   encodeClient,
   GameActionRequestSchema,
   GameCreateRequestSchema,
@@ -53,7 +57,7 @@ import {
 import { numericId } from "@/game/network/sprite-id";
 import { HighlightType } from "@/game/scene/overlays/cell-highlighter";
 import { PlayerAnimation } from "@/game/scene/player/animation";
-import { characterStore } from "@/game/stores";
+import { characterStore, closeNpcDialog } from "@/game/stores";
 import {
   type LostCause,
   markConnected,
@@ -169,6 +173,8 @@ export class GameClient {
     // Registers itself against `messageHandler` and writes straight into
     // `inventoryStore` — nothing here needs to hold a reference to it.
     new InventoryHandler(this.messageHandler);
+    // Likewise: it only ever writes to `npcDialogStore`.
+    new NpcDialogHandler(this.messageHandler);
     this.fightHandler = new FightHandler(
       this.messageHandler,
       this.connection,
@@ -299,6 +305,13 @@ export class GameClient {
     battlefield.setOnInteractiveUse((cellId, skillId) =>
       this.useInteractive(cellId, skillId)
     );
+    battlefield.setOnNpcTalk((npcSpriteId) => {
+      // Canonical `GameManager.startDialog` cuts an in-flight walk before
+      // sending DC — otherwise the move ack lands mid-conversation and the
+      // arrival handler runs a cell trigger under an open dialog.
+      this.mapHandler.interruptSelfMove();
+      this.startNpcDialog(npcSpriteId);
+    });
     // Sole driver of the MP-reachable-range tint: roll-over our own
     // avatar shows the green pattern, roll-out clears it. Replicates
     // canonical Sprite._rollOver / _rollOut from the 1.29 client.
@@ -1289,6 +1302,52 @@ export class GameClient {
         "itemDestroy",
         create(ItemDestroyRequestSchema, { itemUnicId: unicId, quantity })
       )
+    );
+  }
+
+  /**
+   * DC — opens a conversation with an NPC, the "Parler" entry of its action
+   * bubble (canonical `GameManager.startDialog` → `Dialog.create`).
+   *
+   * The id is the sprite's, not the template's: the server resolves the
+   * template from it and, in doing so, checks the NPC is on our map.
+   */
+  startNpcDialog(npcSpriteId: number): void {
+    this.connection.send(
+      encodeClient(
+        "dialogCreate",
+        create(DialogCreateRequestSchema, {
+          npcSpriteId: BigInt(npcSpriteId),
+        })
+      )
+    );
+  }
+
+  /**
+   * DR — answers the question currently on screen. The question id travels so
+   * the server can reject an answer that has drifted out of step with it.
+   */
+  answerNpcDialog(questionId: number, responseId: number): void {
+    this.connection.send(
+      encodeClient(
+        "dialogResponse",
+        create(DialogResponseRequestSchema, { questionId, responseId })
+      )
+    );
+  }
+
+  /**
+   * DV — leaves the conversation.
+   *
+   * The window closes here rather than on the server's echo. Canonical waits
+   * for it, but a DV the server has nothing to answer — it had already dropped
+   * the dialog on its side — would leave a window the player cannot dismiss.
+   * Closing locally cannot desync: DV is idempotent on both ends.
+   */
+  leaveNpcDialog(): void {
+    closeNpcDialog();
+    this.connection.send(
+      encodeClient("dialogLeave", create(DialogLeaveRequestSchema, {}))
     );
   }
 

@@ -178,12 +178,18 @@ export function formatEffect(effect: EffectValues): FormattedEffect | null {
 }
 
 /**
- * Ankama's `ank.utils.PatternDecoder`, exported for its spec. See
- * `formatEffect` above for what the pattern language means.
+ * Ankama's `ank.utils.PatternDecoder`. See `formatEffect` above for what the
+ * pattern language means.
+ *
+ * `values` takes strings as well as numbers because the same decoder runs on
+ * NPC dialogue (`Question.initialize` → `PatternDecoder.getDescription`),
+ * whose `#N` parameters arrive as text. Nothing here does arithmetic on a
+ * value — every branch either tests it for presence or stringifies it — so
+ * widening the type is all it takes.
  */
 export function decodeEffectPattern(
   pattern: string,
-  values: (number | null)[]
+  values: (string | number | null)[]
 ): string {
   const withGroups = pattern.replace(
     /\{~(\d)(?:~(\d))?([^}]*)\}/g,

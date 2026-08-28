@@ -16,6 +16,7 @@ import { GameContextMenu } from "./GameContextMenu";
 import { GuildPanel } from "./guild/GuildPanel";
 import { InventoryWindow } from "./inventory/InventoryWindow";
 import { MountPanel } from "./mount/MountPanel";
+import { NpcDialog } from "./npc/NpcDialog";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
@@ -156,6 +157,22 @@ export function HudOverlay({
             and camera pans without DOM-side rAF. */}
         <PlayerNameplate />
         <ChatBubble />
+
+        {/* Top left of the play area, where 1.29 anchors it — the bubble is
+            deliberately out of the way of the cell the player is standing on.
+            Server-driven: it opens on DC and closes on DV, so it sits outside
+            the `activePanel` rotation the keyboard panels share — talking to
+            an NPC must not close the inventory, and vice versa. */}
+        <div
+          style={{
+            position: "absolute",
+            left: 8,
+            top: 8,
+            pointerEvents: "none",
+          }}
+        >
+          <NpcDialog gameClient={gameClient} zoom={baseZoom} />
+        </div>
 
         <BannerReact
           {...(gameClient

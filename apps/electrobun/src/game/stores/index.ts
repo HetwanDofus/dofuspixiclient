@@ -11,6 +11,7 @@ export type { ContextMenuOption, ContextMenuState } from "./context-menu-store";
 export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
 export type { InventoryState, InventoryWeight } from "./inventory-store";
+export type { NpcDialogAnswer, NpcDialogState } from "./npc-dialog-store";
 export type {
   HotbarTab,
   ResolvedShortcut,
@@ -60,6 +61,13 @@ export {
   getTemplate,
   inventoryStore,
 } from "./inventory-store";
+export {
+  closeNpcDialog,
+  markNpcDialogAnswered,
+  npcDialogStore,
+  openNpcDialog,
+  setNpcDialogQuestion,
+} from "./npc-dialog-store";
 export {
   HOTBAR_PAGES,
   HOTBAR_SLOTS_PER_PAGE,

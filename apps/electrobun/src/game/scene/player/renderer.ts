@@ -158,6 +158,19 @@ export class PlayerRenderer {
    * the first TURN_START or outside of combat.
    */
   private activeTurnPlayerId: number | null = null;
+  /**
+   * Id allocator for linked child sprites (monster-group members, pets).
+   *
+   * Child ids used to be derived arithmetically from the parent's
+   * (`parentId * 1000 + childIndex`), which collides: monster-group sprite
+   * ids count down from -1 and are never reset, and the server's monster
+   * *fighter* ids count down from -1_000_000, so the thousandth group of a
+   * session produced children landing squarely in the fighter range —
+   * `addPlayer` silently folds a duplicate id into the existing sprite. A
+   * private counter below every id the server can mint removes the whole
+   * class of problem.
+   */
+  private nextLinkedChildId = -1_000_000_000;
   private unsubPreTick: () => void;
   private unsubPostTick: () => void;
   /**
@@ -925,6 +938,14 @@ export class PlayerRenderer {
     container.y = pos.y + oy;
     container.zIndex = this.calculateZIndex(data.cellId) + Math.round(oy);
 
+    // Per-actor scale (NPCs drawn larger or smaller than their artwork).
+    // On the container, never on `player.sprite`: the sprite's `scale.x`
+    // is the ±1 direction flip and gets rewritten on every turn
+    // (`sprite-controller.updateFlip`), which would wipe this out.
+    if (data.scale !== undefined && data.scale > 0 && data.scale !== 1) {
+      container.scale.set(data.scale);
+    }
+
     this.container.addChild(container);
 
     return {
@@ -1074,6 +1095,17 @@ export class PlayerRenderer {
     return actor;
   }
 
+  /**
+   * Ids of the linked child sprites currently attached to `parentId`.
+   *
+   * The ids are allocated internally, so callers that need to reach the
+   * children — the picking layer registering every member of a monster
+   * group as one hoverable unit — have to ask rather than recompute.
+   */
+  getLinkedChildIds(parentId: number): number[] {
+    return [...(this.players.get(parentId)?.linkedChildren ?? [])];
+  }
+
   /** Load parent + each linked child, then wait on all of them. */
   private async loadWithLinkedChildren(
     data: PlayerSpriteData,
@@ -1083,12 +1115,20 @@ export class PlayerRenderer {
     const childPromises: Promise<void>[] = [];
 
     for (const child of children) {
-      const childId = data.id * 1000 + child.childIndex;
+      const childId = this.nextLinkedChildId--;
       const childCellId = this.movement.aroundCell(
         data.cellId,
         data.direction,
         child.childIndex
       );
+      // Children carry their own colours: a monster group's members are
+      // often the same artwork under different palettes (the six pious are
+      // one drawing), so dropping the colour triple made every member look
+      // like the leader.
+      const childLook =
+        child.color1 === undefined
+          ? `${child.gfxId}`
+          : `${child.gfxId}|${child.color1}|${child.color2 ?? -1}|${child.color3 ?? -1}`;
 
       childPromises.push(
         this.addPlayer({
@@ -1097,10 +1137,14 @@ export class PlayerRenderer {
           team: data.team,
           cellId: childCellId,
           direction: data.direction,
-          look: `${child.gfxId}`,
+          look: childLook,
           hp: 100,
           maxHp: 100,
           isPlayer: false,
+          isCharacter: false,
+          // No nameplate, no HP bar: hover and click belong to the parent.
+          decorative: true,
+          ...(data.scale !== undefined ? { scale: data.scale } : {}),
         })
       );
 

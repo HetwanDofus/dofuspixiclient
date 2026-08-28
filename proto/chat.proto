@@ -228,17 +228,42 @@ message DialogCustomAction {
 // DC - Dialog create (NPC dialog open).
 // Producer: pkg/npc/interfaces/register.go:102 — emits the NPC template id
 // as the sole body ("DC<npcId>").
+//
+// Canonical `Dialog.onCreate` reads the portrait off the map sprite it
+// already holds, but `custom_artwork` never travels in SpriteMovementEntry,
+// so the fields the NpcDialog window needs ride along here instead. See
+// `dofus/graphics/gapi/ui/NpcDialog.as:63-78`: the artwork is
+// `ARTWORKS_BIG_PATH + (custom_artwork > 0 ? custom_artwork : gfx_id)`,
+// tinted with the same three colour zones as the in-world sprite.
 message DialogCreate {
   bool  success = 1;
   int64 npc_id = 2;
+  int32 gfx_id = 3;
+  int32 custom_artwork = 4;
+  int32 color1 = 5;
+  int32 color2 = 6;
+  int32 color3 = 7;
+  string name = 8;
 }
 
 // DQ - Dialog question.
 // StarLoco SocketManager.java:1074,1089 — "DQ<questionId>;<params>".
 // Producer: pkg/npc/interfaces/register.go:112 encodeQuestion builds this.
+//
+// The full canonical body is "DQ<questionId>;<params>|<r1;r2;...>" —
+// `Dialog.onQuestion` splits on "|" and feeds the second half to
+// `Question` as the answer list, so `response_ids` is not an extension
+// but the half this message was missing.
+//
+// `unavailable_response_ids` is: those answers are listed but greyed.
+// 1.29 keeps an action it cannot offer visible rather than hiding it,
+// and an answer whose reply action is not pure navigation would skip a
+// side effect (give an item, start a quest) if we let it through.
 message DialogQuestion {
   int32           question_id = 1;
   repeated string params = 2;
+  repeated int32  response_ids = 3;
+  repeated int32  unavailable_response_ids = 4;
 }
 
 // DV - Dialog leave
@@ -372,3 +397,21 @@ message DialogCustomActionRequest {
 
 // Client sends DV
 message DialogLeaveRequest {}
+
+// Client sends DC<spriteId> — canonical `Dialog.create`
+// (`dofus/aks/Dialog.as:13-16`), fired by the "Parler" entry of the NPC
+// action bubble. The id is the *sprite* id on the map, not the template
+// id: the server resolves the template from it, which is what keeps a
+// client from opening a dialog with an NPC on another map.
+message DialogCreateRequest {
+  int64 npc_sprite_id = 1;
+}
+
+// Client sends DR<questionId>|<responseId> — canonical `Dialog.response`
+// (`dofus/aks/Dialog.as:21-24`). The question id travels so the server can
+// reject an answer that does not belong to the question the player is
+// actually on.
+message DialogResponseRequest {
+  int32 question_id = 1;
+  int32 response_id = 2;
+}

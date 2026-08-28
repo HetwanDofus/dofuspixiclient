@@ -132,6 +132,8 @@ message ClientMessage {
     BasicsReportInfosRequest       basics_report_infos             = 515; // Br
     DialogCustomActionRequest      dialog_custom_action            = 516; // DA
     DialogLeaveRequest             dialog_leave                    = 517; // DV
+    DialogCreateRequest            dialog_create                   = 518; // DC
+    DialogResponseRequest          dialog_response                 = 519; // DR
 
     // --- Friends (F) ---
     FriendAddRequest               friend_add                      = 600; // FA

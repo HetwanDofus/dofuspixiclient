@@ -15,6 +15,7 @@ import { ItemMoveModule } from "@features/game/item-move/item-move.module";
 import { ItemUseModule } from "@features/game/item-use/item-use.module";
 import { MoveModule } from "@features/game/move/move.module";
 import { MoveAckModule } from "@features/game/move-ack/move-ack.module";
+import { NpcDialogModule } from "@features/game/npc-dialog/npc-dialog.module";
 import { SelectCharacterModule } from "@features/game/select-character/select-character.module";
 import { SessionLeaveModule } from "@features/game/session-leave/session-leave.module";
 import { ShortcutsSliceModule } from "@features/game/shortcuts/shortcuts.module";
@@ -54,6 +55,7 @@ import { Module } from "@nestjs/common";
     SpellUpgradeModule,
     ShortcutsSliceModule,
     WaypointUseModule,
+    NpcDialogModule,
   ],
 })
 export class GameModule {}
