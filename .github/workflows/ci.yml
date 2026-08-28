@@ -47,7 +47,7 @@ jobs:
 
       - name: Type-check (electrobun)
         working-directory: apps/electrobun
-        run: bunx tsc --noEmit
+        run: bun run check-types
 
       - name: Test (electrobun)
         working-directory: apps/electrobun

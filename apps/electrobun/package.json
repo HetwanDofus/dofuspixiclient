@@ -13,7 +13,7 @@
 		"extract": "lingui extract",
 		"compile": "lingui compile",
 		"test": "bun test",
-		"check-types": "tsc --noEmit",
+		"check-types": "electrobun prepare && tsc --noEmit && tsc --noEmit -p tsconfig.electrobun.json",
 		"lint": "biome check src"
 	},
 	"dependencies": {
@@ -37,7 +37,7 @@
 		"@xstate/react": "^5.0.2",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
-		"electrobun": "latest",
+		"electrobun": "2.0.1",
 		"fflate": "^0.8.2",
 		"fzstd": "^0.1.1",
 		"lucide-react": "^1.8.0",

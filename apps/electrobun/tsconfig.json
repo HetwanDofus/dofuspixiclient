@@ -29,6 +29,7 @@
     "dist",
     "build",
     "../../package/dist",
+    "src/window/bun",
     "src/game/spells",
     "src/game/stores/inventory-store.spec.ts",
     "src/game/machines/fight.machine.spec.ts",
