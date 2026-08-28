@@ -9,7 +9,7 @@
     "dev:authd": "MODE=auth bun --watch run src/core/main.ts",
     "start:gateway": "bun run src/gateway/main.ts",
     "start:core": "bun run src/core/main.ts",
-    "build": "bun build src/gateway/main.ts --target=bun --outfile=dist/gateway.js && bun build src/core/main.ts --target=bun --outfile=dist/core.js",
+    "build": "bun build src/gateway/main.ts --target=bun --packages=external --outfile=dist/gateway.js && bun build src/core/main.ts --target=bun --packages=external --outfile=dist/core.js",
     "db:make": "bunx kysely migrate:make",
     "db:check": "bun run scripts/check-migrations.ts",
     "db:migrate": "bunx kysely migrate:latest",

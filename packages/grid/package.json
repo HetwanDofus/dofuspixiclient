@@ -36,5 +36,8 @@
     "sync-version": "bun ../../scripts/sync-package-version.ts . src/version.ts GRID_VERSION",
     "build": "bun run sync-version && tsc -p tsconfig.build.json",
     "prepack": "bun run build"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   }
 }

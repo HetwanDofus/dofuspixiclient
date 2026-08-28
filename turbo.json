@@ -6,6 +6,9 @@
       "dependsOn": [
         "^build"
       ],
+      "env": [
+        "VELLO_ROOT"
+      ],
       "inputs": [
         "$TURBO_DEFAULT$",
         ".env*"
