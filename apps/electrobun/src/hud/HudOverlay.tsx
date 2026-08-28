@@ -8,6 +8,9 @@ import { fightActor } from "@/game/stores/fight-store";
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { StorageWindow } from "./exchange/StorageWindow";
+import { TradeRequestDialog } from "./exchange/TradeRequestDialog";
+import { TradeWindow } from "./exchange/TradeWindow";
 import { DamagePoints } from "./fight/DamagePoints";
 import { FightEndDialog } from "./fight/FightEndDialog";
 import { FightOverlay } from "./fight/FightOverlay";
@@ -173,6 +176,26 @@ export function HudOverlay({
         >
           <NpcDialog gameClient={gameClient} zoom={baseZoom} />
         </div>
+
+        {/* Same reasoning as the dialogue bubble above: the bank is
+            server-driven — it opens on EC and closes on EV — so it sits
+            outside the `activePanel` rotation. Clicking a chest must not
+            close the inventory the player is comparing against, and 1.29
+            shows the two side by side for exactly that reason. */}
+        <div style={panelWrapStyle}>
+          <StorageWindow zoom={baseZoom} gameClient={gameClient} />
+        </div>
+
+        {/* And the trade, for the same reason plus one: it carries its
+            own inventory grid, so it must not evict the bag panel the
+            player may already have open beside it. */}
+        <div style={panelWrapStyle}>
+          <TradeWindow zoom={baseZoom} gameClient={gameClient} />
+        </div>
+
+        {/* The proposal boxes. Outside every panel wrapper: they are a
+            modal question, not a window, and they centre themselves. */}
+        <TradeRequestDialog zoom={baseZoom} gameClient={gameClient} />
 
         <BannerReact
           {...(gameClient

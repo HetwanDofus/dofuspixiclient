@@ -48,4 +48,46 @@ describe("classify", () => {
       ])
     ).toEqual({ kind: "blocked" });
   });
+
+  it("follows the banker's answer: an implemented effect plus its navigate", () => {
+    // The dump's answer 259, verbatim: a navigate to DV and the lone
+    // `type = -1` row named "Consulter son coffre personnel". Under the
+    // old "navigation and nothing else" rule this came out `blocked`,
+    // which is exactly what greyed the bank out in game.
+    expect(
+      classify([
+        { type: 1, args: "DV" },
+        { type: -1, args: "" },
+      ])
+    ).toEqual({ kind: "open-bank" });
+  });
+
+  it("order of the two rows does not matter", () => {
+    expect(
+      classify([
+        { type: -1, args: "" },
+        { type: 1, args: "DV" },
+      ])
+    ).toEqual({ kind: "open-bank" });
+  });
+
+  it("an implemented effect alongside an unimplemented one stays blocked", () => {
+    // Following this would open the bank and silently skip the other
+    // effect. A greyed answer is the lesser wrong.
+    expect(
+      classify([
+        { type: -1, args: "" },
+        { type: 6, args: "11,1066,335,336" },
+      ])
+    ).toEqual({ kind: "blocked" });
+  });
+
+  it("two navigate rows are still refused", () => {
+    expect(
+      classify([
+        { type: 1, args: "410" },
+        { type: 1, args: "411" },
+      ])
+    ).toEqual({ kind: "blocked" });
+  });
 });

@@ -12,8 +12,11 @@ import {
   type DialogResponseRequest,
   DialogResponseRequestSchema,
 } from "@dofus/proto/chat_pb";
+import { ExchangeType } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { ExchangeService } from "@modules/exchange/exchange.service";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { bankOwner } from "@modules/items/item-owner";
 import { MapNpcService } from "@modules/npcs/map-npc.service";
 import { NpcDialogService } from "@modules/npcs/npc-dialog.service";
 import { NpcDialogSessionService } from "@modules/npcs/npc-dialog.session";
@@ -54,6 +57,7 @@ export class NpcDialogHandler {
     private readonly fights: FightRegistryService,
     private readonly graph: NpcDialogService,
     private readonly open: NpcDialogSessionService,
+    private readonly exchange: ExchangeService,
     private readonly frames: GatewayFrameService
   ) {}
 
@@ -174,6 +178,11 @@ export class NpcDialogHandler {
       return;
     }
 
+    if (outcome.kind === "open-bank") {
+      await this.openBank(ctx.sessionId);
+      return;
+    }
+
     this.open.advance(ctx.sessionId, outcome.nextQuestion);
     await this.sendQuestion(ctx.sessionId, outcome.nextQuestion);
   }
@@ -191,6 +200,36 @@ export class NpcDialogHandler {
   @OnEvent("session.closed")
   onSessionClosed({ session }: { session: { sessionId: string } }): void {
     this.open.close(session.sessionId);
+  }
+
+  /**
+   * "Consulter son coffre personnel" — the banker's own answer.
+   *
+   * The conversation closes first. 1.29's `onLeave` unloads every
+   * exchange window it can find, so sending `DV` after `EC` would tear
+   * down the bank the instant it opened; the order is not cosmetic.
+   *
+   * This is the second way into a storage exchange, next to clicking a
+   * chest, and it goes through the same `ExchangeService.openStorage` —
+   * the occupancy lock, the `EC`+`EL` pair and the handoff-safe session
+   * all come with it rather than being reproduced here.
+   */
+  private async openBank(sessionId: string): Promise<void> {
+    const session = this.sessions.get(sessionId);
+
+    if (!session?.characterId) {
+      return;
+    }
+
+    this.leaveSession(sessionId);
+
+    await this.exchange.openStorage(
+      sessionId,
+      session.accountId,
+      session.characterId,
+      bankOwner(session.accountId),
+      ExchangeType.EXCHANGE_STORAGE
+    );
   }
 
   private async sendQuestion(

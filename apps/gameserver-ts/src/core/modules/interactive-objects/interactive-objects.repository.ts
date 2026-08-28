@@ -1,3 +1,4 @@
+import type { ItemOwner } from "@modules/items/item-owner";
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
 import type { DB } from "@shared/db/schema";
 import { Injectable } from "@nestjs/common";
@@ -54,21 +55,21 @@ export class InteractiveObjectsRepository {
     );
   }
 
-  async countHouseStorage(houseId: string): Promise<number> {
+  /**
+   * How many stacks a container holds.
+   *
+   * Since migration 0053 a house chest and the account bank are two
+   * owner kinds of the one `items` table, so both counts are the same
+   * query with a different owner — which is the whole point of the
+   * polymorphic owner and the reason there is no longer one method per
+   * storage table.
+   */
+  async countStacks(owner: ItemOwner): Promise<number> {
     const row = await this.txHost.tx
-      .selectFrom("houseStorageItems")
+      .selectFrom("items")
       .select((eb) => eb.fn.countAll<string>().as("n"))
-      .where("houseId", "=", houseId)
-      .executeTakeFirst();
-
-    return Number(row?.n ?? 0);
-  }
-
-  async countAccountBank(accountId: string): Promise<number> {
-    const row = await this.txHost.tx
-      .selectFrom("accountBankItems")
-      .select((eb) => eb.fn.countAll<string>().as("n"))
-      .where("accountId", "=", accountId)
+      .where("ownerKind", "=", owner.kind)
+      .where("ownerId", "=", owner.id)
       .executeTakeFirst();
 
     return Number(row?.n ?? 0);

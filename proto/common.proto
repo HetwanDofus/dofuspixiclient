@@ -167,27 +167,52 @@ enum RestrictionFlag {
   ADMIN_SONIC_SPEED = 256;     // bit 8
 }
 
-// Exchange types
+// Exchange types.
+//
+// These are the ids the 1.29 client switches on in
+// `dofus/aks/Exchange.as:355` (`onCreate`), and the ones
+// `NonPlayableCharacter.getActionFunction` maps its action list to. They
+// were previously transcribed from StarLoco's constants, which disagree
+// with the client on eleven of the nineteen values — see QA-103. The
+// client in `assets/sources/client-code/` is the authority: an id here
+// decides which window opens, and nothing else does.
 enum ExchangeType {
-  EXCHANGE_SHOP = 0;
+  // Buying from an NPC's catalogue. NPC action id 1.
+  EXCHANGE_NPC_SHOP = 0;
+  // Player to player: two offers, two ready flags. Client `Exchange`.
   EXCHANGE_PLAYER = 1;
-  EXCHANGE_NPC_SHOP = 2;
-  EXCHANGE_CRAFT_PLAYER = 3;
-  EXCHANGE_CRAFT_CLIENT = 4;
-  EXCHANGE_PLAYER_SHOP = 5;
-  EXCHANGE_STORAGE = 6;
-  EXCHANGE_SHOP_MODIFIER = 7;
+  // Handing items to an NPC — quests and trades. NPC action id 2.
+  EXCHANGE_NPC_TRADE = 2;
+  // A craft workbench. Client `Craft` / `ForgemagusCraft` / `Decraft`.
+  EXCHANGE_CRAFT = 3;
+  // Buying from a player's merchant stall. Client `PlayerShop`.
+  EXCHANGE_PLAYER_SHOP = 4;
+  // A bank chest or a house chest. Client `Storage`. This is the bank.
+  EXCHANGE_STORAGE = 5;
+  // Stocking one's own stall. Client `PlayerShopModifier`.
+  EXCHANGE_PLAYER_SHOP_EDIT = 6;
+  // 7 has no case in the client: it falls through to `default: return`.
+  EXCHANGE_UNUSED_7 = 7;
+  // A guild tax collector's takings. Client `TaxCollectorStorage`.
   EXCHANGE_TAX_COLLECTOR = 8;
-  EXCHANGE_SECURE_STORAGE = 9;
+  // Another NPC exchange window. NPC action id 4.
+  EXCHANGE_NPC_9 = 9;
+  // Auction house, selling. Client `BigStoreSell`. NPC action id 5.
   EXCHANGE_BIGSTORE_SELL = 10;
+  // Auction house, buying. Client `BigStoreBuy`. NPC action id 6.
   EXCHANGE_BIGSTORE_BUY = 11;
+  // Secured craft, both sides. Client `SecureCraft`.
   EXCHANGE_SECURE_CRAFT_CLIENT = 12;
   EXCHANGE_SECURE_CRAFT_ARTISAN = 13;
-  EXCHANGE_MOUNT_PARK = 14;
-  EXCHANGE_NPC_RESURECTION = 15;
-  EXCHANGE_NPC_RESURECTION_PET = 16;
-  EXCHANGE_MOUNT_CERTIFICATE = 17;
-  EXCHANGE_RUNE_TRADE = 18;
+  // The craftsmen directory. Client `CrafterList`.
+  EXCHANGE_CRAFTER_LIST = 14;
+  // A mount's saddlebags — the same `Storage` window with `isMount`.
+  EXCHANGE_MOUNT_INVENTORY = 15;
+  // Stable and paddock. Client `MountStorage`.
+  EXCHANGE_MOUNT_PARK = 16;
+  // Two more NPC exchange windows. NPC action ids 7 and 8.
+  EXCHANGE_NPC_17 = 17;
+  EXCHANGE_NPC_18 = 18;
 }
 
 // Fight types

@@ -39,6 +39,7 @@ import { CamelCasePlugin, Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 
 import { rollItemEffects } from "../src/core/modules/inventory/item-effects.ts";
+import { OwnerKind } from "../src/core/modules/items/item-owner.ts";
 import { decodeCells } from "../src/core/modules/maps/maps.cells-codec.ts";
 
 /**
@@ -453,13 +454,15 @@ if (missing.length === ITEM_GRANTS.length) {
 }
 
 await db
-  .deleteFrom("playerItems")
-  .where("playerId", "=", character.id)
+  .deleteFrom("items")
+  .where("ownerKind", "=", OwnerKind.Player)
+  .where("ownerId", "=", character.id)
   .execute();
 
 const itemRows = ITEM_GRANTS.filter((g) => templateById.has(g.templateId)).map(
   (grant) => ({
-    playerId: character.id,
+    ownerKind: OwnerKind.Player,
+    ownerId: character.id,
     templateId: grant.templateId,
     position: grant.position,
     quantity: grant.quantity,
@@ -470,7 +473,7 @@ const itemRows = ITEM_GRANTS.filter((g) => templateById.has(g.templateId)).map(
 );
 
 if (itemRows.length > 0) {
-  await db.insertInto("playerItems").values(itemRows).execute();
+  await db.insertInto("items").values(itemRows).execute();
 }
 
 /**

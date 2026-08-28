@@ -49,6 +49,7 @@ import {
 import { BattlefieldZoom } from "@/game/scene/battlefield/zoom";
 import { MapHandler } from "@/game/scene/map/handler";
 import { Scene } from "@/game/scene/scene";
+import { characterStore } from "@/game/stores/character-store";
 import { hideContextMenu } from "@/game/stores/context-menu-store";
 import { fightActor } from "@/game/stores/fight-store";
 import { FightUI } from "@/hud/fight/fight-ui";
@@ -136,6 +137,7 @@ export class Battlefield {
   private onCellClickCallback?: (cellId: number) => void;
   private onInteractiveUseCallback?: (cellId: number, skillId: number) => void;
   private onNpcTalkCallback?: (npcSpriteId: number) => void;
+  private onPlayerExchangeCallback?: (targetSpriteId: number) => void;
   private onCellHoverCallback?: (cellId: number | null) => void;
   private lastHoveredCellId: number | null = null;
   private onResizeStartCallback?: () => void;
@@ -151,6 +153,11 @@ export class Battlefield {
     onInteractiveUse: (cellId, skillId) =>
       this.onInteractiveUseCallback?.(cellId, skillId),
     onNpcTalk: (npcSpriteId) => this.onNpcTalkCallback?.(npcSpriteId),
+    // Straight from the store rather than through a callback: this is a
+    // fact about the session, not an event the scene routes.
+    localCharacterId: () => characterStore.getSnapshot().id || null,
+    onPlayerExchange: (targetSpriteId) =>
+      this.onPlayerExchangeCallback?.(targetSpriteId),
   });
 
   private readonly worldActors = new BattlefieldWorldActors({
@@ -793,6 +800,10 @@ export class Battlefield {
 
   setOnNpcTalk(callback: (npcSpriteId: number) => void): void {
     this.onNpcTalkCallback = callback;
+  }
+
+  setOnPlayerExchange(callback: (targetSpriteId: number) => void): void {
+    this.onPlayerExchangeCallback = callback;
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {

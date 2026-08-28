@@ -15,6 +15,8 @@ import {
   DialogResponseRequestSchema,
 } from "@dofus/proto/chat_pb";
 import { NpcDialogHandler } from "@features/game/npc-dialog/npc-dialog.handler";
+import { ExchangeService } from "@modules/exchange/exchange.service";
+import { OwnerKind } from "@modules/items/item-owner";
 import { NpcDialogSessionService } from "@modules/npcs/npc-dialog.session";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
@@ -25,6 +27,14 @@ import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 const SESSION = "s-1";
 const MAP_ID = 7365;
 const NPC_SPRITE_ID = -100_000_594;
+const ACCOUNT = "acc-1";
+
+/**
+ * The banker: question 318 offers answer 259, the one carrying the dump's
+ * lone `type = -1`, named "Consulter son coffre personnel".
+ */
+const BANK_QUESTION = 318;
+const BANK_RESPONSE = 259;
 
 const NPC = {
   id: NPC_SPRITE_ID,
@@ -50,24 +60,29 @@ const NPC = {
 const QUESTIONS: Record<number, number[]> = {
   2391: [2013, 2011, 2037],
   2394: [],
+  // The banker's own question, kept apart from Kana Petch's tree so the
+  // reference assertions above stay about the reference tree.
+  [BANK_QUESTION]: [BANK_RESPONSE, 329],
 };
 
 let sent: DofusMessage[];
 let open: NpcDialogSessionService;
 let handler: NpcDialogHandler;
 let inFight: boolean;
+let banksOpened: { accountId: string; ownerKind: number; kind: number }[];
 
 const ctx = { sessionId: SESSION } as HandlerContext;
 
 beforeEach(() => {
   sent = [];
   inFight = false;
+  banksOpened = [];
   open = new NpcDialogSessionService();
 
   const registry = new SessionRegistry(new EventEmitter2());
   registry.open({
     sessionId: SESSION,
-    accountId: "acc-1",
+    accountId: ACCOUNT,
     characterId: "char-1",
     remoteAddr: "10.0.0.1",
   });
@@ -94,6 +109,9 @@ beforeEach(() => {
       if (responseId === 2037) {
         return { kind: "blocked" as const };
       }
+      if (responseId === BANK_RESPONSE) {
+        return { kind: "open-bank" as const };
+      }
       return { kind: "end" as const };
     },
     unavailable: async (ids: readonly number[]) =>
@@ -108,6 +126,19 @@ beforeEach(() => {
     broadcast: (_targets: string[], msg: DofusMessage) => sent.push(msg),
   } as unknown as GatewayFrameService;
 
+  const exchange = {
+    openStorage: async (
+      _sessionId: string,
+      accountId: string,
+      _characterId: string,
+      owner: { kind: number; id: string },
+      kind: number
+    ) => {
+      banksOpened.push({ accountId, ownerKind: owner.kind, kind });
+      return { ok: true as const };
+    },
+  } as unknown as ExchangeService;
+
   handler = new NpcDialogHandler(
     registry,
     presence,
@@ -115,6 +146,7 @@ beforeEach(() => {
     fights,
     graph,
     open,
+    exchange,
     frames
   );
 });
@@ -198,6 +230,35 @@ describe("DR", () => {
 
     expect(cases()).toEqual(["dialogQuestion"]);
     expect(open.get(SESSION)?.questionId).toBe(2394);
+  });
+
+  test("the banker's answer opens the account bank and closes the talk", async () => {
+    // Opened straight onto the banker's question rather than walked to:
+    // `NpcDialogSessionService` is the real thing here, so seeding it is
+    // the same state the DC path would have produced.
+    open.open(SESSION, {
+      npcSpriteId: NPC_SPRITE_ID,
+      templateId: 1,
+      mapId: MAP_ID,
+      questionId: BANK_QUESTION,
+    });
+
+    await handler.respond(
+      ctx,
+      create(DialogResponseRequestSchema, {
+        questionId: BANK_QUESTION,
+        responseId: BANK_RESPONSE,
+      })
+    );
+
+    // The conversation goes away first: canonical `onLeave` unloads every
+    // exchange window it can find, so a `DV` sent after `EC` would tear
+    // down the bank the instant it opened.
+    expect(cases()).toEqual(["dialogLeave"]);
+    expect(open.get(SESSION)).toBeUndefined();
+    expect(banksOpened).toEqual([
+      { accountId: ACCOUNT, ownerKind: OwnerKind.Bank, kind: 5 },
+    ]);
   });
 
   test("closes on an answer whose action is DV", async () => {

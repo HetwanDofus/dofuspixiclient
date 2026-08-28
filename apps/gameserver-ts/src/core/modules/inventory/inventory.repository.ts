@@ -1,14 +1,19 @@
 import type { ItemEffect } from "@modules/inventory/item-effects";
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
-import type { DB, PlayerItemRow } from "@shared/db/schema";
+import type { DB, ItemRow } from "@shared/db/schema";
+import { playerOwner } from "@modules/items/item-owner";
+import { BAG_POSITION, ItemsRepository } from "@modules/items/items.repository";
 import { Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 
 /**
- * The unequipped-inventory slot. `player_items.position` is a slot index
- * for worn gear and this sentinel for everything in the bag.
+ * The unequipped-inventory slot. `items.position` is a slot index for
+ * worn gear and this sentinel for everything in the bag.
+ *
+ * Re-exported from `items` so the two names cannot drift apart; the
+ * inventory has used this one since before there were other containers.
  */
-export const INVENTORY_POSITION = -1;
+export const INVENTORY_POSITION = BAG_POSITION;
 
 export interface ItemGrant {
   playerId: string;
@@ -17,55 +22,60 @@ export interface ItemGrant {
   effects: ItemEffect[];
 }
 
+/**
+ * A character's own items — the bag and what they wear.
+ *
+ * Since migration 0053 this is a *view* over `items` narrowed to
+ * `owner_kind = Player`: an inventory is one container among several,
+ * and equipment rules, pods and shortcuts are the only things that care
+ * which one. Moving a stack to any other container is
+ * `ItemTransferService`, not this.
+ *
+ * Ownership is a predicate in every statement rather than a field the
+ * caller is trusted to compare, so a request naming someone else's item
+ * finds nothing instead of finding it and being told off afterwards.
+ */
 @Injectable()
 export class InventoryRepository {
   constructor(
-    private readonly txHost: TransactionHost<TransactionalAdapterKysely<DB>>
+    private readonly txHost: TransactionHost<TransactionalAdapterKysely<DB>>,
+    private readonly items: ItemsRepository
   ) {}
 
-  findByPlayer(playerId: string) {
-    return this.txHost.tx
-      .selectFrom("playerItems")
-      .selectAll()
-      .where("playerId", "=", playerId)
-      .execute();
+  findByPlayer(playerId: string): Promise<ItemRow[]> {
+    return this.items.findByOwner(playerOwner(playerId));
   }
 
-  findById(itemId: string) {
-    return this.txHost.tx
-      .selectFrom("playerItems")
-      .selectAll()
-      .where("id", "=", itemId)
-      .executeTakeFirst();
+  /** One of this player's stacks — or nothing, if it is not theirs. */
+  findOwned(playerId: string, itemId: string): Promise<ItemRow | undefined> {
+    return this.items.findOwned(playerOwner(playerId), itemId);
   }
 
-  findEquipped(playerId: string) {
+  findEquipped(playerId: string): Promise<ItemRow[]> {
     return this.txHost.tx
-      .selectFrom("playerItems")
+      .selectFrom("items")
       .selectAll()
-      .where("playerId", "=", playerId)
+      .where("ownerKind", "=", playerOwner(playerId).kind)
+      .where("ownerId", "=", playerId)
       .where("position", ">=", 0)
       .execute();
   }
 
   async moveItem(itemId: string, position: number): Promise<void> {
     await this.txHost.tx
-      .updateTable("playerItems")
+      .updateTable("items")
       .set({ position })
       .where("id", "=", itemId)
       .execute();
   }
 
   async deleteItem(itemId: string): Promise<void> {
-    await this.txHost.tx
-      .deleteFrom("playerItems")
-      .where("id", "=", itemId)
-      .execute();
+    await this.txHost.tx.deleteFrom("items").where("id", "=", itemId).execute();
   }
 
   async updateQuantity(itemId: string, quantity: number): Promise<void> {
     await this.txHost.tx
-      .updateTable("playerItems")
+      .updateTable("items")
       .set({ quantity })
       .where("id", "=", itemId)
       .execute();
@@ -75,54 +85,24 @@ export class InventoryRepository {
    * Create an item on a character, stacking onto an identical bag stack
    * when one exists.
    *
-   * This is the project's first write to `player_items`. Nothing had ever
-   * created an item before QA-060, so loot, merchants, exchanges and the
-   * bank will all end up here — which is why it takes a whole `ItemGrant`
-   * rather than positional arguments, and why it returns the resulting
-   * row: every caller needs the row's id to tell the client about it.
+   * The read-then-write this used to do is gone: `ItemsRepository.give`
+   * inserts with `ON CONFLICT DO UPDATE` against the `items_stack`
+   * index, so two concurrent grants can no longer both conclude there is
+   * no stack and both insert one. That was the bug this method's own
+   * comment used to warn about.
    *
-   * Stacking is keyed on template **and** rolled effects: two Gelano with
-   * different jets are different objects and must not merge into one
-   * stack, or one of the two rolls silently disappears. Equipped items
-   * (`position >= 0`) never stack — the grant always lands in the bag.
-   *
-   * The caller is expected to already be inside a transaction; the
-   * read-then-write here is not atomic on its own.
+   * Stacking is keyed on template **and** rolled effects: two Gelano
+   * with different jets are different objects and must not merge, or one
+   * of the two rolls silently disappears. Equipped items never stack —
+   * the grant always lands in the bag.
    */
-  async insertItem(grant: ItemGrant): Promise<PlayerItemRow> {
-    const serialized = JSON.stringify(grant.effects);
-
-    const existing = await this.txHost.tx
-      .selectFrom("playerItems")
-      .selectAll()
-      .where("playerId", "=", grant.playerId)
-      .where("templateId", "=", grant.templateId)
-      .where("position", "=", INVENTORY_POSITION)
-      .execute();
-
-    const stack = existing.find(
-      (row) => JSON.stringify(row.effects ?? []) === serialized
-    );
-
-    if (stack) {
-      const quantity = stack.quantity + grant.quantity;
-
-      await this.updateQuantity(stack.id, quantity);
-
-      return { ...stack, quantity };
-    }
-
-    return await this.txHost.tx
-      .insertInto("playerItems")
-      .values({
-        playerId: grant.playerId,
-        templateId: grant.templateId,
-        position: INVENTORY_POSITION,
-        quantity: grant.quantity,
-        effects: JSON.parse(serialized),
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+  insertItem(grant: ItemGrant): Promise<ItemRow> {
+    return this.items.give({
+      owner: playerOwner(grant.playerId),
+      templateId: grant.templateId,
+      quantity: grant.quantity,
+      effects: grant.effects,
+    });
   }
 
   findTemplate(templateId: number) {

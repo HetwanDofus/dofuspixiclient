@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dofus;
 
+import "common.proto";
+
 
 // ============================================================================
 // EXCHANGE PROTOCOL (E prefix) - Trading, crafting, shops, big store
@@ -9,12 +11,33 @@ package dofus;
 
 // --- Server -> Client ---
 
-// ER - Exchange request response
+// ER - Exchange request response.
+//
+// Pushed to **both** parties of a player-to-player trade, which is why
+// it names them separately: canonical `Exchange.onRequest` splits
+// `<initiator>|<target>|<type>` and works out "the distant one" as
+// whichever of the two is not the reader. Each side then shows a
+// different box — the initiator an "En attente..." with a Cancel, the
+// target a yes/no — and neither can tell which it is from a single id.
+//
+// For an NPC exchange `target_id` is the NPC's sprite id and
+// `initiator_id` the player's.
 message ExchangeRequest {
   bool   success = 1;
-  string player_id = 2;
-  string npc_id = 3;
+  string initiator_id = 2;
+  string target_id = 3;
   int32  exchange_type = 4;   // ExchangeType enum
+  // Populated on failure only. A refusal reason in this server's own
+  // vocabulary ("already-exchanging", "different-map"...), not 1.29's
+  // single letters; the client maps it to a message.
+  string error_code = 5;
+  // The two names, which 1.29 does not send: its client reads them out
+  // of `Sprites.getItemAt(id).name`. Ours carries them because both
+  // places that need one — the proposal box and the offer pane's header
+  // — are HUD components with no route to the sprite registry, and
+  // because a sprite that has not been drawn yet has no name to read.
+  string initiator_name = 6;
+  string target_name = 7;
 }
 
 // EC - Exchange create (craft). StarLoco SocketManager.java:1194
@@ -34,14 +57,26 @@ message ExchangeCraft {
 }
 
 // EK - Exchange ready
+// EK - Exchange ready.
+//
+// `player_id` is **whose** flag changed, not "the other one":
+// `Exchange.onReady` compares it with the local player's id to pick
+// which of the two `readyStates` slots to write. Sent to both sides on
+// every change, including the reader's own.
 message ExchangeReady {
   bool   is_ready = 1;       // charAt(0) == "1"
-  string distant_player_id = 2; // substr(1)
+  string player_id = 2;      // substr(1)
 }
 
-// EV - Exchange leave
+// EV - Exchange leave.
+//
+// `completed` is 1.29's `sExtraData == "a"`: `onLeave` shows
+// "Echange effectue" when it is set and "Echange annule" otherwise.
+// The frame itself is idempotent either way — canonical `onLeave`
+// unloads every exchange window it can find, whichever was open.
 message ExchangeLeave {
   bool success = 1;
+  bool completed = 2;
 }
 
 // EM - Local movement in exchange
@@ -98,14 +133,24 @@ message ExchangePlayerShopMovement {
   }
 }
 
-// Shared item movement sub-message
+// Shared item movement sub-message.
+//
+// Carries a whole `ItemData` rather than the loose fields the 1.29 wire
+// string uses. This protocol is a re-typing of 1.29's semantics, not a
+// copy of its encoding, and every other item on it — `ItemAdd`,
+// `ItemChange`, `AccountStats` — already travels as `ItemData`, which
+// the client knows how to render. See QA-104.
+//
+// `item.quantity` is **absolute, not a delta**: canonical
+// `Exchange.onStorageMovement` replaces the entry it finds
+// (`ExtendedArray.updateItem`) rather than adding to it, and appends
+// when it finds none. On a removal (`add = false`) only `item.unic_id`
+// is meaningful.
 message ExchangeItemMovement {
-  bool   add = 1;           // true = +, false = -
-  int32  item_id = 2;       // Template ID
-  int32  quantity = 3;
-  int32  unic_id = 4;       // Unique instance ID (hex decoded)
-  string effects_raw = 5;   // Compressed effects string
-  int32  price = 6;         // Price (for shop items)
+  bool     add = 1;
+  ItemData item = 2;
+  // Unit price, for a shop or a stall. Zero everywhere else.
+  int64    price = 3;
 }
 
 // Shared kama movement
@@ -150,19 +195,24 @@ message ExchangeMountPods {
   int32 pods_max = 2;
 }
 
-// EL - Exchange list (crafting recipe list / replay). StarLoco uses EL
-// for HDV listings too (SocketManager.java:1890). We represent it as a
-// repeated listing line.
+// EL - The full contents of the container that was just opened.
+//
+// Mandatory, and it must follow `EC`. `dofus.datacenter.Storage` does
+// not allocate its inventory array in `initialize()`, so until an `EL`
+// lands `Temporary.Storage.inventory` is undefined and every `Es`
+// movement is silently dropped by `onStorageMovement`
+// (`_loc6_.push(...)` on undefined is a no-op in AS2). `onList` is the
+// only place that ever assigns it.
+//
+// An empty container is a bare `EL` — the client builds an empty array
+// and the window opens correctly.
+//
+// A craft or auction listing is a different shape (a line id, a price
+// per lot) and will need its own message; this one is the storage form.
 message ExchangeList {
-  repeated ExchangeListingLine lines = 1;
-}
-
-message ExchangeListingLine {
-  int64  line_id = 1;
-  int32  item_id = 2;
-  string stats = 3;       // Compressed effects string (parseToEL payload).
-  int32  quantity = 4;
-  int64  price = 5;
+  repeated ItemData items = 1;
+  // The container's own kamas. Absolute.
+  int64             kamas = 2;
 }
 
 // ES - Sell response
@@ -285,9 +335,17 @@ message ExchangeAccept {}
 message ExchangeSetReady {}
 
 // Client sends EMO[+/-]<itemId>|<quantity>|<price>
+//
+// `add` is the direction: `+` moves into the container, `-` takes out.
+//
+// The id is an **instance** id, not a template. 1.29 sends `oItem.ID`,
+// and `dofus.datacenter.Item`'s constructor is `Item(nID, nUnicID, ...)`
+// where `nID` is the instance and `nUnicID` the template — the two
+// names are the wrong way round in the original, which is exactly why
+// this field spells out which one it is.
 message ExchangeMoveItem {
-  bool  add = 1;            // true = +, false = -
-  int32 item_id = 2;
+  bool  add = 1;
+  int32 item_unic_id = 2;
   int32 quantity = 3;
   int64 price = 4;          // Optional (for shop/store)
 }

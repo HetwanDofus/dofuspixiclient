@@ -55,7 +55,12 @@ function harness(
   } as unknown as ShortcutsRepository;
 
   const inventoryRepo = {
-    findById: async (id: string) => items.find((i) => i.unicId === id),
+    // Ownership is a predicate in the real repository's SQL since the
+    // move to `items`, not a field the caller is trusted to compare, so
+    // the fake has to enforce it the same way or the "belongs to someone
+    // else" case below would pass for the wrong reason.
+    findOwned: async (playerId: string, id: string) =>
+      items.find((i) => i.unicId === id && i.playerId === playerId),
   } as unknown as InventoryRepository;
 
   const framesService = {

@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { AreaKind, cellsInArea, hasLineOfSight } from "@dofus/grid";
+import { ExchangeType } from "@dofus/proto";
 import { match } from "ts-pattern";
 
 import type { Battlefield } from "@/game/scene";
@@ -20,6 +21,7 @@ import {
   type CharacterInfo,
 } from "@/game/network/handlers/character.handler";
 import { ChatHandler } from "@/game/network/handlers/chat.handler";
+import { ExchangeHandler } from "@/game/network/handlers/exchange.handler";
 import { FightHandler } from "@/game/network/handlers/fight.handler";
 import { InventoryHandler } from "@/game/network/handlers/inventory.handler";
 import { MapHandler } from "@/game/network/handlers/map.handler";
@@ -40,6 +42,12 @@ import {
   DialogCreateRequestSchema,
   DialogLeaveRequestSchema,
   DialogResponseRequestSchema,
+  ExchangeAcceptSchema,
+  ExchangeLeaveRequestSchema,
+  ExchangeMoveItemSchema,
+  ExchangeMoveKamaSchema,
+  ExchangeRequestSendSchema,
+  ExchangeSetReadySchema,
   encodeClient,
   GameActionRequestSchema,
   GameCreateRequestSchema,
@@ -173,6 +181,7 @@ export class GameClient {
     // Registers itself against `messageHandler` and writes straight into
     // `inventoryStore` — nothing here needs to hold a reference to it.
     new InventoryHandler(this.messageHandler);
+    new ExchangeHandler(this.messageHandler);
     // Likewise: it only ever writes to `npcDialogStore`.
     new NpcDialogHandler(this.messageHandler);
     this.fightHandler = new FightHandler(
@@ -311,6 +320,13 @@ export class GameClient {
       // arrival handler runs a cell trigger under an open dialog.
       this.mapHandler.interruptSelfMove();
       this.startNpcDialog(npcSpriteId);
+    });
+    battlefield.setOnPlayerExchange((targetSpriteId) => {
+      // Same rule as an NPC dialogue, and canonical says so twice:
+      // `GameManager.startExchange` cancels an in-flight walk before
+      // sending `ER`, exactly as `startDialog` does before `DC`.
+      this.mapHandler.interruptSelfMove();
+      this.requestExchange(targetSpriteId);
     });
     // Sole driver of the MP-reachable-range tint: roll-over our own
     // avatar shows the green pattern, roll-out clears it. Replicates
@@ -1219,6 +1235,90 @@ export class GameClient {
           quantity,
         })
       )
+    );
+  }
+
+  /**
+   * EMO — move a stack across an open exchange window.
+   *
+   * `toContainer` is the 1.29 sign: `+` puts the stack into the bank or
+   * chest, `-` takes it out. The id is the instance, not the template.
+   */
+  exchangeMoveItem(
+    unicId: number,
+    toContainer: boolean,
+    quantity: number
+  ): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeMoveItem",
+        create(ExchangeMoveItemSchema, {
+          add: toContainer,
+          itemUnicId: unicId,
+          quantity,
+        })
+      )
+    );
+  }
+
+  /**
+   * EMG — move kamas across an open exchange window.
+   *
+   * Signed, as 1.29 sends it: positive deposits, negative withdraws.
+   * `Storage.dragKama` decides the sign from which pane the drag started
+   * in; the same convention is kept here.
+   */
+  exchangeMoveKamas(signedAmount: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeMoveKama",
+        create(ExchangeMoveKamaSchema, { quantity: BigInt(signedAmount) })
+      )
+    );
+  }
+
+  /**
+   * ER — ask another player to trade.
+   *
+   * Type 1 is the only one this sends: every other `startExchange` id
+   * belongs to a shop, a workbench or a stall, none of which exist yet.
+   */
+  requestExchange(targetSpriteId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeRequest",
+        create(ExchangeRequestSendSchema, {
+          exchangeType: ExchangeType.EXCHANGE_PLAYER,
+          targetId: String(targetSpriteId),
+        })
+      )
+    );
+  }
+
+  /** EA — accept a trade proposal. */
+  exchangeAccept(): void {
+    this.connection.send(
+      encodeClient("exchangeAccept", create(ExchangeAcceptSchema, {}))
+    );
+  }
+
+  /**
+   * EK — toggle this side's validation.
+   *
+   * A toggle, not a set: canonical `ui/Exchange.as` sends the same
+   * frame on every press of the button and lets the server flip the
+   * flag, so a player can un-validate by pressing it again.
+   */
+  exchangeSetReady(): void {
+    this.connection.send(
+      encodeClient("exchangeSetReady", create(ExchangeSetReadySchema, {}))
+    );
+  }
+
+  /** EV — close the exchange. */
+  exchangeLeave(): void {
+    this.connection.send(
+      encodeClient("exchangeLeave", create(ExchangeLeaveRequestSchema, {}))
     );
   }
 

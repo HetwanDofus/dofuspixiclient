@@ -1,5 +1,5 @@
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
-import type { DB, PlayerItemRow } from "@shared/db/schema";
+import type { DB, ItemRow } from "@shared/db/schema";
 import {
   type CriteriaContext,
   evaluateCriteria,
@@ -94,8 +94,8 @@ export class InventoryService {
     position: number
   ): Promise<InventoryActionResult> {
     return this.txHost.withTransaction(async () => {
-      const item = await this.inventory.findById(itemId);
-      if (!item || item.playerId !== playerId) {
+      const item = await this.inventory.findOwned(playerId, itemId);
+      if (!item) {
         return { ok: false, reason: "not-found" as const };
       }
 
@@ -195,8 +195,8 @@ export class InventoryService {
     itemId: string
   ): Promise<InventoryActionResult> {
     return this.txHost.withTransaction(async () => {
-      const item = await this.inventory.findById(itemId);
-      if (!item || item.playerId !== playerId || item.position < 0) {
+      const item = await this.inventory.findOwned(playerId, itemId);
+      if (!item || item.position < 0) {
         return { ok: false, reason: "not-found" as const };
       }
 
@@ -218,8 +218,8 @@ export class InventoryService {
     itemId: string
   ): Promise<InventoryActionResult> {
     return this.txHost.withTransaction(async () => {
-      const item = await this.inventory.findById(itemId);
-      if (!item || item.playerId !== playerId) {
+      const item = await this.inventory.findOwned(playerId, itemId);
+      if (!item) {
         return { ok: false, reason: "not-found" as const };
       }
 
@@ -270,7 +270,7 @@ export class InventoryService {
    * template load per row — cheap, `equipped` never exceeds sixteen items.
    */
   private async toEquippedSlots(
-    rows: readonly PlayerItemRow[]
+    rows: readonly ItemRow[]
   ): Promise<EquippedSlot[]> {
     const out: EquippedSlot[] = [];
     for (const row of rows) {
@@ -289,7 +289,7 @@ export class InventoryService {
    * mapping rather than a shared dependency on it: `StatsModule` already
    * imports `InventoryModule`, so the reverse import would cycle.
    */
-  private async computeEquipTotals(rows: readonly PlayerItemRow[]): Promise<{
+  private async computeEquipTotals(rows: readonly ItemRow[]): Promise<{
     strength: number;
     intelligence: number;
     agility: number;
@@ -356,7 +356,7 @@ export class InventoryService {
   }
 
   private async weightByTemplate(
-    rows: readonly PlayerItemRow[]
+    rows: readonly ItemRow[]
   ): Promise<Map<number, number>> {
     const templateIds = [...new Set(rows.map((row) => row.templateId))];
     const templates = await Promise.all(
