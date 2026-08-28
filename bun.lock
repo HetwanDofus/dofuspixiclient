@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@dofus/dofus",
@@ -175,6 +174,7 @@
       "devDependencies": {
         "@biomejs/biome": "^2.4.10",
         "@tailwindcss/postcss": "^4.1.11",
+        "@types/mdx": "^2.0.13",
         "@types/node": "^20.19.9",
         "@types/react": "^19.1.17",
         "@types/react-dom": "^19.1.6",
