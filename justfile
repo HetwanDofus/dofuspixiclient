@@ -28,6 +28,7 @@ setup: install db wasm
 # Install all JS/TS dependencies
 install:
     bun install
+    bun run contracts:build
 
 # Start PostgreSQL, run migrations, seed a dev account
 db: db-up db-migrate db-seed
@@ -103,8 +104,14 @@ import-content dump:
 import-triggers dump:
     cd apps/gameserver-ts && bun run scripts/import-starloco-triggers.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
 
-# The whole world in one go — geometry, then contents, then what you can act on.
-import-world dump: (import-maps dump) (import-content dump) (import-triggers dump)
+# Publish the read-only, deterministic world-navigation projection consumed by
+# public clients. Pass an alternate .json path for fixtures/CI.
+export-navigation output="":
+    cd apps/gameserver-ts && bun run scripts/export-navigation-manifest.ts {{ if output != "" { '"' + output + '"' } else { "" } }}
+
+# The whole world in one go — geometry, contents, actionable triggers, then the
+# public graph built from exactly those imported tables.
+import-world dump: (import-maps dump) (import-content dump) (import-triggers dump) export-navigation
 
 # Build the Vello WASM renderer.
 # `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —

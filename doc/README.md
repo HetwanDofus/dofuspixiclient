@@ -12,6 +12,7 @@ takes to start it, and where the sharp edges are.
 | [retail-client.md](retail-client.md) | What a retail 1.29 client holds that nothing else does, and where one is on this machine |
 | [audio.md](audio.md) | How per-map music and ambience resolve, from the map SWF to the mp3 |
 | [data-seeding.md](data-seeding.md) | What the migrations do and do not seed, and how to hand-write the rows they leave out |
+| [contracts.md](contracts.md) | Public `@dofus/proto` / `@dofus/grid` packages, navigation manifest and handshake compatibility |
 | [troubleshooting.md](troubleshooting.md) | Every failure hit during setup, with the cause and the fix |
 | [sprints/](sprints/) | Work passes: which issues, in what order, why — each ending in a hand-run acceptance runbook. Current: [S01](sprints/S01-noyau-jouable-securise-scalable.md) |
 | [issues/](issues/) | The issue tracker — one file per defect, by domain, with severity and status. Start at [issues/README.md](issues/README.md) |

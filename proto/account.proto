@@ -14,6 +14,13 @@ import "common.proto";
 // HC - Connection key provided at handshake
 message HandshakeConnectionKey {
   string connection_key = 1;
+  // Immutable shared-contract versions and the exact public world projection
+  // expected by this server. Sent before credentials so clients can stop on
+  // an incompatible contract without disclosing an identity.
+  string proto_version = 2;
+  string grid_version = 3;
+  uint32 navigation_schema_version = 4;
+  string navigation_world_revision = 5;
 }
 
 // HT - Telemetry request

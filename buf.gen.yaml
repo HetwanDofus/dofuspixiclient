@@ -1,6 +1,6 @@
 version: v2
 plugins:
-  - remote: buf.build/bufbuild/es
+  - remote: buf.build/bufbuild/es:v2.14.0
     out: packages/proto/gen
     opt:
       - target=ts

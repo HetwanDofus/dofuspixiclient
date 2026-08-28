@@ -109,6 +109,13 @@ just import-maps game.sql
 (Or `just import-world game.sql` for geometry, contents and triggers in one go
 — see [What makes the world actionable](#what-makes-the-world-actionable).)
 
+`just import-world` also ends by exporting the public navigation projection
+from the imported tables. Rebuild it independently with
+`just export-navigation`; it writes
+`apps/electrobun/public/assets/data/navigation-manifest.json` and its JSON
+Schema. See [contracts.md](contracts.md) for the format and compatibility
+handshake.
+
 That writes 9 358 maps, 265 subareas, 9 358 fight-placement rows and 36 219
 neighbour links.
 

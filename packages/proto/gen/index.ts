@@ -12,4 +12,5 @@ export * from "./mount_pb.js";
 export * from "./server_messages_pb.js";
 export * from "./social_pb.js";
 export * from "./spells_pb.js";
+export * from "./version.js";
 export * from "./world_pb.js";

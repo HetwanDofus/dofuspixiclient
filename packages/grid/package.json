@@ -2,12 +2,39 @@
   "name": "@dofus/grid",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "description": "Published Dofus 1.29 grid geometry and pathfinding primitives",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hugoperier/dofuspixiclient.git",
+    "directory": "packages/grid"
+  },
+  "homepage": "https://github.com/hugoperier/dofuspixiclient/tree/main/packages/grid",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "dependencies": {
     "ts-pattern": "5.9.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3"
+  },
+  "scripts": {
+    "sync-version": "bun ../../scripts/sync-package-version.ts . src/version.ts GRID_VERSION",
+    "build": "bun run sync-version && tsc -p tsconfig.build.json",
+    "prepack": "bun run build"
   }
 }

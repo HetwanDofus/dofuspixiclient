@@ -91,7 +91,7 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**122 entrées**, dont **118 encore ouvertes**.
+**124 entrées**, dont **120 encore ouvertes**.
 
 ## Par gravité
 
@@ -99,7 +99,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
 | P1 — fonctionnalité cassée ou absente sur un flux principal | 49 | 49 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 45 | 45 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 47 | 47 |
 | P3 — finition, confort, cosmétique | 20 | 21 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 46 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 42 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 44 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -128,13 +128,13 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`hud-panels/`](hud-panels/) | 14 | 15 |
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
-| [`network/`](network/) | 6 | 6 |
+| [`network/`](network/) | 7 | 7 |
 | [`progression/`](progression/) | 4 | 4 |
 | [`server-runtime/`](server-runtime/) | 7 | 7 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 9 | 9 |
 | [`world-render/`](world-render/) | 10 | 10 |
-| [`worldmap/`](worldmap/) | 7 | 8 |
+| [`worldmap/`](worldmap/) | 8 | 9 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
 
@@ -248,6 +248,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-119](world-content/QA-119-bankcost-litteral.md) | P2 | world-content | gap | open | Le banquier annonce un coût de consultation en affichant le littéral [bankCost] |
 | [QA-120](exchange/QA-120-aucun-controle-de-surcharge.md) | P2 | exchange | gap | open | Aucun contrôle de surcharge : un échange peut mettre le receveur en surpoids |
 | [QA-121](server-runtime/QA-121-aucun-evenement-d-interruption.md) | P2 | server-runtime | gap | open | Aucun événement de domaine hors session.* — un combat qui démarre n'interrompt rien |
+| [QA-124](worldmap/QA-124-manifeste-public-de-navigation-absent.md) | P2 | worldmap | feature | fixed | Aucun manifeste public ne décrit la topologie navigable du monde |
+| [QA-125](network/QA-125-contrats-typescript-non-publies.md) | P2 | network | feature | fixed | Les contrats TypeScript du client ne sont pas publiés |
 
 ## P3 — finition, confort, cosmétique
 

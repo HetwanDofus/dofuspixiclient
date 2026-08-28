@@ -32,11 +32,17 @@ RUN bun install --frozen-lockfile
 
 COPY apps/gameserver-ts apps/gameserver-ts
 COPY packages packages
+COPY scripts/sync-package-version.ts scripts/sync-package-version.ts
+RUN bun run contracts:build
 # `@dofus/dofus-lang` reads bundles off disk; the server preloads `spells`.
 COPY apps/electrobun/public/assets/langs apps/electrobun/public/assets/langs
+# Auth advertises the exact navigation artifact public clients download.
+COPY apps/electrobun/public/assets/data/navigation-manifest.json apps/electrobun/public/assets/data/navigation-manifest.json
+COPY apps/electrobun/public/assets/data/navigation-manifest.schema.json apps/electrobun/public/assets/data/navigation-manifest.schema.json
 
 ENV NODE_ENV=production
 ENV LANGS_DIR=/app/apps/electrobun/public/assets/langs
+ENV NAVIGATION_MANIFEST_PATH=/app/apps/electrobun/public/assets/data/navigation-manifest.json
 ENV CORE_SOCK=/sockets/gamed.sock
 ENV AUTH_SOCK=/sockets/authd.sock
 ENV GATEWAY_PORT=8080

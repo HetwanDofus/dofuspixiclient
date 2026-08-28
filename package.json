@@ -3,11 +3,14 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "contracts:build": "bun run --cwd packages/proto build && bun run --cwd packages/grid build",
+    "contracts:verify": "bun scripts/verify-contract-packages.ts"
   },
   "devDependencies": {
     "@babel/plugin-transform-typescript": "^7.28.6",
     "@biomejs/biome": "2.2.5",
+    "@bufbuild/buf": "1.72.0",
     "glob": "^13.0.0",
     "linkedom": "^0.18.12",
     "prettier": "^3.5.0",

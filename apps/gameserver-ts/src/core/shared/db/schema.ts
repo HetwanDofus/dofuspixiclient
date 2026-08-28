@@ -264,6 +264,8 @@ export interface MapsTable {
   y: number;
   superarea: number;
   background: number;
+  /** Authentic retail flag; NULL until `import-map-swf` has covered the map. */
+  outdoor: boolean | null;
   /** `audio` lang bundle indices — AUM[musicId] / AUA[ambianceId]. */
   musicId: number | null;
   ambianceId: number | null;
