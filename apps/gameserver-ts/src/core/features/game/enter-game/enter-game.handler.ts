@@ -1,5 +1,6 @@
 import type { HandlerContext } from "@shared/gateway-adapter/ws-router";
 import { create } from "@bufbuild/protobuf";
+import { DialogLeaveSchema } from "@dofus/proto/chat_pb";
 import {
   type GameCreateRequest,
   GameCreateRequestSchema,
@@ -16,6 +17,9 @@ import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-entry";
+import { MapNpcService } from "@modules/npcs/map-npc.service";
+import { npcToSpriteEntry } from "@modules/npcs/map-npc.sprite-entry";
+import { NpcDialogSessionService } from "@modules/npcs/npc-dialog.session";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
 import { PlayersProgressionService } from "@modules/players/players.progression.service";
@@ -39,6 +43,8 @@ export class EnterGameHandler {
     private readonly progression: PlayersProgressionService,
     private readonly maps: MapsRepository,
     private readonly mapMonsters: MapMonsterService,
+    private readonly mapNpcs: MapNpcService,
+    private readonly npcDialogs: NpcDialogSessionService,
     private readonly presence: PlayerPresenceService,
     private readonly sessions: SessionRegistry,
     private readonly frames: GatewayFrameService,
@@ -164,16 +170,47 @@ export class EnterGameHandler {
     }
     const tMonsters = performance.now();
 
+    // NPCs are static furniture: no spawn roll, just the map's placements.
+    // Same defensive shape as the monsters above — a map whose NPC rows are
+    // broken must still let the player in.
+    // Every map change comes back through here, and an open dialog pins an
+    // NPC the player may no longer be standing next to — or on the same map
+    // as. Closing silently is not enough: the client would keep the window up
+    // with no way to dismiss it, because its own DV would then answer nothing.
+    if (this.npcDialogs.close(ctx.sessionId)) {
+      this.frames.broadcast(
+        [ctx.sessionId],
+        create(DofusMessageSchema, {
+          payload: {
+            case: "dialogLeave",
+            value: create(DialogLeaveSchema, {}),
+          },
+        })
+      );
+    }
+
+    let npcEntries: SpriteMovementEntry[] = [];
+    try {
+      const npcs = await this.mapNpcs.onMap(player.mapId);
+      npcEntries = npcs.map((npc) => npcToSpriteEntry(npc));
+    } catch (err) {
+      this.logger.error(
+        `failed to resolve NPCs on map=${player.mapId}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const tNpcs = performance.now();
+
     this.logger.log(
       `enter-game timing: acc=${(tAcc - tStart).toFixed(0)}ms ` +
         `stats=${(tStats - tAcc).toFixed(0)}ms ` +
         `spells=${(tSpells - tStats).toFixed(0)}ms ` +
         `monsters=${(tMonsters - tSpells).toFixed(0)}ms ` +
-        `total=${(tMonsters - tStart).toFixed(0)}ms (accs=${accessories.length})`
+        `npcs=${(tNpcs - tMonsters).toFixed(0)}ms ` +
+        `total=${(tNpcs - tStart).toFixed(0)}ms (accs=${accessories.length})`
     );
 
     this.logger.log(
-      `sending GM: self=${entering.characterId} cell=${entering.cellId} gfx=${entering.gfx} + ${existing.length} peers + ${monsterEntries.length} monster groups`
+      `sending GM: self=${entering.characterId} cell=${entering.cellId} gfx=${entering.gfx} + ${existing.length} peers + ${monsterEntries.length} monster groups + ${npcEntries.length} NPCs`
     );
 
     this.frames.broadcast(
@@ -188,6 +225,7 @@ export class EnterGameHandler {
               ),
               selfAdd,
               ...monsterEntries,
+              ...npcEntries,
             ],
           }),
         },

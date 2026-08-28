@@ -29,6 +29,7 @@ import {
 import { type CellData, findCellAtPosition } from "@/game/datacenter/cell";
 import { computeMapScale, type MapData } from "@/game/datacenter/map";
 import { loadInteractiveObjectsLang } from "@/game/lang/interactive-objects-lang";
+import { loadNpcLang, type NpcLangData } from "@/game/lang/npc-lang";
 import { Engine } from "@/game/render/engine";
 import { RendererRegistry } from "@/game/render/renderer-registry";
 import {
@@ -115,6 +116,7 @@ export class Battlefield {
   private transparencyMode = false;
   private interactiveGfxIds = new Set<number>();
   private interactiveObjectsData = new Map<number, InteractiveObjectData>();
+  private npcLangData = new Map<number, NpcLangData>();
 
   private pathfinding: DofusPathfinding | null = null;
 
@@ -133,6 +135,7 @@ export class Battlefield {
 
   private onCellClickCallback?: (cellId: number) => void;
   private onInteractiveUseCallback?: (cellId: number, skillId: number) => void;
+  private onNpcTalkCallback?: (npcSpriteId: number) => void;
   private onCellHoverCallback?: (cellId: number | null) => void;
   private lastHoveredCellId: number | null = null;
   private onResizeStartCallback?: () => void;
@@ -141,11 +144,13 @@ export class Battlefield {
   private readonly picking = new BattlefieldPicking({
     pickingSystem: () => this.pickingSystem,
     interactiveObjects: () => this.interactiveObjectsData,
+    npcLang: () => this.npcLangData,
     worldActorRenderer: () => this.worldActors.getRenderer(),
     app: () => this.app,
     onCellPickThrough: (cellId) => this.onCellClickCallback?.(cellId),
     onInteractiveUse: (cellId, skillId) =>
       this.onInteractiveUseCallback?.(cellId, skillId),
+    onNpcTalk: (npcSpriteId) => this.onNpcTalkCallback?.(npcSpriteId),
   });
 
   private readonly worldActors = new BattlefieldWorldActors({
@@ -171,7 +176,8 @@ export class Battlefield {
       monsterGroup,
       isCurrentPlayer,
       monsterGroupBonus,
-      groupSpriteIds
+      groupSpriteIds,
+      npcTemplateId
     ) =>
       this.picking.registerPlayer(
         id,
@@ -179,7 +185,8 @@ export class Battlefield {
         monsterGroup,
         isCurrentPlayer,
         monsterGroupBonus,
-        groupSpriteIds
+        groupSpriteIds,
+        npcTemplateId
       ),
     unregisterPlayerFromPicking: (id) => this.picking.unregisterPlayer(id),
     markPickingDirty: () => this.pickingSystem?.markDirty(),
@@ -265,6 +272,7 @@ export class Battlefield {
     const ctx = this as unknown as BattlefieldBootstrapContext;
     await initEngineAndVello(ctx);
     await this.loadInteractiveObjects();
+    await this.loadNpcLang();
     initPickingAndAtlas(ctx);
     await wireVelloLoaders(ctx);
     initInteraction(ctx);
@@ -697,6 +705,10 @@ export class Battlefield {
     this.worldActors.clear();
   }
 
+  private async loadNpcLang(): Promise<void> {
+    this.npcLangData = await loadNpcLang();
+  }
+
   private async loadInteractiveObjects(): Promise<void> {
     this.interactiveObjectsData = await loadInteractiveObjectsLang();
 
@@ -777,6 +789,10 @@ export class Battlefield {
     callback: (cellId: number, skillId: number) => void
   ): void {
     this.onInteractiveUseCallback = callback;
+  }
+
+  setOnNpcTalk(callback: (npcSpriteId: number) => void): void {
+    this.onNpcTalkCallback = callback;
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {

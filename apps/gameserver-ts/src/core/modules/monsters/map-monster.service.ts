@@ -197,6 +197,13 @@ export class MapMonsterService {
       const pick = pool[Math.floor(Math.random() * pool.length)]!;
       const template = await this.monsters.template(pick.templateId);
       if (!template) {
+        // The map's pool names a monster the content import never wrote.
+        // Swallowing it silently produces a group smaller than `size` with
+        // no trace of why, which is exactly how QA-034 stayed invisible for
+        // a whole session — say so instead.
+        this.logger.warn(
+          `map pool references unknown monster template=${pick.templateId}`
+        );
         continue;
       }
 
@@ -219,6 +226,14 @@ export class MapMonsterService {
         kamasMax: levelData?.kamasMax ?? 0,
       });
     }
+
+    // Highest level first. Two things read this order and disagreed until
+    // now: `monsterGroupToSpriteEntry` takes `members[0]` as the group's
+    // leader — the sprite the whole group wears on the map — while the hover
+    // panel (`MonsterGroupTooltip`, after canonical `MonsterGroup.getName`)
+    // sorts by descending level. With an unsorted list the sprite in front
+    // was a random member and rarely the one named on the panel's first row.
+    members.sort((a, b) => b.level - a.level);
 
     return members;
   }

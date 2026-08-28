@@ -267,6 +267,8 @@ export interface ScriptedNpcsTable {
   cellId: number;
   templateId: number;
   direction: number;
+  /** Whether this placement walks its template's `path`. See migration 0052. */
+  isMovable: ColumnType<boolean, boolean | undefined, boolean>;
 }
 
 export type ScriptedNpcRow = Selectable<ScriptedNpcsTable>;
@@ -496,36 +498,57 @@ export interface NpcTemplatesTable {
   customArtwork: number;
   initialQuestion: number;
   saleStoreId: number;
+  /** Sprite scale as a percentage — 100 is life size. See migration 0051. */
+  scaleX: ColumnType<number, number | undefined, number>;
+  scaleY: ColumnType<number, number | undefined, number>;
+  /**
+   * Patrol route, `;`-separated `<H|B|G|D><cells>` steps (`"G2;B1"`). Only
+   * read for placements flagged `isMovable`. See migration 0052.
+   */
+  path: ColumnType<string, string | undefined, string>;
 }
 
 export type NpcTemplateRow = Selectable<NpcTemplatesTable>;
 export type NewNpcTemplate = Insertable<NpcTemplatesTable>;
 export type NpcTemplateUpdate = Updateable<NpcTemplatesTable>;
 
+/**
+ * One node of an NPC dialog tree. The id doubles as the key into the `dialog`
+ * lang bundle (`D.q[id]`), which is where the text lives — see migration 0052.
+ */
 export interface NpcDialogQuestionsTable {
-  id: number;
-  textId: number;
-  parameters: Json;
+  /** Answer ids, in the order the dump lists them; that is display order. */
   responseIds: Json;
+  /** `#N` substitution values for the bundle text. Only 16 questions use them. */
+  parameters: Json;
+  id: number;
+  /** Imported, not evaluated yet. See migration 0052. */
+  cond: string;
+  ifFalse: number;
 }
 
 export type NpcDialogQuestionRow = Selectable<NpcDialogQuestionsTable>;
 export type NewNpcDialogQuestion = Insertable<NpcDialogQuestionsTable>;
 export type NpcDialogQuestionUpdate = Updateable<NpcDialogQuestionsTable>;
 
-export interface NpcDialogResponsesTable {
-  id: number;
-  textId: number;
-  nextQuestion: number;
-  action: string;
-  actionArgs: Json;
-  requiresLevel: number;
-  requiresKamas: number;
+/**
+ * What picking an answer does. Keyed `(responseId, type)` like the dump —
+ * 181 answers carry several actions, so this is deliberately not one row per
+ * answer. Type 1 is 92% of the table: `args` is either the next question id
+ * or the literal `DV`, meaning "end the conversation".
+ */
+export interface NpcDialogResponseActionsTable {
+  responseId: number;
+  type: number;
+  args: string;
 }
 
-export type NpcDialogResponseRow = Selectable<NpcDialogResponsesTable>;
-export type NewNpcDialogResponse = Insertable<NpcDialogResponsesTable>;
-export type NpcDialogResponseUpdate = Updateable<NpcDialogResponsesTable>;
+export type NpcDialogResponseActionRow =
+  Selectable<NpcDialogResponseActionsTable>;
+export type NewNpcDialogResponseAction =
+  Insertable<NpcDialogResponseActionsTable>;
+export type NpcDialogResponseActionUpdate =
+  Updateable<NpcDialogResponseActionsTable>;
 
 export interface WaypointsTable {
   id: Generated<string>;
@@ -1808,7 +1831,7 @@ export type DB = {
   fightParticipants: FightParticipantsTable;
   npcTemplates: NpcTemplatesTable;
   npcDialogQuestions: NpcDialogQuestionsTable;
-  npcDialogResponses: NpcDialogResponsesTable;
+  npcDialogResponseActions: NpcDialogResponseActionsTable;
   waypoints: WaypointsTable;
   waypointKnown: WaypointKnownTable;
   playerItemShortcuts: PlayerItemShortcutsTable;

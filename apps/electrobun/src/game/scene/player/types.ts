@@ -34,7 +34,15 @@ export interface PlayerSpriteData {
    * actors going through the same renderer.
    */
   isCharacter?: boolean;
-  linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
+  linkedChildren?: Array<{
+    gfxId: number;
+    /** 0-7, a slot in the ring of cells around the parent. */
+    childIndex: number;
+    /** 1.29 colour triple; -1 leaves that zone at the artwork's palette. */
+    color1?: number;
+    color2?: number;
+    color3?: number;
+  }>;
   mount?: MountDisplay;
   /**
    * Optional pixel offset applied to the container after `getCellPosition`
@@ -52,6 +60,16 @@ export interface PlayerSpriteData {
    * the leader and the screen isn't littered with redundant labels.
    */
   decorative?: boolean;
+  /**
+   * Per-actor sprite scale as a multiplier — 1 is life size. Mirrors the
+   * canonical `scaleX/scaleY` a `-4` GM entry carries and that
+   * `CharactersManager.createNonPlayableCharacter` writes onto the sprite;
+   * a handful of NPCs are deliberately drawn larger or smaller than their
+   * artwork. Applied to the actor's container, not its sprite: `sprite
+   * .scale.x` already carries the ±1 direction flip and is rewritten on
+   * every direction change.
+   */
+  scale?: number;
 }
 
 /**

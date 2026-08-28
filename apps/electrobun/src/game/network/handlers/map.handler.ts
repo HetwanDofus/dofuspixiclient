@@ -18,7 +18,7 @@ import {
   type SpriteMovementEntry,
 } from "@/game/network/protocol";
 import { numericId } from "@/game/network/sprite-id";
-import { hudStore } from "@/game/stores";
+import { closeNpcDialog, hudStore } from "@/game/stores";
 import { createLogger } from "@/utils/logger";
 
 import type { CharacterHandler, CharacterInfo } from "./character.handler";
@@ -262,6 +262,12 @@ export class MapHandler {
 
   private async handleMapData(payload: GameMapData): Promise<void> {
     const mapId = payload.mapId;
+
+    // A conversation does not survive leaving the map it happened on. The
+    // server drops its half in `enter-game` and echoes DV, but the window has
+    // to go even if that frame is lost — otherwise it sits there un-closable.
+    closeNpcDialog();
+
     log.info(
       `gameMapData: map ${mapId} (${payload.cells.length} cells, ` +
         `${payload.width}x${payload.height}, bg=${payload.background})`
@@ -354,6 +360,7 @@ export class MapHandler {
       const numeric = numericId(entry.spriteId);
       const isMonsterGroup =
         entry.spriteType === 3 /* SPRITE_TYPE_MONSTER_GROUP */;
+      const isNpc = entry.spriteType === 4 /* SPRITE_TYPE_NPC */;
       // For monster groups the nameplate stays empty — the roster +
       // level + 5-star difficulty are rendered by the hover panel
       // (`MonsterGroupTooltip`, modelled on canonical
@@ -380,12 +387,21 @@ export class MapHandler {
         // through lets the PlayerRenderer paint the right ring color
         // as soon as fight-mode flips on.
         team: entry.team,
+        // Percentages on the wire (100 = life size), a multiplier here.
+        // Only NPCs carry a meaningful value today — every other producer
+        // hardcodes 100 — so a 0 or a missing field must read as 1, not as
+        // an invisible sprite.
+        scale: entry.scaleX > 0 ? entry.scaleX / 100 : 1,
         ...(isMonsterGroup
           ? {
               monsterGroup: entry.monsters,
               monsterGroupBonus: entry.monsterGroupBonus,
             }
           : {}),
+        // The NPC *template* id: what keys the `npc` lang bundle the action
+        // bubble is built from. Distinct from the sprite id, which is a
+        // per-placement number.
+        ...(isNpc ? { npcTemplateId: entry.npcId } : {}),
       });
 
       if (isSelf) {

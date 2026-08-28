@@ -62,6 +62,7 @@ describe("BattlefieldPicking — map reload", () => {
     picking = new BattlefieldPicking({
       pickingSystem: () => pickingSystem,
       interactiveObjects: () => new Map([[DOOR_GFX, doorData]]),
+      npcLang: () => new Map(),
       worldActorRenderer: () => renderer,
       app: () => null,
     });

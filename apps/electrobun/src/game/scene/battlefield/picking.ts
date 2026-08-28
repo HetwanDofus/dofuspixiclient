@@ -1,6 +1,7 @@
 import type { MonsterGroupMember } from "@dofus/proto";
 import type { Application, Sprite } from "pixi.js";
 
+import type { NpcLangData } from "@/game/lang/npc-lang";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
 import type { InteractiveObjectData, PickResult } from "@/game/types";
@@ -17,9 +18,17 @@ import { createLogger } from "@/utils/logger";
 
 const log = createLogger("BattlefieldPicking");
 
+/**
+ * `npc.json` `N.a` action id for "Parler" — the only one wired up.
+ * `NonPlayableCharacter.getActionFunction` maps it to `startDialog`; ids
+ * 1/2/4/5/6/7/8 all map to `startExchange` and are out of scope.
+ */
+const NPC_ACTION_TALK = 3;
+
 export interface BattlefieldPickingDeps {
   pickingSystem(): PickingSystem | null;
   interactiveObjects(): Map<number, InteractiveObjectData>;
+  npcLang(): Map<number, NpcLangData>;
   worldActorRenderer(): PlayerRenderer | null;
   app(): Application | null;
   /**
@@ -34,6 +43,13 @@ export interface BattlefieldPickingDeps {
    * client walks to the cell first, then sends `GA;500;<cellId>;<skillId>`.
    */
   onInteractiveUse?: (cellId: number, skillId: number) => void;
+  /**
+   * Fired when the player picks "Parler" on an NPC. Unlike an element skill
+   * this does not walk first: canonical `GameManager.startDialog` cancels an
+   * in-flight move and sends DC straight away — an NPC is talked to from
+   * wherever the player stands.
+   */
+  onNpcTalk?: (npcSpriteId: number) => void;
 }
 
 interface InteractiveCallbacks {
@@ -83,6 +99,12 @@ export class BattlefieldPicking {
   // sibling would only tint that one sprite while the rest stayed
   // dark — exactly the bug the user reported.
   private readonly pickableIdToGroupSpriteIds = new Map<number, number[]>();
+  // pickableId → NPC *template* id, for SPRITE_TYPE_NPC actors. Keys the
+  // `npc` lang bundle the click menu is built from, and — just as
+  // important — marks the actor as an NPC: NPC sprite ids are negative,
+  // which the monster-group fallback below would otherwise read as "walk
+  // into it and start a fight".
+  private readonly pickableIdToNpcTemplate = new Map<number, number>();
   private readonly pickableIdToPlayerName = new Map<number, string>();
   // Pickable id of OUR OWN sprite (the one tagged isCurrentPlayer at
   // register time). Used by `setOnSelfHover` to gate the
@@ -210,7 +232,8 @@ export class BattlefieldPicking {
     monsterGroup?: MonsterGroupMember[],
     isCurrentPlayer?: boolean,
     monsterGroupBonus?: number,
-    groupSpriteIds?: number[]
+    groupSpriteIds?: number[],
+    npcTemplateId?: number
   ): void {
     const data = renderer.getPlayerPickingData(playerId);
     const pickingSystem = this.deps.pickingSystem();
@@ -315,6 +338,9 @@ export class BattlefieldPicking {
     if (groupSpriteIds && groupSpriteIds.length > 0) {
       this.pickableIdToGroupSpriteIds.set(pickableId, groupSpriteIds);
     }
+    if (npcTemplateId !== undefined && npcTemplateId > 0) {
+      this.pickableIdToNpcTemplate.set(pickableId, npcTemplateId);
+    }
   }
 
   private publishMonsterGroupHover(pickableId: number, hovered: boolean): void {
@@ -398,6 +424,7 @@ export class BattlefieldPicking {
     this.pickableIdToMonsterGroup.delete(pickableId);
     this.pickableIdToMonsterGroupBonus.delete(pickableId);
     this.pickableIdToGroupSpriteIds.delete(pickableId);
+    this.pickableIdToNpcTemplate.delete(pickableId);
     this.pickableIdToPlayerName.delete(pickableId);
     // Sprite teardown while still hovered: drop both source channels
     // and let `recomputeEffectiveHover` synthesise a roll-out.
@@ -467,6 +494,15 @@ export class BattlefieldPicking {
     const playerId = this.pickableIdToPlayerId.get(result.object.id);
 
     if (playerId !== undefined) {
+      // NPCs first. Their sprite ids are negative, so the legacy
+      // negative-id heuristic below would take them for a monster group
+      // and send the player walking into them.
+      const npcTemplateId = this.pickableIdToNpcTemplate.get(result.object.id);
+      if (npcTemplateId !== undefined) {
+        this.showNpcContextMenu(npcTemplateId, playerId, result.x, result.y);
+        return;
+      }
+
       // Monster groups: primary detection is the roster map populated
       // at register-time from SpriteMovementEntry.monsters[]; we fall
       // back to the legacy negative-id heuristic for pre-rework
@@ -504,6 +540,53 @@ export class BattlefieldPicking {
     }
 
     this.showInteractiveContextMenu(objData, cellId, result.x, result.y);
+  }
+
+  /**
+   * The NPC action bubble — canonical `DofusBattlefield.onSpriteRelease`
+   * (`assets/sources/client-code/dofus/graphics/battlefield/
+   * DofusBattlefield.as:520-561`): the NPC's name as the header, then one
+   * entry per action id in its `npc` bundle record, in the bundle's own
+   * order.
+   *
+   * "Parler" is live; the seven trade actions are still greyed. 1.29's rule
+   * for an unavailable action is to keep it listed and greyed rather than
+   * hide it (`Skill.getState` returns "I", not "X" — see
+   * `context-menu-store.ts`), so the bubble reads the same either way and
+   * each trade only needs its handler filled in.
+   */
+  private showNpcContextMenu(
+    npcTemplateId: number,
+    playerId: number,
+    screenX: number,
+    screenY: number
+  ): void {
+    const lang = this.deps.npcLang().get(npcTemplateId);
+    // The bundle is the only source for the action list; the sprite's own
+    // name is the better title, since that is what the server localized.
+    const title =
+      this.deps.worldActorRenderer()?.getPlayerName(playerId) ||
+      lang?.name ||
+      "";
+    const options = (lang?.actions ?? []).map((action) => {
+      const talk = action.id === NPC_ACTION_TALK;
+      return {
+        label: action.label,
+        // Everything but "Parler" stays greyed: the three trades all need the
+        // exchange protocol, an item-list window and kamas writes, none of
+        // which exist yet. 1.29 lists an unavailable action rather than
+        // hiding it, so the bubble is already the right shape.
+        disabled: !talk,
+        onClick: talk ? () => this.deps.onNpcTalk?.(playerId) : () => {},
+      };
+    });
+
+    if (options.length === 0) {
+      return;
+    }
+
+    const { x, y } = this.pixiToPageCoords(screenX, screenY);
+    showContextMenu(title, options, x, y);
   }
 
   /**

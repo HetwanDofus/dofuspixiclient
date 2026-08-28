@@ -9,7 +9,7 @@ session: 1
 opened: 2026-08-20
 closed:
 fixed_in:
-related: [QA-034, QA-013, QA-027]
+related: [QA-034, QA-013, QA-027, QA-093, QA-097]
 files: [apps/gameserver-ts/scripts/import-starloco-content.ts]
 ---
 
@@ -43,5 +43,10 @@ caractéristiques d'arme (PA / portée / CC) et la liste de vente d'un PNJ — v
 
 ## Reste à faire
 
-Le câblage serveur : PNJ dans `enter-game`, équipement depuis `item_templates`,
-et les deux colonnes manquantes.
+Le câblage des PNJ est fait — voir
+[QA-093](QA-093-pnj-importes-jamais-envoyes-au-client.md), qui a aussi ajouté
+`npc_templates.scale_x` / `scale_y` (migration 0051).
+
+Reste : l'équipement depuis `item_templates`, et les deux champs 1.29 sans
+colonne — caractéristiques d'arme, et la liste de vente d'un PNJ, dont dépend
+la boutique.

@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
  *   2. Stars  → 5 glyphs coloured per `getStarsColor()` against the
  *               `STARS_COLORS` table; an empty-bar style (no fills) for
  *               unbonused groups.
- *   3. Body   → roster text. Canonical packs every member on its own
- *               line; we deduplicate by `name` so a swarm of 8 pious
- *               renders as `Piou Bleu (5)\nPiou Rouge (3)` instead of
- *               eight identical rows.
+ *   3. Body   → roster text: one row per member, `Name (level)`, sorted
+ *               by descending level, exactly as `MonsterGroup.getName`
+ *               builds it. The row count is how a player counts the
+ *               group, so members are never collapsed.
  *
  * Background mirrors `AbstractTextOverHead`: rounded rectangle, black
  * fill at 70% alpha (BACKGROUND_ALPHA = 70).
@@ -142,26 +142,16 @@ export function MonsterGroupTooltip() {
 
   const totalLevel = group.members.reduce((s, m) => s + m.level, 0);
 
-  // Canonical packs one row per member, but visually that becomes a
-  // wall when a group has 8 of the same monster. Group by `name`,
-  // keep the highest level seen for that name (matches canonical
-  // sort order: descending level).
-  const byName = new Map<
-    string,
-    { name: string; level: number; count: number }
-  >();
-  for (const m of group.members) {
-    const cur = byName.get(m.name);
-    if (cur) {
-      cur.count += 1;
-      if (m.level > cur.level) {
-        cur.level = m.level;
-      }
-    } else {
-      byName.set(m.name, { name: m.name, level: m.level, count: 1 });
-    }
-  }
-  const grouped = [...byName.values()].sort((a, b) => b.level - a.level);
+  // Canonical `MonsterGroup.getName` (`dofus/datacenter/MonsterGroup.as:39-59`):
+  // ONE row per member, `Name (level)`, sorted by descending level.
+  //
+  // This used to deduplicate by name and render `Piou Violet (2)` to avoid a
+  // wall of identical rows — but that made the panel unreadable in the exact
+  // way it is meant to prevent. The parenthesised number is the *level* in
+  // 1.29, so `Piou Violet (2)` reads as one level-2 piou, and a group of two
+  // violets plus a blue looked like a two-monster group. Counting the rows is
+  // how a player counts the group, so a row per member it is.
+  const roster = [...group.members].sort((a, b) => b.level - a.level);
 
   const stars = starColours(group.bonusValue);
 
@@ -297,10 +287,12 @@ export function MonsterGroupTooltip() {
           lineHeight: "1.25",
         }}
       >
-        {grouped.map((g) => (
-          <li key={g.name} className="tabular-nums">
-            <span>{g.name}</span>
-            {g.count > 1 && <span className="ml-1">({g.count})</span>}
+        {roster.map((m, i) => (
+          // Members are not individually identified on the wire and two of
+          // them can be the same template at the same level, so the index is
+          // the only stable key available here.
+          <li key={`${m.templateId}-${i}`} className="tabular-nums">
+            {m.name} ({m.level})
           </li>
         ))}
       </ul>

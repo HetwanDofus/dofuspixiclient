@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file chat.proto.
  */
 export const file_chat: GenFile = /*@__PURE__*/
-  fileDesc("CgpjaGF0LnByb3RvEgVkb2Z1cyK2AQoLQ2hhdE1lc3NhZ2USDwoHc3VjY2VzcxgBIAEoCBIjCgdjaGFubmVsGAIgASgOMhIuZG9mdXMuQ2hhdENoYW5uZWwSEQoJc2VuZGVyX2lkGAMgASgJEhMKC3NlbmRlcl9uYW1lGAQgASgJEg8KB21lc3NhZ2UYBSABKAkSEgoKaXRlbXNfZGF0YRgGIAEoCRIQCghldmVudF9pZBgHIAEoBRISCgpldmVudF90eXBlGAggASgFIooBChBDaGF0TWVzc2FnZUVycm9yEiMKB2NoYW5uZWwYASABKA4yEi5kb2Z1cy5DaGF0Q2hhbm5lbBImCgZyZWFzb24YAiABKA4yFi5kb2Z1cy5DaGF0RXJyb3JSZWFzb24SGQoRcmVtYWluaW5nX3NlY29uZHMYAyABKAUSDgoGZGV0YWlsGAQgASgJIloKEUNoYXRTZXJ2ZXJNZXNzYWdlEg8KB2NoYW5uZWwYASABKAkSEQoJc2VuZGVyX2lkGAIgASgDEhMKC3NlbmRlcl9uYW1lGAMgASgJEgwKBGJvZHkYBCABKAkiMgoKQ2hhdFNtaWxleRIRCglzcHJpdGVfaWQYASABKAkSEQoJc21pbGV5X2lkGAIgASgFIjsKFENoYXRTdWJzY3JpYmVDaGFubmVsEhEKCXN1YnNjcmliZRgBIAEoCBIQCghjaGFubmVscxgCIAEoCSIlChJCYXNpY3NQb3B1cE1lc3NhZ2USDwoHbWVzc2FnZRgBIAEoCSIoChNCYXNpY3NSZWZlcmVuY2VUaW1lEhEKCXRpbWVzdGFtcBgBIAEoAyI2CgpCYXNpY3NEYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFImQKC0Jhc2ljc1dob0lzEg8KB3N1Y2Nlc3MYASABKAgSDAoEbmFtZRgCIAEoCRINCgVzdGF0ZRgDIAEoBRIWCg5jaGFyYWN0ZXJfbmFtZRgEIAEoCRIPCgdhcmVhX2lkGAUgASgFIkEKG0Jhc2ljc1N1YnNjcmliZXJSZXN0cmljdGlvbhIPCgdlbmFibGVkGAEgASgIEhEKCWRpYWxvZ19pZBgCIAEoBSI1Cg9CYXNpY3NGaWxlQ2hlY2sSEAoIY2hlY2tfaWQYASABKAUSEAoIZmlsZW5hbWUYAiABKAkiDAoKQmFzaWNzUGluZyLLAgoTQmFzaWNzQWRtaW5SZXNwb25zZRI1CgR0eXBlGAEgASgOMicuZG9mdXMuQmFzaWNzQWRtaW5SZXNwb25zZS5SZXNwb25zZVR5cGUSEAoIY29tbWFuZHMYAiABKAkSDgoGb3V0cHV0GAMgASgJEhAKCGxpbmVfbnVtGAQgASgFEhEKCWxpbmVfdHlwZRgFIAEoBRIMCgR0ZXh0GAYgASgJEg4KBnJpZ2h0cxgHIAEoAyKXAQoMUmVzcG9uc2VUeXBlEhgKFFJFU1BPTlNFX1VOU1BFQ0lGSUVEEAASCwoHTElTVElORxABEgsKB1NVQ0NFU1MQAhIICgRMSU5FEAMSCgoGUFJPTVBUEAQSCQoFQ0xFQVIQBRIJCgVFUlJPUhAGEhIKDklOVEVSRkFDRV9PUEVOEAcSEwoPSU5URVJGQUNFX0NMT1NFEAgiMgoRQmFzaWNzUmVwb3J0SW5mb3MSDAoEc3RlcBgBIAEoBRIPCgdwYXlsb2FkGAIgASgJIi4KCEluZm9NYXBzEhIKCm1lc3NhZ2VfaWQYASABKAUSDgoGcGFyYW1zGAIgAygJIjIKC0luZm9Db21wYXNzEg0KBWNsZWFyGAEgASgIEgkKAXgYAiABKAUSCQoBeRgDIAEoBSJCChhJbmZvQ29vcmRpbmF0ZXNIaWdobGlnaHQSJgoJcGhvZW5peGVzGAEgAygLMhMuZG9mdXMuUGhvZW5peFBvaW50IjQKDFBob2VuaXhQb2ludBIJCgF4GAEgASgFEgkKAXkYAiABKAUSDgoGbWFwX2lkGAMgASgFIh4KC0luZm9NZXNzYWdlEg8KB21lc3NhZ2UYASABKAkiMgoMSW5mb1F1YW50aXR5EhAKCGFjdG9yX2lkGAEgASgDEhAKCHF1YW50aXR5GAIgASgFIiwKCkluZm9PYmplY3QSEAoIYWN0b3JfaWQYASABKAMSDAoEaW5mbxgCIAEoCSJEChRJbmZvTGlmZVJlc3RvcmVUaW1lchIPCgdzdGFydGVkGAEgASgIEgwKBHJhdGUYAiABKAUSDQoFZGVsdGEYAyABKAUiNQoSRGlhbG9nQ3VzdG9tQWN0aW9uEhEKCWFjdGlvbl9pZBgBIAEoBRIMCgRhcmdzGAIgASgJIi8KDERpYWxvZ0NyZWF0ZRIPCgdzdWNjZXNzGAEgASgIEg4KBm5wY19pZBgCIAEoAyI1Cg5EaWFsb2dRdWVzdGlvbhITCgtxdWVzdGlvbl9pZBgBIAEoBRIOCgZwYXJhbXMYAiADKAkiDQoLRGlhbG9nTGVhdmUiDQoLRGlhbG9nUGF1c2UiEgoQU2VydmVyRGlzY29ubmVjdCIzCg1TZXJ2ZXJNZXNzYWdlEhQKDG1lc3NhZ2VfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgJIowBCghQaW5nUG9uZxImCgR0eXBlGAEgASgOMhguZG9mdXMuUGluZ1BvbmcuUGluZ1R5cGUSDAoEZGF0YRgCIAEoCSJKCghQaW5nVHlwZRIZChVQSU5HX1RZUEVfVU5TUEVDSUZJRUQQABIICgRQT05HEAESDgoKUVVJQ0tfUE9ORxACEgkKBVJQT05HEAMiSwoPQ2hhdFNlbmRNZXNzYWdlEhMKC2Rlc3RpbmF0aW9uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEgoKaXRlbXNfZGF0YRgDIAEoCSJeChFDaGF0UmVwb3J0TWVzc2FnZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoBSIiCg1DaGF0VXNlU21pbGV5EhEKCXNtaWxleV9pZBgBIAEoBSJBChtDaGF0U3Vic2NyaWJlQ2hhbm5lbFJlcXVlc3QSEQoJc3Vic2NyaWJlGAEgASgIEg8KB2NoYW5uZWwYAiABKAkiJQoSQmFzaWNzQWRtaW5Db21tYW5kEg8KB2NvbW1hbmQYASABKAkiJwoPQmFzaWNzQWRtaW5Nb3ZlEgkKAXgYASABKAUSCQoBeRgCIAEoBSJGCg9CYXNpY3NBZG1pbktpY2sSEwoLcGxheWVyX25hbWUYASABKAkSDQoFdGVtcG8YAiABKAUSDwoHbWVzc2FnZRgDIAEoCSIiChJCYXNpY3NXaG9Jc1JlcXVlc3QSDAoEbmFtZRgBIAEoCSIWChRCYXNpY3NHZXREYXRlUmVxdWVzdCIlChFCYXNpY3NLaWNrUmVxdWVzdBIQCghjZWxsX251bRgBIAEoBSIPCg1CYXNpY3NTZXRBd2F5IhQKEkJhc2ljc1NldEludmlzaWJsZSI8ChVCYXNpY3NGaWxlQ2hlY2tBbnN3ZXISEAoIY2hlY2tfaWQYASABKAUSEQoJZmlsZV9zaXplGAIgASgFIjYKDkJhc2ljc1NhbmN0aW9uEhMKC3NhbmN0aW9uX2lkGAEgASgFEg8KB3dvcmRfaWQYAiABKAUiTQoOQmFzaWNzU2VuZFBpbmcSEAoIYXZnX3BpbmcYASABKAUSFAoMcGFja2V0X2NvdW50GAIgASgFEhMKC2J1ZmZlcl9zaXplGAMgASgFIk8KGEJhc2ljc1JlcG9ydEluZm9zUmVxdWVzdBIMCgRzdGVwGAEgASgFEg8KB3RhcmdldHMYAiABKAkSFAoMYWxsX2FjY291bnRzGAMgASgIIisKGURpYWxvZ0N1c3RvbUFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJIhQKEkRpYWxvZ0xlYXZlUmVxdWVzdCqsAgoPQ2hhdEVycm9yUmVhc29uEiEKHUNIQVRfRVJST1JfUkVBU09OX1VOU1BFQ0lGSUVEEAASGwoXQ0hBVF9FUlJPUl9SRUFTT05fRkxPT0QQARIeChpDSEFUX0VSUk9SX1JFQVNPTl9OT19HVUlMRBACEh4KGkNIQVRfRVJST1JfUkVBU09OX05PX1BBUlRZEAMSIgoeQ0hBVF9FUlJPUl9SRUFTT05fTk9UX0lOX0ZJR0hUEAQSJgoiQ0hBVF9FUlJPUl9SRUFTT05fUExBWUVSX05PVF9GT1VORBAFEigKJENIQVRfRVJST1JfUkVBU09OX0NBTlRfV0lTUF9ZT1VSU0VMRhAGEiMKH0NIQVRfRVJST1JfUkVBU09OX0VNUFRZX01FU1NBR0UQB2IGcHJvdG8z", [file_common]);
+  fileDesc("CgpjaGF0LnByb3RvEgVkb2Z1cyK2AQoLQ2hhdE1lc3NhZ2USDwoHc3VjY2VzcxgBIAEoCBIjCgdjaGFubmVsGAIgASgOMhIuZG9mdXMuQ2hhdENoYW5uZWwSEQoJc2VuZGVyX2lkGAMgASgJEhMKC3NlbmRlcl9uYW1lGAQgASgJEg8KB21lc3NhZ2UYBSABKAkSEgoKaXRlbXNfZGF0YRgGIAEoCRIQCghldmVudF9pZBgHIAEoBRISCgpldmVudF90eXBlGAggASgFIooBChBDaGF0TWVzc2FnZUVycm9yEiMKB2NoYW5uZWwYASABKA4yEi5kb2Z1cy5DaGF0Q2hhbm5lbBImCgZyZWFzb24YAiABKA4yFi5kb2Z1cy5DaGF0RXJyb3JSZWFzb24SGQoRcmVtYWluaW5nX3NlY29uZHMYAyABKAUSDgoGZGV0YWlsGAQgASgJIloKEUNoYXRTZXJ2ZXJNZXNzYWdlEg8KB2NoYW5uZWwYASABKAkSEQoJc2VuZGVyX2lkGAIgASgDEhMKC3NlbmRlcl9uYW1lGAMgASgJEgwKBGJvZHkYBCABKAkiMgoKQ2hhdFNtaWxleRIRCglzcHJpdGVfaWQYASABKAkSEQoJc21pbGV5X2lkGAIgASgFIjsKFENoYXRTdWJzY3JpYmVDaGFubmVsEhEKCXN1YnNjcmliZRgBIAEoCBIQCghjaGFubmVscxgCIAEoCSIlChJCYXNpY3NQb3B1cE1lc3NhZ2USDwoHbWVzc2FnZRgBIAEoCSIoChNCYXNpY3NSZWZlcmVuY2VUaW1lEhEKCXRpbWVzdGFtcBgBIAEoAyI2CgpCYXNpY3NEYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFImQKC0Jhc2ljc1dob0lzEg8KB3N1Y2Nlc3MYASABKAgSDAoEbmFtZRgCIAEoCRINCgVzdGF0ZRgDIAEoBRIWCg5jaGFyYWN0ZXJfbmFtZRgEIAEoCRIPCgdhcmVhX2lkGAUgASgFIkEKG0Jhc2ljc1N1YnNjcmliZXJSZXN0cmljdGlvbhIPCgdlbmFibGVkGAEgASgIEhEKCWRpYWxvZ19pZBgCIAEoBSI1Cg9CYXNpY3NGaWxlQ2hlY2sSEAoIY2hlY2tfaWQYASABKAUSEAoIZmlsZW5hbWUYAiABKAkiDAoKQmFzaWNzUGluZyLLAgoTQmFzaWNzQWRtaW5SZXNwb25zZRI1CgR0eXBlGAEgASgOMicuZG9mdXMuQmFzaWNzQWRtaW5SZXNwb25zZS5SZXNwb25zZVR5cGUSEAoIY29tbWFuZHMYAiABKAkSDgoGb3V0cHV0GAMgASgJEhAKCGxpbmVfbnVtGAQgASgFEhEKCWxpbmVfdHlwZRgFIAEoBRIMCgR0ZXh0GAYgASgJEg4KBnJpZ2h0cxgHIAEoAyKXAQoMUmVzcG9uc2VUeXBlEhgKFFJFU1BPTlNFX1VOU1BFQ0lGSUVEEAASCwoHTElTVElORxABEgsKB1NVQ0NFU1MQAhIICgRMSU5FEAMSCgoGUFJPTVBUEAQSCQoFQ0xFQVIQBRIJCgVFUlJPUhAGEhIKDklOVEVSRkFDRV9PUEVOEAcSEwoPSU5URVJGQUNFX0NMT1NFEAgiMgoRQmFzaWNzUmVwb3J0SW5mb3MSDAoEc3RlcBgBIAEoBRIPCgdwYXlsb2FkGAIgASgJIi4KCEluZm9NYXBzEhIKCm1lc3NhZ2VfaWQYASABKAUSDgoGcGFyYW1zGAIgAygJIjIKC0luZm9Db21wYXNzEg0KBWNsZWFyGAEgASgIEgkKAXgYAiABKAUSCQoBeRgDIAEoBSJCChhJbmZvQ29vcmRpbmF0ZXNIaWdobGlnaHQSJgoJcGhvZW5peGVzGAEgAygLMhMuZG9mdXMuUGhvZW5peFBvaW50IjQKDFBob2VuaXhQb2ludBIJCgF4GAEgASgFEgkKAXkYAiABKAUSDgoGbWFwX2lkGAMgASgFIh4KC0luZm9NZXNzYWdlEg8KB21lc3NhZ2UYASABKAkiMgoMSW5mb1F1YW50aXR5EhAKCGFjdG9yX2lkGAEgASgDEhAKCHF1YW50aXR5GAIgASgFIiwKCkluZm9PYmplY3QSEAoIYWN0b3JfaWQYASABKAMSDAoEaW5mbxgCIAEoCSJEChRJbmZvTGlmZVJlc3RvcmVUaW1lchIPCgdzdGFydGVkGAEgASgIEgwKBHJhdGUYAiABKAUSDQoFZGVsdGEYAyABKAUiNQoSRGlhbG9nQ3VzdG9tQWN0aW9uEhEKCWFjdGlvbl9pZBgBIAEoBRIMCgRhcmdzGAIgASgJIpUBCgxEaWFsb2dDcmVhdGUSDwoHc3VjY2VzcxgBIAEoCBIOCgZucGNfaWQYAiABKAMSDgoGZ2Z4X2lkGAMgASgFEhYKDmN1c3RvbV9hcnR3b3JrGAQgASgFEg4KBmNvbG9yMRgFIAEoBRIOCgZjb2xvcjIYBiABKAUSDgoGY29sb3IzGAcgASgFEgwKBG5hbWUYCCABKAkibQoORGlhbG9nUXVlc3Rpb24SEwoLcXVlc3Rpb25faWQYASABKAUSDgoGcGFyYW1zGAIgAygJEhQKDHJlc3BvbnNlX2lkcxgDIAMoBRIgChh1bmF2YWlsYWJsZV9yZXNwb25zZV9pZHMYBCADKAUiDQoLRGlhbG9nTGVhdmUiDQoLRGlhbG9nUGF1c2UiEgoQU2VydmVyRGlzY29ubmVjdCIzCg1TZXJ2ZXJNZXNzYWdlEhQKDG1lc3NhZ2VfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgJIowBCghQaW5nUG9uZxImCgR0eXBlGAEgASgOMhguZG9mdXMuUGluZ1BvbmcuUGluZ1R5cGUSDAoEZGF0YRgCIAEoCSJKCghQaW5nVHlwZRIZChVQSU5HX1RZUEVfVU5TUEVDSUZJRUQQABIICgRQT05HEAESDgoKUVVJQ0tfUE9ORxACEgkKBVJQT05HEAMiSwoPQ2hhdFNlbmRNZXNzYWdlEhMKC2Rlc3RpbmF0aW9uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEgoKaXRlbXNfZGF0YRgDIAEoCSJeChFDaGF0UmVwb3J0TWVzc2FnZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoBSIiCg1DaGF0VXNlU21pbGV5EhEKCXNtaWxleV9pZBgBIAEoBSJBChtDaGF0U3Vic2NyaWJlQ2hhbm5lbFJlcXVlc3QSEQoJc3Vic2NyaWJlGAEgASgIEg8KB2NoYW5uZWwYAiABKAkiJQoSQmFzaWNzQWRtaW5Db21tYW5kEg8KB2NvbW1hbmQYASABKAkiJwoPQmFzaWNzQWRtaW5Nb3ZlEgkKAXgYASABKAUSCQoBeRgCIAEoBSJGCg9CYXNpY3NBZG1pbktpY2sSEwoLcGxheWVyX25hbWUYASABKAkSDQoFdGVtcG8YAiABKAUSDwoHbWVzc2FnZRgDIAEoCSIiChJCYXNpY3NXaG9Jc1JlcXVlc3QSDAoEbmFtZRgBIAEoCSIWChRCYXNpY3NHZXREYXRlUmVxdWVzdCIlChFCYXNpY3NLaWNrUmVxdWVzdBIQCghjZWxsX251bRgBIAEoBSIPCg1CYXNpY3NTZXRBd2F5IhQKEkJhc2ljc1NldEludmlzaWJsZSI8ChVCYXNpY3NGaWxlQ2hlY2tBbnN3ZXISEAoIY2hlY2tfaWQYASABKAUSEQoJZmlsZV9zaXplGAIgASgFIjYKDkJhc2ljc1NhbmN0aW9uEhMKC3NhbmN0aW9uX2lkGAEgASgFEg8KB3dvcmRfaWQYAiABKAUiTQoOQmFzaWNzU2VuZFBpbmcSEAoIYXZnX3BpbmcYASABKAUSFAoMcGFja2V0X2NvdW50GAIgASgFEhMKC2J1ZmZlcl9zaXplGAMgASgFIk8KGEJhc2ljc1JlcG9ydEluZm9zUmVxdWVzdBIMCgRzdGVwGAEgASgFEg8KB3RhcmdldHMYAiABKAkSFAoMYWxsX2FjY291bnRzGAMgASgIIisKGURpYWxvZ0N1c3RvbUFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJIhQKEkRpYWxvZ0xlYXZlUmVxdWVzdCIsChNEaWFsb2dDcmVhdGVSZXF1ZXN0EhUKDW5wY19zcHJpdGVfaWQYASABKAMiQQoVRGlhbG9nUmVzcG9uc2VSZXF1ZXN0EhMKC3F1ZXN0aW9uX2lkGAEgASgFEhMKC3Jlc3BvbnNlX2lkGAIgASgFKqwCCg9DaGF0RXJyb3JSZWFzb24SIQodQ0hBVF9FUlJPUl9SRUFTT05fVU5TUEVDSUZJRUQQABIbChdDSEFUX0VSUk9SX1JFQVNPTl9GTE9PRBABEh4KGkNIQVRfRVJST1JfUkVBU09OX05PX0dVSUxEEAISHgoaQ0hBVF9FUlJPUl9SRUFTT05fTk9fUEFSVFkQAxIiCh5DSEFUX0VSUk9SX1JFQVNPTl9OT1RfSU5fRklHSFQQBBImCiJDSEFUX0VSUk9SX1JFQVNPTl9QTEFZRVJfTk9UX0ZPVU5EEAUSKAokQ0hBVF9FUlJPUl9SRUFTT05fQ0FOVF9XSVNQX1lPVVJTRUxGEAYSIwofQ0hBVF9FUlJPUl9SRUFTT05fRU1QVFlfTUVTU0FHRRAHYgZwcm90bzM", [file_common]);
 
 /**
  * cM - Chat message received
@@ -792,6 +792,13 @@ export const DialogCustomActionSchema: GenMessage<DialogCustomAction> = /*@__PUR
  * Producer: pkg/npc/interfaces/register.go:102 — emits the NPC template id
  * as the sole body ("DC<npcId>").
  *
+ * Canonical `Dialog.onCreate` reads the portrait off the map sprite it
+ * already holds, but `custom_artwork` never travels in SpriteMovementEntry,
+ * so the fields the NpcDialog window needs ride along here instead. See
+ * `dofus/graphics/gapi/ui/NpcDialog.as:63-78`: the artwork is
+ * `ARTWORKS_BIG_PATH + (custom_artwork > 0 ? custom_artwork : gfx_id)`,
+ * tinted with the same three colour zones as the in-world sprite.
+ *
  * @generated from message dofus.DialogCreate
  */
 export type DialogCreate = Message<"dofus.DialogCreate"> & {
@@ -804,6 +811,36 @@ export type DialogCreate = Message<"dofus.DialogCreate"> & {
    * @generated from field: int64 npc_id = 2;
    */
   npcId: bigint;
+
+  /**
+   * @generated from field: int32 gfx_id = 3;
+   */
+  gfxId: number;
+
+  /**
+   * @generated from field: int32 custom_artwork = 4;
+   */
+  customArtwork: number;
+
+  /**
+   * @generated from field: int32 color1 = 5;
+   */
+  color1: number;
+
+  /**
+   * @generated from field: int32 color2 = 6;
+   */
+  color2: number;
+
+  /**
+   * @generated from field: int32 color3 = 7;
+   */
+  color3: number;
+
+  /**
+   * @generated from field: string name = 8;
+   */
+  name: string;
 };
 
 /**
@@ -818,6 +855,16 @@ export const DialogCreateSchema: GenMessage<DialogCreate> = /*@__PURE__*/
  * StarLoco SocketManager.java:1074,1089 — "DQ<questionId>;<params>".
  * Producer: pkg/npc/interfaces/register.go:112 encodeQuestion builds this.
  *
+ * The full canonical body is "DQ<questionId>;<params>|<r1;r2;...>" —
+ * `Dialog.onQuestion` splits on "|" and feeds the second half to
+ * `Question` as the answer list, so `response_ids` is not an extension
+ * but the half this message was missing.
+ *
+ * `unavailable_response_ids` is: those answers are listed but greyed.
+ * 1.29 keeps an action it cannot offer visible rather than hiding it,
+ * and an answer whose reply action is not pure navigation would skip a
+ * side effect (give an item, start a quest) if we let it through.
+ *
  * @generated from message dofus.DialogQuestion
  */
 export type DialogQuestion = Message<"dofus.DialogQuestion"> & {
@@ -830,6 +877,16 @@ export type DialogQuestion = Message<"dofus.DialogQuestion"> & {
    * @generated from field: repeated string params = 2;
    */
   params: string[];
+
+  /**
+   * @generated from field: repeated int32 response_ids = 3;
+   */
+  responseIds: number[];
+
+  /**
+   * @generated from field: repeated int32 unavailable_response_ids = 4;
+   */
+  unavailableResponseIds: number[];
 };
 
 /**
@@ -1375,6 +1432,56 @@ export type DialogLeaveRequest = Message<"dofus.DialogLeaveRequest"> & {
  */
 export const DialogLeaveRequestSchema: GenMessage<DialogLeaveRequest> = /*@__PURE__*/
   messageDesc(file_chat, 47);
+
+/**
+ * Client sends DC<spriteId> — canonical `Dialog.create`
+ * (`dofus/aks/Dialog.as:13-16`), fired by the "Parler" entry of the NPC
+ * action bubble. The id is the *sprite* id on the map, not the template
+ * id: the server resolves the template from it, which is what keeps a
+ * client from opening a dialog with an NPC on another map.
+ *
+ * @generated from message dofus.DialogCreateRequest
+ */
+export type DialogCreateRequest = Message<"dofus.DialogCreateRequest"> & {
+  /**
+   * @generated from field: int64 npc_sprite_id = 1;
+   */
+  npcSpriteId: bigint;
+};
+
+/**
+ * Describes the message dofus.DialogCreateRequest.
+ * Use `create(DialogCreateRequestSchema)` to create a new message.
+ */
+export const DialogCreateRequestSchema: GenMessage<DialogCreateRequest> = /*@__PURE__*/
+  messageDesc(file_chat, 48);
+
+/**
+ * Client sends DR<questionId>|<responseId> — canonical `Dialog.response`
+ * (`dofus/aks/Dialog.as:21-24`). The question id travels so the server can
+ * reject an answer that does not belong to the question the player is
+ * actually on.
+ *
+ * @generated from message dofus.DialogResponseRequest
+ */
+export type DialogResponseRequest = Message<"dofus.DialogResponseRequest"> & {
+  /**
+   * @generated from field: int32 question_id = 1;
+   */
+  questionId: number;
+
+  /**
+   * @generated from field: int32 response_id = 2;
+   */
+  responseId: number;
+};
+
+/**
+ * Describes the message dofus.DialogResponseRequest.
+ * Use `create(DialogResponseRequestSchema)` to create a new message.
+ */
+export const DialogResponseRequestSchema: GenMessage<DialogResponseRequest> = /*@__PURE__*/
+  messageDesc(file_chat, 49);
 
 /**
  * Why a ChatSendMessage was dropped. The retail client receives these as the

@@ -40,6 +40,18 @@ export interface WorldActorData {
    * team-colored ground ring reads correctly per fighter.
    */
   team?: number;
+  /**
+   * Per-actor sprite scale (1 = life size), from the entry's `scale_x`.
+   * Only NPCs ship anything other than 100 today.
+   */
+  scale?: number;
+  /**
+   * SPRITE_TYPE_NPC only: the NPC *template* id. Keys the `npc` lang
+   * bundle (`N.d[id].a`) that the action bubble is built from, and marks
+   * the actor as an NPC for the picking layer — which otherwise reads a
+   * negative sprite id as "monster group" and walks the player into it.
+   */
+  npcTemplateId?: number;
 }
 
 export interface BattlefieldWorldActorsDeps {
@@ -75,7 +87,9 @@ export interface BattlefieldWorldActorsDeps {
      * looks like a single hoverable unit instead of a pile of
      * individually-pickable sprites.
      */
-    groupSpriteIds?: number[]
+    groupSpriteIds?: number[],
+    /** SPRITE_TYPE_NPC only — keys the action bubble's lang lookup. */
+    npcTemplateId?: number
   ): void;
   unregisterPlayerFromPicking(playerId: number): void;
   markPickingDirty(): void;
@@ -89,10 +103,6 @@ export interface BattlefieldWorldActorsDeps {
 export class BattlefieldWorldActors {
   private container: Container | null = null;
   private renderer: PlayerRenderer | null = null;
-  // leader id → ids of decorative sibling sprites painted around it.
-  // Used by `remove()` to tear the stack down atomically when the
-  // server consumes the group for a fight.
-  private readonly groupSiblings = new Map<number, number[]>();
 
   constructor(private readonly deps: BattlefieldWorldActorsDeps) {}
 
@@ -151,6 +161,28 @@ export class BattlefieldWorldActors {
     const hp = fighter?.hp ?? 100;
     const maxHp = fighter?.maxHp ?? 100;
 
+    // Every non-leader member of a monster group rides along as a linked
+    // child. Canonical 1.29 does exactly this under `ViewAllMonsterInGroup`
+    // (`GameIn.as:232-274` → `addLinkedSprite`): each member is given one of
+    // the eight slots in the ring of cells around the group's cell
+    // (`Pathfinding.getArroundCellNum`, transcribed here as
+    // `PlayerMovement.aroundCell`). The previous approach nudged siblings by
+    // 16-40 px on the *same* cell, so an eight-mob group overlapped into
+    // three or four readable sprites and the count never matched the fight.
+    const groupMembers = data.monsterGroup ?? [];
+    const linkedChildren =
+      groupMembers.length > 1
+        ? groupMembers.slice(1).map((m, i) => ({
+            gfxId: m.gfxId,
+            // Slot 0 is directly behind the leader, then around the ring.
+            // A full group of 8 fills slots 0-6 and nothing overlaps.
+            childIndex: i % 8,
+            color1: m.color1,
+            color2: m.color2,
+            color3: m.color3,
+          }))
+        : data.linkedChildren;
+
     await (this.renderer?.addPlayer({
       id: data.id,
       name: data.name,
@@ -162,11 +194,13 @@ export class BattlefieldWorldActors {
       maxHp,
       isPlayer: data.isCurrentPlayer,
       // AS2 `instanceof dofus.datacenter.Character` — true for any
-      // player avatar (local + other PCs), false for monster groups.
-      // Drives the run-vs-walk threshold (3 vs 6) in getRunLimit.
-      isCharacter: !data.monsterGroup,
-      linkedChildren: data.linkedChildren,
+      // player avatar (local + other PCs), false for monster groups
+      // and NPCs. Drives the run-vs-walk threshold (3 vs 6) in
+      // getRunLimit.
+      isCharacter: !data.monsterGroup && data.npcTemplateId === undefined,
+      linkedChildren,
       mount: data.mount,
+      ...(data.scale !== undefined ? { scale: data.scale } : {}),
     }) ?? Promise.resolve());
 
     // If the player already existed (addPlayer short-circuits on
@@ -177,14 +211,15 @@ export class BattlefieldWorldActors {
       this.renderer?.updatePlayerTeam(data.id, data.team);
     }
 
-    // Build the full sprite-id list for this monster group up front so
-    // both the leader's picking entry AND every sibling's entry can
-    // share the same array. On hover, the picking handler iterates
-    // this list to highlight every group sprite at once.
+    // The child ids are allocated inside the renderer, so read them back
+    // rather than recomputing them. Hover and click must treat the whole
+    // group as one unit: every sprite registers the same roster, the same
+    // bonus and the same id list, so rolling over any member highlights
+    // all of them — which is what canonical achieves by walking up
+    // `linkedParent` in `DofusBattlefield.onSpriteRollOut`.
+    const childIds = this.renderer?.getLinkedChildIds(data.id) ?? [];
     const groupSpriteIds: number[] | undefined =
-      data.monsterGroup && data.monsterGroup.length > 1
-        ? this.computeGroupSpriteIds(data.id, data.monsterGroup.length)
-        : undefined;
+      groupMembers.length > 1 ? [data.id, ...childIds] : undefined;
 
     if (this.renderer) {
       this.deps.registerPlayerForPicking(
@@ -193,127 +228,25 @@ export class BattlefieldWorldActors {
         data.monsterGroup,
         data.isCurrentPlayer,
         data.monsterGroupBonus,
-        groupSpriteIds
+        groupSpriteIds,
+        data.npcTemplateId
       );
-    }
 
-    // Spawn decorative sibling sprites for every non-leader member of a
-    // monster group so the player can see the full group composition on
-    // the map. Canonical 1.29 renders just the leader's gfx file; this
-    // is a UX enhancement (the canonical "stack" effect appears in
-    // Retro / private servers and is what the user explicitly asked
-    // for). Each sibling registers with the same group roster + bonus
-    // so hovering or clicking any one of them surfaces the same panel
-    // and routes to the same fight-trigger cell.
-    if (
-      data.monsterGroup &&
-      data.monsterGroup.length > 1 &&
-      this.renderer
-    ) {
-      await this.spawnGroupSiblings(data, team, groupSpriteIds);
+      if (groupSpriteIds) {
+        for (const childId of childIds) {
+          this.deps.registerPlayerForPicking(
+            childId,
+            this.renderer,
+            data.monsterGroup,
+            false,
+            data.monsterGroupBonus,
+            groupSpriteIds
+          );
+        }
+      }
     }
 
     this.deps.markPickingDirty();
-  }
-
-  /**
-   * Renders one extra sprite per non-leader member of a monster group.
-   * Sub-actor IDs derive from the leader's id (`data.id * 10000 - i`) —
-   * outside the range any real player / monster id can hit (group ids
-   * are negative, players positive), so collisions are impossible.
-   */
-  /**
-   * Returns `[leaderId, ...siblingIds]` for a group of `memberCount`
-   * monsters. Mirrors the sibling-id formula used in
-   * `spawnGroupSiblings` (`leaderId * 10000 - i` for i in 1..N-1).
-   */
-  private computeGroupSpriteIds(
-    leaderId: number,
-    memberCount: number
-  ): number[] {
-    const out: number[] = [leaderId];
-    for (let i = 1; i < memberCount; i++) {
-      out.push(leaderId * 10000 - i);
-    }
-    return out;
-  }
-
-  private async spawnGroupSiblings(
-    data: WorldActorData,
-    team: number,
-    groupSpriteIds?: number[]
-  ): Promise<void> {
-    const renderer = this.renderer;
-    const members = data.monsterGroup;
-    if (!renderer || !members || members.length <= 1) {
-      return;
-    }
-
-    const siblingIds: number[] = [];
-    const promises: Promise<void>[] = [];
-    // Skip index 0 — that's the leader rendered by the parent `add()`.
-    for (let i = 1; i < members.length; i++) {
-      const m = members[i];
-      const subId = data.id * 10000 - i;
-      siblingIds.push(subId);
-      // Deterministic offset so re-renders don't shuffle. Spread a
-      // half-cell (Dofus iso footprint ≈ 86 × 43 px) in front-to-back
-      // diamond around the leader: alternating left / right and a
-      // shallow front/back spread keeps the cluster readable rather
-      // than a tower or a single row.
-      const seq = i - 1; // 0-indexed sibling
-      const side = seq % 2 === 0 ? 1 : -1;
-      const lane = Math.floor(seq / 2) + 1;
-      const ox = side * (10 + lane * 6);
-      const oy = lane * 4 - (seq % 2 === 0 ? 2 : -2);
-
-      const memberLook = `${m.gfxId}|${m.color1}|${m.color2}|${m.color3}|`;
-
-      // Each sibling routes its hover / click to the same group panel.
-      // We register every one with the FULL roster + bonus so the
-      // hover handler doesn't have to know which sub-sprite was hit.
-      //
-      // CRITICAL: register picking AFTER the sprite finishes loading.
-      // `addPlayer` returns a Promise that resolves once the
-      // CharacterSprite atlas is ready (`f.sprite` is null until then),
-      // and our picking system's hit-test reads `sprite.texture` —
-      // null sprite = silent skip = no hover ever fires. The leader
-      // had the same race but was masked because its sprite usually
-      // loads from cache; siblings load fresh atlases each time and
-      // consistently lost their picking registration.
-      promises.push(
-        renderer
-          .addPlayer({
-            id: subId,
-            name: "",
-            team,
-            cellId: data.cellId,
-            direction: data.direction,
-            look: memberLook,
-            hp: 100,
-            maxHp: 100,
-            isPlayer: false,
-            pixelOffset: { x: ox, y: oy },
-            decorative: true,
-          })
-          .then(() => {
-            this.deps.registerPlayerForPicking(
-              subId,
-              renderer,
-              members,
-              false,
-              data.monsterGroupBonus,
-              groupSpriteIds
-            );
-            this.deps.markPickingDirty();
-          })
-      );
-    }
-
-    if (siblingIds.length > 0) {
-      this.groupSiblings.set(data.id, siblingIds);
-    }
-    await Promise.all(promises);
   }
 
   /** Look changes (equip/unequip) — re-render the actor with new accessories. */
@@ -322,17 +255,13 @@ export class BattlefieldWorldActors {
   }
 
   remove(id: number): void {
-    // Tear down decorative monster-group siblings alongside the leader
-    // so the screen doesn't keep ghost sprites where the group used to
-    // stand. Server fires REMOVE on the leader spriteId only when a
-    // group is consumed for fight or the player leaves the map.
-    const siblings = this.groupSiblings.get(id);
-    if (siblings) {
-      for (const sid of siblings) {
-        this.deps.unregisterPlayerFromPicking(sid);
-        this.renderer?.removePlayer(sid);
-      }
-      this.groupSiblings.delete(id);
+    // A monster group's members are linked children of the leader, so
+    // `PlayerRenderer.cleanupPlayer` already removes their sprites when the
+    // leader goes. Their picking entries are ours to drop, though — the
+    // server only ever fires REMOVE for the leader's sprite id, when the
+    // group is consumed for a fight or the player leaves the map.
+    for (const childId of this.renderer?.getLinkedChildIds(id) ?? []) {
+      this.deps.unregisterPlayerFromPicking(childId);
     }
     this.deps.unregisterPlayerFromPicking(id);
     this.renderer?.removePlayer(id);
