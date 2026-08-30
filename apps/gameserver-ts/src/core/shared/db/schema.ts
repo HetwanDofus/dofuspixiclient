@@ -37,11 +37,11 @@ export interface AccountsTable {
   username: string;
   pwdHash: string;
   pseudo: string;
-  community: number;
-  isAdmin: boolean;
-  isBanned: boolean;
-  question: string;
-  answer: string;
+  community: Generated<number>;
+  isAdmin: Generated<boolean>;
+  isBanned: Generated<boolean>;
+  question: Generated<string>;
+  answer: Generated<string>;
   createdAt: Generated<TimestampTz>;
   lastLoginAt: TimestampTz | null;
   lastLoginIp: string | null;
@@ -101,30 +101,33 @@ export interface PlayersTable {
   sex: number;
   class: number;
   gfx: number;
-  level: number;
-  experience: string;
-  kamas: string;
-  statsPoints: number;
-  spellPoints: number;
-  life: number;
-  energy: number;
-  mapId: number;
-  cellId: number;
-  direction: number;
-  savepointMapId: number;
-  savepointCellId: number;
-  channels: number;
-  alignment: number;
-  alignmentValue: number;
-  alignmentGrade: number;
-  pvpEnabled: boolean;
-  restrictions: string;
+  // Everything below carries a database default (migrations 0001, 0022,
+  // 0024): a freshly created character sets only what makes it *that*
+  // character and lets the schema answer for the rest.
+  level: Generated<number>;
+  experience: Generated<string>;
+  kamas: Generated<string>;
+  statsPoints: Generated<number>;
+  spellPoints: Generated<number>;
+  life: Generated<number>;
+  energy: Generated<number>;
+  mapId: Generated<number>;
+  cellId: Generated<number>;
+  direction: Generated<number>;
+  savepointMapId: Generated<number>;
+  savepointCellId: Generated<number>;
+  channels: Generated<number>;
+  alignment: Generated<number>;
+  alignmentValue: Generated<number>;
+  alignmentGrade: Generated<number>;
+  pvpEnabled: Generated<boolean>;
+  restrictions: Generated<string>;
   createdAt: Generated<TimestampTz>;
   deletedAt: TimestampTz | null;
-  mmr: number;
-  koliseumPoints: number;
-  activeTitleId: number;
-  mountXpShare: number;
+  mmr: Generated<number>;
+  koliseumPoints: Generated<number>;
+  activeTitleId: Generated<number>;
+  mountXpShare: Generated<number>;
   /**
    * When `life` was last exact. Out-of-combat regeneration derives the
    * points regained from this instant rather than from a timer, so it
@@ -139,12 +142,12 @@ export type PlayerUpdate = Updateable<PlayersTable>;
 
 export interface PlayerStatsTable {
   playerId: string;
-  strength: number;
-  vitality: number;
-  wisdom: number;
-  intelligence: number;
-  chance: number;
-  agility: number;
+  strength: Generated<number>;
+  vitality: Generated<number>;
+  wisdom: Generated<number>;
+  intelligence: Generated<number>;
+  chance: Generated<number>;
+  agility: Generated<number>;
 }
 
 export type PlayerStatsRow = Selectable<PlayerStatsTable>;
@@ -153,9 +156,9 @@ export type PlayerStatsUpdate = Updateable<PlayerStatsTable>;
 
 export interface PlayerColorsTable {
   playerId: string;
-  color1: number;
-  color2: number;
-  color3: number;
+  color1: Generated<number>;
+  color2: Generated<number>;
+  color3: Generated<number>;
 }
 
 export type PlayerColorsRow = Selectable<PlayerColorsTable>;
@@ -1824,11 +1827,31 @@ export type MarriageRow = Selectable<MarriagesTable>;
 export type NewMarriage = Insertable<MarriagesTable>;
 export type MarriageUpdate = Updateable<MarriagesTable>;
 
+/**
+ * One row per `POST /admin/accounts` call that reached the database, keyed
+ * by its `Idempotency-Key` (migration 0055). `accountId` / `characterId`
+ * are nullable only because the row is claimed before the account exists —
+ * they are set later in the same transaction, so any row you can *see* has
+ * both.
+ */
+export interface ProvisioningRequestsTable {
+  idempotencyKey: string;
+  requestHash: string;
+  accountId: string | null;
+  characterId: string | null;
+  createdAt: Generated<TimestampTz>;
+}
+
+export type ProvisioningRequestRow = Selectable<ProvisioningRequestsTable>;
+export type NewProvisioningRequest = Insertable<ProvisioningRequestsTable>;
+export type ProvisioningRequestUpdate = Updateable<ProvisioningRequestsTable>;
+
 export type DB = {
   accounts: AccountsTable;
   gameServers: GameServersTable;
   accountServers: AccountServersTable;
   authTickets: AuthTicketsTable;
+  provisioningRequests: ProvisioningRequestsTable;
   players: PlayersTable;
   playerStats: PlayerStatsTable;
   playerColors: PlayerColorsTable;

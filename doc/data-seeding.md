@@ -84,9 +84,13 @@ authenticates over its own WebSocket.
 ### Spawn cell
 
 The schema's default spawn is `map_id = 10300, cell_id = 319`, and **319 is
-not walkable on that map**. The seed decodes `maps.cells` (the StarLoco
-HASH_CELL payload, via `src/core/modules/maps/maps.cells-codec.ts`) and picks
-the first cell that is both active and walkable.
+not walkable on that map**. `src/core/modules/maps/spawn-point.ts` decodes
+`maps.cells` (the StarLoco HASH_CELL payload, via
+`src/core/modules/maps/maps.cells-codec.ts`) and picks the walkable cell
+nearest the middle of the diamond — cell ids start at the top corner, which
+is usually off the top of the viewport. The seed and the admin API below
+share that function, so a seeded and a provisioned character wake up the
+same way.
 
 ### The placeholder map
 
@@ -94,6 +98,88 @@ If the spawn map has no row at all, the seed inserts a **blank walkable
 placeholder** so `enter-game` succeeds, and says so. It is a bare test room —
 prefer importing the real world, below. The seed never touches an existing
 map row.
+
+## `POST /admin/accounts` — provisioning without a shell (QA-126)
+
+The seed script needs a checkout and a database handle. An external control
+plane (DofBotConsole) has neither, so the gateway exposes the same job over
+HTTP. The route exists **only when `GATEWAY_ADMIN_TOKEN` is set**, and the
+gateway then also needs `DATABASE_URL` — it refuses to boot with one and not
+the other.
+
+Locally both live in **`apps/gameserver-ts/.env`** — Bun loads it on its own
+and all three processes run from that directory. `DATABASE_URL` is already
+there (see `.env.example`), so the token is the only line to add:
+
+```dotenv
+GATEWAY_ADMIN_TOKEN=change-me
+```
+
+In containers, `docker-compose.yml` already hands `DATABASE_URL` to the
+`gateway` service and reads the token from the shell environment or from a
+`.env` **at the repository root** — the one Docker Compose reads, not
+`apps/gameserver-ts/.env`:
+
+```dotenv
+# ./.env
+GATEWAY_ADMIN_TOKEN=change-me
+```
+
+Or with no file at all:
+
+```bash
+GATEWAY_ADMIN_TOKEN=… DATABASE_URL=postgres://dofus:dofus@localhost:5432/dofus \
+  bun run src/gateway/main.ts
+```
+
+```http
+POST /admin/accounts
+X-Admin-Token: <secret>
+Idempotency-Key: <uuid>
+Content-Type: application/json
+
+{
+  "username": "bot-astrub-01",
+  "passwordKey": "<base64 PBKDF2-SHA256, 32 bytes>",
+  "pseudo": "Bot Astrub 01",
+  "serverId": 1,
+  "character": { "name": "BotAstrub", "breedId": 8, "sex": 1 }
+}
+```
+
+`passwordKey` is what the *client* sends at login, not the password:
+PBKDF2-SHA256, 600 000 iterations, salt `sha256("dofus:" + lowercase
+username)`, 32 bytes, canonical base64. The plaintext never reaches the
+server, and the derived key is never stored or logged in the clear —
+`accounts.pwd_hash` is an argon2 hash of it, exactly as `db-seed` writes it.
+`serverId` may be omitted when exactly one server is online.
+
+One call creates the account, its `account_servers` row, the character, its
+stats, colours and class spellbook — in **one transaction**. `201` on
+creation, `200` when the same `Idempotency-Key` and body are replayed, and
+the ids come back either way:
+
+```json
+{ "account": { "id": "101", "username": "bot-astrub-01" },
+  "character": { "id": "202", "name": "BotAstrub" } }
+```
+
+Refusals are `{ "error": "<stable code>", "message": "…" }`:
+
+| Status | When |
+|---|---|
+| `400` | malformed JSON, or a missing/oversized `Idempotency-Key` |
+| `403` | missing or wrong `X-Admin-Token` |
+| `409` | `username_taken`, `pseudo_taken`, `character_name_taken`, `idempotency_key_reuse` (same key, different body) |
+| `413` | body over 8 KiB |
+| `422` | `invalid_request`, `invalid_password_key`, `unknown_server`, `no_server_available`, `server_required` |
+| `429` | more than 20 calls a minute from one caller |
+
+The rules live in
+`src/core/features/auth/provision-account/provision-account.service.ts`; the
+route is a translator over it, and `dev-seed.ts` composes the same
+primitives. Neither the admin token nor the password key ever appears in a
+log line, an error message or a response.
 
 ## Importing the world
 

@@ -1,9 +1,13 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { fromBinary } from "@bufbuild/protobuf";
 import { ClientMessageSchema } from "@dofus/proto/client_messages_pb";
 import { Hono } from "hono";
 import { upgradeWebSocket, websocket } from "hono/bun";
 
+import type { AccountProvisioner } from "./admin-accounts.ts";
 import type { UpstreamRegistry } from "./upstream-registry.ts";
+import { registerAdminAccountsRoute } from "./admin-accounts.ts";
 import {
   newSession,
   type Role,
@@ -22,6 +26,12 @@ type Deps = {
   sessions: SessionRegistry;
   upstreams: UpstreamRegistry;
   authToken: (raw: string, role: Role) => Auth | null;
+  /**
+   * Present only when the gateway was started with a database to provision
+   * into. Without it `POST /admin/accounts` is not registered at all —
+   * a 404 rather than a route that 500s on every call.
+   */
+  provisioner?: AccountProvisioner;
 };
 
 const ROLES: readonly Role[] = ["auth", "game"];
@@ -43,7 +53,9 @@ export function buildHttpApp(deps: Deps) {
   const adminToken = process.env.GATEWAY_ADMIN_TOKEN;
   if (adminToken) {
     app.use("/admin/*", async (c, next) => {
-      if (c.req.header("x-admin-token") !== adminToken) {
+      // Constant-time: a plain !== leaks the shared secret one character at
+      // a time to anyone who can measure the reply.
+      if (!secretEquals(c.req.header("x-admin-token"), adminToken)) {
         return c.text("forbidden", 403);
       }
 
@@ -70,6 +82,10 @@ export function buildHttpApp(deps: Deps) {
         return c.json({ ok: false, error: (err as Error).message }, 500);
       }
     });
+
+    if (deps.provisioner) {
+      registerAdminAccountsRoute(app, deps.provisioner);
+    }
   }
 
   app.use("/ws/:role", async (c, next) => {
@@ -132,7 +148,7 @@ export function buildHttpApp(deps: Deps) {
             session.sessionId,
             session.accountId,
             session.characterId,
-            session.remoteAddr,
+            session.remoteAddr
           );
         },
         onMessage: (ev) => {
@@ -152,7 +168,7 @@ export function buildHttpApp(deps: Deps) {
           upstream.sessionClose(session.sessionId, "client_close");
         },
       };
-    }),
+    })
   );
 
   // Pre-authenticated WebSocket route (with token query param)
@@ -208,6 +224,26 @@ export function buildHttpApp(deps: Deps) {
   );
 
   return app;
+}
+
+/**
+ * Length-safe, then constant-time. `timingSafeEqual` throws on a length
+ * mismatch, and the length of the configured token is not a secret worth
+ * protecting — the token itself is.
+ */
+function secretEquals(given: string | undefined, expected: string): boolean {
+  if (given === undefined) {
+    return false;
+  }
+
+  const a = Buffer.from(given, "utf8");
+  const b = Buffer.from(expected, "utf8");
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return timingSafeEqual(a, b);
 }
 
 function toBytes(
