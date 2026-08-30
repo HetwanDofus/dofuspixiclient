@@ -273,6 +273,16 @@ export class TradeFlow {
       quantity: add ? quantity : stack.quantity,
     });
 
+    // The watcher has never been told what this template *is* — templates
+    // are sent once, on entering the game, for what that character owns.
+    // Without this an object the partner offers draws as an empty cell.
+    if (add) {
+      await this.inventory.sendTemplateFor(
+        sides.theirs.sessionId,
+        stack.templateId
+      );
+    }
+
     this.unready(trade);
 
     return { ok: true };

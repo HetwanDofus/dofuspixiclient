@@ -137,6 +137,10 @@ export class Battlefield {
   private onCellClickCallback?: (cellId: number) => void;
   private onInteractiveUseCallback?: (cellId: number, skillId: number) => void;
   private onNpcTalkCallback?: (npcSpriteId: number) => void;
+  private onNpcExchangeCallback?: (
+    npcSpriteId: number,
+    exchangeType: number
+  ) => void;
   private onPlayerExchangeCallback?: (targetSpriteId: number) => void;
   private onCellHoverCallback?: (cellId: number | null) => void;
   private lastHoveredCellId: number | null = null;
@@ -153,6 +157,8 @@ export class Battlefield {
     onInteractiveUse: (cellId, skillId) =>
       this.onInteractiveUseCallback?.(cellId, skillId),
     onNpcTalk: (npcSpriteId) => this.onNpcTalkCallback?.(npcSpriteId),
+    onNpcExchange: (npcSpriteId, exchangeType) =>
+      this.onNpcExchangeCallback?.(npcSpriteId, exchangeType),
     // Straight from the store rather than through a callback: this is a
     // fact about the session, not an event the scene routes.
     localCharacterId: () => characterStore.getSnapshot().id || null,
@@ -800,6 +806,12 @@ export class Battlefield {
 
   setOnNpcTalk(callback: (npcSpriteId: number) => void): void {
     this.onNpcTalkCallback = callback;
+  }
+
+  setOnNpcExchange(
+    callback: (npcSpriteId: number, exchangeType: number) => void
+  ): void {
+    this.onNpcExchangeCallback = callback;
   }
 
   setOnPlayerExchange(callback: (targetSpriteId: number) => void): void {

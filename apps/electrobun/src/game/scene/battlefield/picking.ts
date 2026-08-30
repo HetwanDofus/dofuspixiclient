@@ -19,11 +19,21 @@ import { createLogger } from "@/utils/logger";
 const log = createLogger("BattlefieldPicking");
 
 /**
- * `npc.json` `N.a` action id for "Parler" — the only one wired up.
- * `NonPlayableCharacter.getActionFunction` maps it to `startDialog`; ids
- * 1/2/4/5/6/7/8 all map to `startExchange` and are out of scope.
+ * `npc.json` `N.a` action ids.
+ * `NonPlayableCharacter.getActionFunction` maps 3 to `startDialog` and
+ * every other id to `startExchange` with the matching exchange type.
+ * 5 and 6 are the two halves of an auction house, and the 56 NPCs that
+ * carry them always carry both.
  */
 const NPC_ACTION_TALK = 3;
+const NPC_ACTION_BIGSTORE_SELL = 5;
+const NPC_ACTION_BIGSTORE_BUY = 6;
+
+/** `dofus.ExchangeType`, for the two ids above. */
+const EXCHANGE_TYPE_BY_NPC_ACTION = new Map<number, number>([
+  [NPC_ACTION_BIGSTORE_SELL, 10],
+  [NPC_ACTION_BIGSTORE_BUY, 11],
+]);
 
 export interface BattlefieldPickingDeps {
   pickingSystem(): PickingSystem | null;
@@ -50,6 +60,7 @@ export interface BattlefieldPickingDeps {
    * wherever the player stands.
    */
   onNpcTalk?: (npcSpriteId: number) => void;
+  onNpcExchange?: (npcSpriteId: number, exchangeType: number) => void;
   /**
    * The local character's sprite id, or null before one is selected.
    * The player menu needs it for the one distinction canonical
@@ -579,15 +590,30 @@ export class BattlefieldPicking {
       "";
     const options = (lang?.actions ?? []).map((action) => {
       const talk = action.id === NPC_ACTION_TALK;
-      return {
-        label: action.label,
-        // Everything but "Parler" stays greyed: the three trades all need the
-        // exchange protocol, an item-list window and kamas writes, none of
-        // which exist yet. 1.29 lists an unavailable action rather than
-        // hiding it, so the bubble is already the right shape.
-        disabled: !talk,
-        onClick: talk ? () => this.deps.onNpcTalk?.(playerId) : () => {},
-      };
+      const exchangeType = EXCHANGE_TYPE_BY_NPC_ACTION.get(action.id);
+
+      if (talk) {
+        return {
+          label: action.label,
+          disabled: false,
+          onClick: () => this.deps.onNpcTalk?.(playerId),
+        };
+      }
+
+      if (exchangeType !== undefined) {
+        return {
+          label: action.label,
+          disabled: false,
+          onClick: () => this.deps.onNpcExchange?.(playerId, exchangeType),
+        };
+      }
+
+      // The remaining trades — shop, player exchange, pets, mounts —
+      // stay greyed. 1.29 lists an unavailable action rather than hiding
+      // it (`Skill.getState` returns "I", not "X"), so the bubble reads
+      // the same either way and each one only needs its handler filled
+      // in.
+      return { label: action.label, disabled: true, onClick: () => {} };
     });
 
     if (options.length === 0) {

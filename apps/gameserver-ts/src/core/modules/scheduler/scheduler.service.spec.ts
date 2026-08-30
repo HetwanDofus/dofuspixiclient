@@ -122,3 +122,32 @@ describe("SchedulerService", () => {
     expect(seen).toEqual([1]);
   });
 });
+
+describe("long delays", () => {
+  // `setTimeout` keeps its delay in a signed 32-bit integer: past
+  // ~24.8 days it overflows and fires at once. An auction lot listed for
+  // 30 days expired the moment it was created because of it.
+  test("a job further out than 24.8 days does not fire immediately", async () => {
+    const events = new EventEmitter2();
+    const scheduler = new SchedulerService(events);
+    let fired = 0;
+
+    events.on("far.future", () => {
+      fired += 1;
+    });
+
+    scheduler.schedule({
+      id: "far",
+      dueAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      channel: "far.future",
+      payload: {},
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(fired).toBe(0);
+    expect(scheduler.has("far")).toBe(true);
+
+    scheduler.onModuleDestroy();
+  });
+});

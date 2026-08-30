@@ -140,6 +140,25 @@ export class InventoryFramesService {
   }
 
   /**
+   * The presentation of one template, for a client that may not own it.
+   *
+   * Templates are otherwise sent once, on entering the game, for what the
+   * character carries (`sendTemplatesForPlayer`) — which leaves an item
+   * *offered by somebody else* in a trade with no name, no icon and no
+   * card. This is the hole that plugs: idempotent on the client, where
+   * `handleItemTemplates` is a `set` into a `Map`.
+   */
+  async sendTemplateFor(sessionId: string, templateId: number): Promise<void> {
+    const template = await this.inventory.findTemplate(templateId);
+
+    if (!template) {
+      return;
+    }
+
+    await this.sendTemplates(sessionId, [template]);
+  }
+
+  /**
    * Presentation data (name, description, type, legal equip positions…)
    * for a set of templates. This is how the client learns what an item
    * *is* without ever loading `items.json` itself — the wire only ever

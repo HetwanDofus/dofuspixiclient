@@ -986,6 +986,61 @@ console.log(
     `or fire an effect)`
 );
 
+// ── Auction houses ──────────────────────────────────────────────────────────
+
+// An auction house is keyed by the **map** it occupies, not by the vendor NPC
+// standing in it: that is how `hdvs` is keyed, and the 56 NPCs that advertise
+// actions 5 and 6 in the `npc` lang bundle are only the way in. See QA-108.
+
+/** Column order of StarLoco's `hdvs` table. */
+const HDV_COLUMNS = [
+  "id",
+  "map",
+  "categories",
+  "sellTaxe",
+  "lvlMax",
+  "accountItem",
+  "sellTime",
+] as const;
+
+const hdvs: Record<string, unknown>[] = [];
+let hdvsOffWorld = 0;
+
+for (const values of insertRows(dump, "hdvs")) {
+  const row = toRecord(HDV_COLUMNS, values);
+  const mapId = num(row.map, -1);
+
+  // Same guard the NPC placements use: the dump knows maps this project
+  // skipped or has not imported yet, and `hdv_templates.map_id` is what the
+  // server resolves an open request against.
+  if (!knownMapIds.has(mapId)) {
+    hdvsOffWorld++;
+    continue;
+  }
+
+  hdvs.push({
+    id: num(row.id),
+    mapId,
+    // A comma-separated list of `item_types.id`. Kept as the dump's own
+    // string: it is read once when a hall opens and parsed there, and
+    // splitting it into a table would be a join for a dozen integers.
+    categories: String(row.categories ?? ""),
+    sellTax: Number(row.sellTaxe) || 0,
+    levelMax: num(row.lvlMax, 2000),
+    accountItems: num(row.accountItem, 20),
+    // `sellTime` is 1500 on every row. As days that is four years; as hours
+    // it is 62 days, which is the retail order of magnitude — migration 0056
+    // renames the column to say so.
+    sellTimeHours: num(row.sellTime, 1500),
+  });
+}
+
+await upsert("hdvTemplates", ["id"], hdvs);
+console.log(
+  `upserted ${hdvs.length} auction houses ` +
+    `(${hdvsOffWorld} skipped: map not imported)`
+);
+
 // ── Report ──────────────────────────────────────────────────────────────────
 
 /**

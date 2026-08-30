@@ -3,6 +3,7 @@ import "reflect-metadata";
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { DofusMessage } from "@dofus/proto/server_messages_pb";
+import type { BigStoreFlow } from "@modules/exchange/big-store.flow";
 import type { ExchangeSession } from "@modules/exchange/exchange.types";
 import type { StorageFlow } from "@modules/exchange/storage.flow";
 import type { TradeFlow } from "@modules/exchange/trade.flow";
@@ -42,6 +43,11 @@ function frameCapture() {
  */
 function noTrades(): TradeFlow {
   return { tradeOf: () => undefined } as unknown as TradeFlow;
+}
+
+/** No auction house is open in any of these cases. */
+function noBigStore(): BigStoreFlow {
+  return { forget: () => {} } as unknown as BigStoreFlow;
 }
 
 describe("ExchangeFramesService.open", () => {
@@ -108,6 +114,7 @@ describe("ExchangeService", () => {
       new ExchangeFramesService(capture.gateway),
       flow,
       noTrades(),
+      noBigStore(),
       fights,
       sessions
     );
@@ -240,6 +247,7 @@ describe("ExchangeService", () => {
         new ExchangeFramesService(capture.gateway),
         flow,
         noTrades(),
+        noBigStore(),
         { isInFight: () => false } as unknown as FightRegistryService,
         sessions
       );
@@ -282,6 +290,7 @@ describe("ExchangeService", () => {
         new ExchangeFramesService(capture.gateway),
         flow,
         noTrades(),
+        noBigStore(),
         { isInFight: () => false } as unknown as FightRegistryService,
         sessions
       );

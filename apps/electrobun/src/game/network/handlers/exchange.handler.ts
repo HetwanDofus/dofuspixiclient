@@ -1,6 +1,7 @@
 import { ExchangeType } from "@dofus/proto";
 
 import type { MessageHandler } from "@/game/network/message-handler";
+import { closeBigStore, openBigStore } from "@/game/stores/bigstore-store";
 import { characterStore } from "@/game/stores/character-store";
 import { appendInfoMessage } from "@/game/stores/chat-store";
 import {
@@ -84,11 +85,24 @@ export class ExchangeHandler {
         log.debug(`exchange refused: ${payload.errorCode}`);
         closeExchange();
         closeTrade();
+        closeBigStore();
         return;
       }
 
       if (payload.exchangeType === ExchangeType.EXCHANGE_PLAYER) {
         openTradeWindow();
+        return;
+      }
+
+      // The auction house is two exchange types, one per mode, and its
+      // parameters arrive in the `EHK` that always follows.
+      if (payload.exchangeType === ExchangeType.EXCHANGE_BIGSTORE_SELL) {
+        openBigStore("sell");
+        return;
+      }
+
+      if (payload.exchangeType === ExchangeType.EXCHANGE_BIGSTORE_BUY) {
+        openBigStore("buy");
         return;
       }
 
@@ -125,6 +139,7 @@ export class ExchangeHandler {
 
       closeExchange();
       closeTrade();
+      closeBigStore();
     });
   }
 }

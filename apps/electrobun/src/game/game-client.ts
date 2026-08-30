@@ -16,6 +16,7 @@ import {
 } from "@/game/network/close-codes";
 import { Connection, type ConnectionEvent } from "@/game/network/connection";
 import { AuthHandler } from "@/game/network/handlers/auth.handler";
+import { BigStoreHandler } from "@/game/network/handlers/bigstore.handler";
 import {
   CharacterHandler,
   type CharacterInfo,
@@ -43,6 +44,11 @@ import {
   DialogLeaveRequestSchema,
   DialogResponseRequestSchema,
   ExchangeAcceptSchema,
+  ExchangeBigStoreBuyRequestSchema,
+  ExchangeBigStoreItemListRequestSchema,
+  ExchangeBigStoreSearchRequestSchema,
+  ExchangeBigStoreTypeRequestSchema,
+  ExchangeGetMiddlePriceSchema,
   ExchangeLeaveRequestSchema,
   ExchangeMoveItemSchema,
   ExchangeMoveKamaSchema,
@@ -193,6 +199,7 @@ export class GameClient {
     // `inventoryStore` — nothing here needs to hold a reference to it.
     new InventoryHandler(this.messageHandler);
     new ExchangeHandler(this.messageHandler);
+    new BigStoreHandler(this.messageHandler);
     // Likewise: it only ever writes to `npcDialogStore`.
     new NpcDialogHandler(this.messageHandler);
     this.fightHandler = new FightHandler(
@@ -336,6 +343,12 @@ export class GameClient {
       // arrival handler runs a cell trigger under an open dialog.
       this.mapHandler.interruptSelfMove();
       this.startNpcDialog(npcSpriteId);
+    });
+    battlefield.setOnNpcExchange((npcSpriteId, exchangeType) => {
+      // Same rule as a dialogue: `GameManager.startExchange` cancels an
+      // in-flight walk before sending `ER`.
+      this.mapHandler.interruptSelfMove();
+      this.requestExchange(npcSpriteId, exchangeType);
     });
     battlefield.setOnPlayerExchange((targetSpriteId) => {
       // Same rule as an NPC dialogue, and canonical says so twice:
@@ -1317,7 +1330,8 @@ export class GameClient {
   exchangeMoveItem(
     unicId: number,
     toContainer: boolean,
-    quantity: number
+    quantity: number,
+    price = 0
   ): void {
     this.connection.send(
       encodeClient(
@@ -1326,6 +1340,7 @@ export class GameClient {
           add: toContainer,
           itemUnicId: unicId,
           quantity,
+          price: BigInt(price),
         })
       )
     );
@@ -1348,21 +1363,114 @@ export class GameClient {
   }
 
   /**
-   * ER — ask another player to trade.
+   * ER — ask to open an exchange with whoever `targetSpriteId` names.
    *
-   * Type 1 is the only one this sends: every other `startExchange` id
-   * belongs to a shop, a workbench or a stall, none of which exist yet.
+   * The type is the window: 1 is another player, 10 and 11 are the two
+   * halves of an auction house. It is a parameter rather than a constant
+   * because "Mode vente" / "Mode achat" is exactly this frame sent again
+   * with the other number, against the same vendor.
    */
-  requestExchange(targetSpriteId: number): void {
+  requestExchange(
+    targetSpriteId: number,
+    exchangeType: number = ExchangeType.EXCHANGE_PLAYER
+  ): void {
     this.connection.send(
       encodeClient(
         "exchangeRequest",
         create(ExchangeRequestSendSchema, {
-          exchangeType: ExchangeType.EXCHANGE_PLAYER,
+          exchangeType,
           targetId: String(targetSpriteId),
         })
       )
     );
+  }
+
+  /** EHT — list the templates on sale in one category of the open hall. */
+  bigStoreBrowseType(typeId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeBigstoreType",
+        create(ExchangeBigStoreTypeRequestSchema, { typeId })
+      )
+    );
+  }
+
+  /**
+   * EHl — open one template's price grid.
+   *
+   * The field is called `unic_id` because 1.29 calls it that, and 1.29
+   * is wrong: `BigStoreBuy` fills its list with `new Item(0, templateId)`
+   * whose second argument the original names `nUnicID`. It is a template.
+   */
+  bigStoreBrowseTemplate(templateId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeBigstoreItemList",
+        create(ExchangeBigStoreItemListRequestSchema, { unicId: templateId })
+      )
+    );
+  }
+
+  /**
+   * EHB — buy one lot.
+   *
+   * All three arguments are needed and none is redundant: the line names
+   * a *group* of interchangeable lots, the index says which of the three
+   * amounts, and the price is the one the player was shown — the server
+   * refuses if that lot has since sold, rather than charging a figure
+   * nobody agreed to.
+   */
+  bigStoreBuy(lineId: string, quantityIndex: number, price: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeBigstoreBuy",
+        create(ExchangeBigStoreBuyRequestSchema, {
+          itemId: Number(lineId),
+          quantityIndex,
+          price: BigInt(price),
+        })
+      )
+    );
+  }
+
+  /** EHS — jump straight to one template's grid from the search box. */
+  bigStoreSearch(typeId: number, templateId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeBigstoreSearch",
+        create(ExchangeBigStoreSearchRequestSchema, {
+          type: typeId,
+          unicId: templateId,
+        })
+      )
+    );
+  }
+
+  /** EHP — what one template has been selling for here. */
+  bigStoreMiddlePrice(templateId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeGetMiddlePrice",
+        create(ExchangeGetMiddlePriceSchema, { itemId: templateId })
+      )
+    );
+  }
+
+  /**
+   * EMO+ — put a lot on sale.
+   *
+   * `lotSize` is the amount in the lot (1, 10 or 100), not a quantity to
+   * move, and `price` is the price of the whole lot. See the note on
+   * `ExchangeMoveItem` in the proto: this frame means something
+   * different inside an auction house.
+   */
+  bigStoreList(unicId: number, lotSize: number, price: number): void {
+    this.exchangeMoveItem(unicId, true, lotSize, price);
+  }
+
+  /** EMO- — take one of your own lots off sale. `lineId` is a listing. */
+  bigStoreWithdraw(lineId: string): void {
+    this.exchangeMoveItem(Number(lineId), false, 1);
   }
 
   /** EA — accept a trade proposal. */

@@ -6,6 +6,7 @@ import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
 import { fightActor } from "@/game/stores/fight-store";
 
 import { BannerReact } from "./banner/BannerReact";
+import { BigStoreWindow } from "./bigstore/BigStoreWindow";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
 import { StorageWindow } from "./exchange/StorageWindow";
@@ -188,10 +189,24 @@ export function HudOverlay({
 
         {/* And the trade, for the same reason plus one: it carries its
             own inventory grid, so it must not evict the bag panel the
-            player may already have open beside it. */}
-        <div style={panelWrapStyle}>
-          <TradeWindow zoom={baseZoom} gameClient={gameClient} />
-        </div>
+            player may already have open beside it. Outside
+            `panelWrapStyle`, which pins a single window to the right
+            edge — retail spreads the trade's three windows across the
+            play area, so it places itself. */}
+        <TradeWindow
+          zoom={baseZoom}
+          gameClient={gameClient}
+          playArea={{ width: canvasRect.w, height: bannerTopPx }}
+        />
+
+        {/* The auction house, on the same terms as the trade: server
+            driven, its own placement, and — in sell mode — three windows
+            spread across the play area rather than one pinned right. */}
+        <BigStoreWindow
+          zoom={baseZoom}
+          gameClient={gameClient}
+          playArea={{ width: canvasRect.w, height: bannerTopPx }}
+        />
 
         {/* The proposal boxes. Outside every panel wrapper: they are a
             modal question, not a window, and they centre themselves. */}

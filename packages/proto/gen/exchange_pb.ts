@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file exchange.proto.
  */
 export const file_exchange: GenFile = /*@__PURE__*/
-  fileDesc("Cg5leGNoYW5nZS5wcm90bxIFZG9mdXMiowEKD0V4Y2hhbmdlUmVxdWVzdBIPCgdzdWNjZXNzGAEgASgIEhQKDGluaXRpYXRvcl9pZBgCIAEoCRIRCgl0YXJnZXRfaWQYAyABKAkSFQoNZXhjaGFuZ2VfdHlwZRgEIAEoBRISCgplcnJvcl9jb2RlGAUgASgJEhYKDmluaXRpYXRvcl9uYW1lGAYgASgJEhMKC3RhcmdldF9uYW1lGAcgASgJIkwKDkV4Y2hhbmdlQ3JlYXRlEg8KB3N1Y2Nlc3MYASABKAgSFQoNZXhjaGFuZ2VfdHlwZRgCIAEoBRISCgplcnJvcl9jb2RlGAMgASgJIjUKDUV4Y2hhbmdlQ3JhZnQSDwoHc3VjY2VzcxgBIAEoCBITCgtyZXN1bHRfY29kZRgCIAEoCSI0Cg1FeGNoYW5nZVJlYWR5EhAKCGlzX3JlYWR5GAEgASgIEhEKCXBsYXllcl9pZBgCIAEoCSIzCg1FeGNoYW5nZUxlYXZlEg8KB3N1Y2Nlc3MYASABKAgSEQoJY29tcGxldGVkGAIgASgIIo4BChVFeGNoYW5nZUxvY2FsTW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKQAQoXRXhjaGFuZ2VEaXN0YW50TW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKNAQoURXhjaGFuZ2VDb29wTW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKMAQoTRXhjaGFuZ2VQYXlNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IpABChdFeGNoYW5nZVN0b3JhZ2VNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IpMBChpFeGNoYW5nZVBsYXllclNob3BNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IlEKFEV4Y2hhbmdlSXRlbU1vdmVtZW50EgsKA2FkZBgBIAEoCBIdCgRpdGVtGAIgASgLMg8uZG9mdXMuSXRlbURhdGESDQoFcHJpY2UYAyABKAMiKAoURXhjaGFuZ2VLYW1hTW92ZW1lbnQSEAoIcXVhbnRpdHkYASABKAMiJQoSRXhjaGFuZ2VQdWJsaWNNb2RlEg8KB2VuYWJsZWQYASABKAgiUQoURXhjaGFuZ2VNb3VudFN0b3JhZ2USEQoJb3BlcmF0aW9uGAEgASgJEiYKBm1vdW50cxgCIAMoCzIWLmRvZnVzLk1vdW50RGVzY3JpcHRvciJoCg9Nb3VudERlc2NyaXB0b3ISEAoIbW91bnRfaWQYASABKAUSDQoFbW9kZWwYAiABKAUSDAoEbmFtZRgDIAEoCRINCgVsZXZlbBgEIAEoBRILCgNzZXgYBSABKAUSCgoCeHAYBiABKAMiTgoRRXhjaGFuZ2VNb3VudFBhcmsSEQoJb3BlcmF0aW9uGAEgASgJEiYKBm1vdW50cxgCIAMoCzIWLmRvZnVzLk1vdW50RGVzY3JpcHRvciIzChFFeGNoYW5nZU1vdW50UG9kcxIMCgRwb2RzGAEgASgFEhAKCHBvZHNfbWF4GAIgASgFIj0KDEV4Y2hhbmdlTGlzdBIeCgVpdGVtcxgBIAMoCzIPLmRvZnVzLkl0ZW1EYXRhEg0KBWthbWFzGAIgASgDIh8KDEV4Y2hhbmdlU2VsbBIPCgdzdWNjZXNzGAEgASgIIh4KC0V4Y2hhbmdlQnV5Eg8KB3N1Y2Nlc3MYASABKAgiUAoSRXhjaGFuZ2VBc2tPZmZsaW5lEhYKDnRpbWVfcmVtYWluaW5nGAEgASgFEhAKCGtkX3ZhbHVlGAIgASgDEhAKCHF1YW50aXR5GAMgASgFIkMKGUV4Y2hhbmdlQmlnU3RvcmVUeXBlSXRlbXMSEAoIY2F0ZWdvcnkYASABKAUSFAoMdGVtcGxhdGVfaWRzGAIgAygFIk4KGEV4Y2hhbmdlQmlnU3RvcmVNb3ZlbWVudBILCgNhZGQYASABKAgSEAoIY2F0ZWdvcnkYAiABKAUSEwoLdGVtcGxhdGVfaWQYAyABKAUiWgoYRXhjaGFuZ2VCaWdTdG9yZUl0ZW1MaXN0EhMKC3RlbXBsYXRlX2lkGAEgASgFEikKBWxpbmVzGAIgAygLMhouZG9mdXMuQmlnU3RvcmVMaXN0aW5nTGluZSKJAQoTQmlnU3RvcmVMaXN0aW5nTGluZRIPCgdsaW5lX2lkGAEgASgDEhMKC3RlbXBsYXRlX2lkGAIgASgFEg0KBXN0YXRzGAMgASgJEhIKCnByaWNlX3F0eTEYBCABKAMSEwoLcHJpY2VfcXR5MTAYBSABKAMSFAoMcHJpY2VfcXR5MTAwGAYgASgDImYKHEV4Y2hhbmdlQmlnU3RvcmVJdGVtTW92ZW1lbnQSCwoDYWRkGAEgASgIEg8KB2xpbmVfaWQYAiABKAMSKAoEbGluZRgDIAEoCzIaLmRvZnVzLkJpZ1N0b3JlTGlzdGluZ0xpbmUiRQobRXhjaGFuZ2VCaWdTdG9yZU1pZGRsZVByaWNlEg8KB2l0ZW1faWQYASABKAUSFQoNYXZlcmFnZV9wcmljZRgCIAEoAyJYChZFeGNoYW5nZUJpZ1N0b3JlU2VhcmNoEhMKC3RlbXBsYXRlX2lkGAEgASgFEikKBWxpbmVzGAIgAygLMhouZG9mdXMuQmlnU3RvcmVMaXN0aW5nTGluZSJOChNFeGNoYW5nZUNyYWZ0ZXJMaXN0Eg4KBmpvYl9pZBgBIAEoBRInCghjcmFmdGVycxgCIAMoCzIVLmRvZnVzLkNyYWZ0ZXJTdW1tYXJ5ImcKDkNyYWZ0ZXJTdW1tYXJ5EhEKCXBsYXllcl9pZBgBIAEoAxIMCgRuYW1lGAIgASgJEg0KBWxldmVsGAMgASgFEhEKCW1pbl9sZXZlbBgEIAEoBRISCgpmcmVlX3Nsb3RzGAUgASgIIjcKEUV4Y2hhbmdlQ3JhZnRMb29wEhEKCXJlbWFpbmluZxgBIAEoBRIPCgdpdGVtX2lkGAIgASgFIj4KFEV4Y2hhbmdlQ3JhZnRMb29wRW5kEhUKDXRvdGFsX2NyYWZ0ZWQYASABKAUSDwoHaXRlbV9pZBgCIAEoBSJRChNFeGNoYW5nZVJlcXVlc3RTZW5kEhUKDWV4Y2hhbmdlX3R5cGUYASABKAUSEQoJdGFyZ2V0X2lkGAIgASgJEhAKCGNlbGxfbnVtGAMgASgFIhAKDkV4Y2hhbmdlQWNjZXB0IhIKEEV4Y2hhbmdlU2V0UmVhZHkiVgoQRXhjaGFuZ2VNb3ZlSXRlbRILCgNhZGQYASABKAgSFAoMaXRlbV91bmljX2lkGAIgASgFEhAKCHF1YW50aXR5GAMgASgFEg0KBXByaWNlGAQgASgDIiQKEEV4Y2hhbmdlTW92ZUthbWESEAoIcXVhbnRpdHkYASABKAMiVAoTRXhjaGFuZ2VNb3ZlUGF5SXRlbRILCgNhZGQYASABKAgSDwoHaXRlbV9pZBgCIAEoBRIQCghxdWFudGl0eRgDIAEoBRINCgVwcmljZRgEIAEoAyInChNFeGNoYW5nZU1vdmVQYXlLYW1hEhAKCHF1YW50aXR5GAEgASgDIjgKE0V4Y2hhbmdlU2VsbFJlcXVlc3QSDwoHaXRlbV9pZBgBIAEoBRIQCghxdWFudGl0eRgCIAEoBSI3ChJFeGNoYW5nZUJ1eVJlcXVlc3QSDwoHaXRlbV9pZBgBIAEoBRIQCghxdWFudGl0eRgCIAEoBSIWChRFeGNoYW5nZUxlYXZlUmVxdWVzdCIbChlFeGNoYW5nZUFza09mZmxpbmVSZXF1ZXN0IhgKFkV4Y2hhbmdlT2ZmbGluZVJlcXVlc3QiJQoTRXhjaGFuZ2VTaG9wUmVxdWVzdBIOCgZucGNfaWQYASABKAUiKAoVRXhjaGFuZ2VTZXRQdWJsaWNNb2RlEg8KB2VuYWJsZWQYASABKAgiLgobRXhjaGFuZ2VCaWdTdG9yZVR5cGVSZXF1ZXN0Eg8KB3R5cGVfaWQYASABKAUiMgofRXhjaGFuZ2VCaWdTdG9yZUl0ZW1MaXN0UmVxdWVzdBIPCgd1bmljX2lkGAEgASgFIjMKH0V4Y2hhbmdlQmlnU3RvcmVTb3VsTGlzdFJlcXVlc3QSEAoIbW9uc3RlcnMYASABKAkiVAoaRXhjaGFuZ2VCaWdTdG9yZUJ1eVJlcXVlc3QSDwoHaXRlbV9pZBgBIAEoBRIWCg5xdWFudGl0eV9pbmRleBgCIAEoBRINCgVwcmljZRgDIAEoAyI+Ch1FeGNoYW5nZUJpZ1N0b3JlU2VhcmNoUmVxdWVzdBIMCgR0eXBlGAEgASgFEg8KB3VuaWNfaWQYAiABKAUiKwoZRXhjaGFuZ2VHZXRDcmFmdGVyUmVxdWVzdBIOCgZqb2JfaWQYASABKAUiFQoTRXhjaGFuZ2VSZXBsYXlDcmFmdCIkChNFeGNoYW5nZVJlcGVhdENyYWZ0Eg0KBWNvdW50GAEgASgFIhkKF0V4Y2hhbmdlU3RvcFJlcGVhdENyYWZ0IikKFkV4Y2hhbmdlR2V0TWlkZGxlUHJpY2USDwoHaXRlbV9pZBgBIAEoBSKwAgoWRXhjaGFuZ2VNb3VudE9wZXJhdGlvbhI4CglvcGVyYXRpb24YASABKA4yJS5kb2Z1cy5FeGNoYW5nZU1vdW50T3BlcmF0aW9uLk1vdW50T3ASEAoIbW91bnRfaWQYAiABKAUiyQEKB01vdW50T3ASGAoUTU9VTlRfT1BfVU5TUEVDSUZJRUQQABIQCgxSSURFX1RPX1BBUksQARISCg5SSURFX1RPX1NUQUJMRRACEhcKE1JJREVfVE9fQ0VSVElGSUNBVEUQAxIXChNDRVJUSUZJQ0FURV9UT19SSURFEAQSEgoOUEFSS19UT19TVEFCTEUQBRISCg5TVEFCTEVfVE9fUEFSSxAGEhIKDkZSRUVfUEFSS19GUkVFEAcSEAoMRlJFRV9UT19SSURFEAhiBnByb3RvMw", [file_common]);
+  fileDesc("Cg5leGNoYW5nZS5wcm90bxIFZG9mdXMiowEKD0V4Y2hhbmdlUmVxdWVzdBIPCgdzdWNjZXNzGAEgASgIEhQKDGluaXRpYXRvcl9pZBgCIAEoCRIRCgl0YXJnZXRfaWQYAyABKAkSFQoNZXhjaGFuZ2VfdHlwZRgEIAEoBRISCgplcnJvcl9jb2RlGAUgASgJEhYKDmluaXRpYXRvcl9uYW1lGAYgASgJEhMKC3RhcmdldF9uYW1lGAcgASgJIkwKDkV4Y2hhbmdlQ3JlYXRlEg8KB3N1Y2Nlc3MYASABKAgSFQoNZXhjaGFuZ2VfdHlwZRgCIAEoBRISCgplcnJvcl9jb2RlGAMgASgJIjUKDUV4Y2hhbmdlQ3JhZnQSDwoHc3VjY2VzcxgBIAEoCBITCgtyZXN1bHRfY29kZRgCIAEoCSI0Cg1FeGNoYW5nZVJlYWR5EhAKCGlzX3JlYWR5GAEgASgIEhEKCXBsYXllcl9pZBgCIAEoCSIzCg1FeGNoYW5nZUxlYXZlEg8KB3N1Y2Nlc3MYASABKAgSEQoJY29tcGxldGVkGAIgASgIIo4BChVFeGNoYW5nZUxvY2FsTW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKQAQoXRXhjaGFuZ2VEaXN0YW50TW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKNAQoURXhjaGFuZ2VDb29wTW92ZW1lbnQSDwoHc3VjY2VzcxgBIAEoCBIrCgRpdGVtGAIgASgLMhsuZG9mdXMuRXhjaGFuZ2VJdGVtTW92ZW1lbnRIABIrCgRrYW1hGAMgASgLMhsuZG9mdXMuRXhjaGFuZ2VLYW1hTW92ZW1lbnRIAEIKCghtb3ZlbWVudCKMAQoTRXhjaGFuZ2VQYXlNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IpABChdFeGNoYW5nZVN0b3JhZ2VNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IpMBChpFeGNoYW5nZVBsYXllclNob3BNb3ZlbWVudBIPCgdzdWNjZXNzGAEgASgIEisKBGl0ZW0YAiABKAsyGy5kb2Z1cy5FeGNoYW5nZUl0ZW1Nb3ZlbWVudEgAEisKBGthbWEYAyABKAsyGy5kb2Z1cy5FeGNoYW5nZUthbWFNb3ZlbWVudEgAQgoKCG1vdmVtZW50IlEKFEV4Y2hhbmdlSXRlbU1vdmVtZW50EgsKA2FkZBgBIAEoCBIdCgRpdGVtGAIgASgLMg8uZG9mdXMuSXRlbURhdGESDQoFcHJpY2UYAyABKAMiKAoURXhjaGFuZ2VLYW1hTW92ZW1lbnQSEAoIcXVhbnRpdHkYASABKAMiJQoSRXhjaGFuZ2VQdWJsaWNNb2RlEg8KB2VuYWJsZWQYASABKAgiUQoURXhjaGFuZ2VNb3VudFN0b3JhZ2USEQoJb3BlcmF0aW9uGAEgASgJEiYKBm1vdW50cxgCIAMoCzIWLmRvZnVzLk1vdW50RGVzY3JpcHRvciJoCg9Nb3VudERlc2NyaXB0b3ISEAoIbW91bnRfaWQYASABKAUSDQoFbW9kZWwYAiABKAUSDAoEbmFtZRgDIAEoCRINCgVsZXZlbBgEIAEoBRILCgNzZXgYBSABKAUSCgoCeHAYBiABKAMiTgoRRXhjaGFuZ2VNb3VudFBhcmsSEQoJb3BlcmF0aW9uGAEgASgJEiYKBm1vdW50cxgCIAMoCzIWLmRvZnVzLk1vdW50RGVzY3JpcHRvciIzChFFeGNoYW5nZU1vdW50UG9kcxIMCgRwb2RzGAEgASgFEhAKCHBvZHNfbWF4GAIgASgFIj0KDEV4Y2hhbmdlTGlzdBIeCgVpdGVtcxgBIAMoCzIPLmRvZnVzLkl0ZW1EYXRhEg0KBWthbWFzGAIgASgDIjMKDEV4Y2hhbmdlU2VsbBIPCgdzdWNjZXNzGAEgASgIEhIKCmVycm9yX2NvZGUYAiABKAkiMgoLRXhjaGFuZ2VCdXkSDwoHc3VjY2VzcxgBIAEoCBISCgplcnJvcl9jb2RlGAIgASgJIlAKEkV4Y2hhbmdlQXNrT2ZmbGluZRIWCg50aW1lX3JlbWFpbmluZxgBIAEoBRIQCghrZF92YWx1ZRgCIAEoAxIQCghxdWFudGl0eRgDIAEoBSJDChlFeGNoYW5nZUJpZ1N0b3JlVHlwZUl0ZW1zEhAKCGNhdGVnb3J5GAEgASgFEhQKDHRlbXBsYXRlX2lkcxgCIAMoBSJOChhFeGNoYW5nZUJpZ1N0b3JlTW92ZW1lbnQSCwoDYWRkGAEgASgIEhAKCGNhdGVnb3J5GAIgASgFEhMKC3RlbXBsYXRlX2lkGAMgASgFIloKGEV4Y2hhbmdlQmlnU3RvcmVJdGVtTGlzdBITCgt0ZW1wbGF0ZV9pZBgBIAEoBRIpCgVsaW5lcxgCIAMoCzIaLmRvZnVzLkJpZ1N0b3JlTGlzdGluZ0xpbmUinwEKE0JpZ1N0b3JlTGlzdGluZ0xpbmUSDwoHbGluZV9pZBgBIAEoAxITCgt0ZW1wbGF0ZV9pZBgCIAEoBRISCgpwcmljZV9xdHkxGAQgASgDEhMKC3ByaWNlX3F0eTEwGAUgASgDEhQKDHByaWNlX3F0eTEwMBgGIAEoAxIdCgRpdGVtGAcgASgLMg8uZG9mdXMuSXRlbURhdGFKBAgDEAQiZgocRXhjaGFuZ2VCaWdTdG9yZUl0ZW1Nb3ZlbWVudBILCgNhZGQYASABKAgSDwoHbGluZV9pZBgCIAEoAxIoCgRsaW5lGAMgASgLMhouZG9mdXMuQmlnU3RvcmVMaXN0aW5nTGluZSKyAQoWRXhjaGFuZ2VCaWdTdG9yZVBhcmFtcxIRCglsb3Rfc2l6ZXMYASADKAUSDQoFdHlwZXMYAiADKAUSEwoLdGF4X3BlcmNlbnQYAyABKAESEQoJbGV2ZWxfbWF4GAQgASgFEhEKCW1heF9pdGVtcxgFIAEoBRIOCgZucGNfaWQYBiABKAUSFwoPc2VsbF90aW1lX2hvdXJzGAcgASgFEhIKCnR5cGVfbmFtZXMYCCADKAkiZQoSQmlnU3RvcmVPd25MaXN0aW5nEg8KB2xpbmVfaWQYASABKAMSHQoEaXRlbRgCIAEoCzIPLmRvZnVzLkl0ZW1EYXRhEhAKCGxvdF9zaXplGAMgASgFEg0KBXByaWNlGAQgASgDIkYKF0V4Y2hhbmdlQmlnU3RvcmVPd25MaXN0EisKCGxpc3RpbmdzGAEgAygLMhkuZG9mdXMuQmlnU3RvcmVPd25MaXN0aW5nImcKG0V4Y2hhbmdlQmlnU3RvcmVPd25Nb3ZlbWVudBILCgNhZGQYASABKAgSDwoHbGluZV9pZBgCIAEoAxIqCgdsaXN0aW5nGAMgASgLMhkuZG9mdXMuQmlnU3RvcmVPd25MaXN0aW5nIkUKG0V4Y2hhbmdlQmlnU3RvcmVNaWRkbGVQcmljZRIPCgdpdGVtX2lkGAEgASgFEhUKDWF2ZXJhZ2VfcHJpY2UYAiABKAMiWAoWRXhjaGFuZ2VCaWdTdG9yZVNlYXJjaBITCgt0ZW1wbGF0ZV9pZBgBIAEoBRIpCgVsaW5lcxgCIAMoCzIaLmRvZnVzLkJpZ1N0b3JlTGlzdGluZ0xpbmUiTgoTRXhjaGFuZ2VDcmFmdGVyTGlzdBIOCgZqb2JfaWQYASABKAUSJwoIY3JhZnRlcnMYAiADKAsyFS5kb2Z1cy5DcmFmdGVyU3VtbWFyeSJnCg5DcmFmdGVyU3VtbWFyeRIRCglwbGF5ZXJfaWQYASABKAMSDAoEbmFtZRgCIAEoCRINCgVsZXZlbBgDIAEoBRIRCgltaW5fbGV2ZWwYBCABKAUSEgoKZnJlZV9zbG90cxgFIAEoCCI3ChFFeGNoYW5nZUNyYWZ0TG9vcBIRCglyZW1haW5pbmcYASABKAUSDwoHaXRlbV9pZBgCIAEoBSI+ChRFeGNoYW5nZUNyYWZ0TG9vcEVuZBIVCg10b3RhbF9jcmFmdGVkGAEgASgFEg8KB2l0ZW1faWQYAiABKAUiUQoTRXhjaGFuZ2VSZXF1ZXN0U2VuZBIVCg1leGNoYW5nZV90eXBlGAEgASgFEhEKCXRhcmdldF9pZBgCIAEoCRIQCghjZWxsX251bRgDIAEoBSIQCg5FeGNoYW5nZUFjY2VwdCISChBFeGNoYW5nZVNldFJlYWR5IlYKEEV4Y2hhbmdlTW92ZUl0ZW0SCwoDYWRkGAEgASgIEhQKDGl0ZW1fdW5pY19pZBgCIAEoBRIQCghxdWFudGl0eRgDIAEoBRINCgVwcmljZRgEIAEoAyIkChBFeGNoYW5nZU1vdmVLYW1hEhAKCHF1YW50aXR5GAEgASgDIlQKE0V4Y2hhbmdlTW92ZVBheUl0ZW0SCwoDYWRkGAEgASgIEg8KB2l0ZW1faWQYAiABKAUSEAoIcXVhbnRpdHkYAyABKAUSDQoFcHJpY2UYBCABKAMiJwoTRXhjaGFuZ2VNb3ZlUGF5S2FtYRIQCghxdWFudGl0eRgBIAEoAyI4ChNFeGNoYW5nZVNlbGxSZXF1ZXN0Eg8KB2l0ZW1faWQYASABKAUSEAoIcXVhbnRpdHkYAiABKAUiNwoSRXhjaGFuZ2VCdXlSZXF1ZXN0Eg8KB2l0ZW1faWQYASABKAUSEAoIcXVhbnRpdHkYAiABKAUiFgoURXhjaGFuZ2VMZWF2ZVJlcXVlc3QiGwoZRXhjaGFuZ2VBc2tPZmZsaW5lUmVxdWVzdCIYChZFeGNoYW5nZU9mZmxpbmVSZXF1ZXN0IiUKE0V4Y2hhbmdlU2hvcFJlcXVlc3QSDgoGbnBjX2lkGAEgASgFIigKFUV4Y2hhbmdlU2V0UHVibGljTW9kZRIPCgdlbmFibGVkGAEgASgIIi4KG0V4Y2hhbmdlQmlnU3RvcmVUeXBlUmVxdWVzdBIPCgd0eXBlX2lkGAEgASgFIjIKH0V4Y2hhbmdlQmlnU3RvcmVJdGVtTGlzdFJlcXVlc3QSDwoHdW5pY19pZBgBIAEoBSIzCh9FeGNoYW5nZUJpZ1N0b3JlU291bExpc3RSZXF1ZXN0EhAKCG1vbnN0ZXJzGAEgASgJIlQKGkV4Y2hhbmdlQmlnU3RvcmVCdXlSZXF1ZXN0Eg8KB2l0ZW1faWQYASABKAUSFgoOcXVhbnRpdHlfaW5kZXgYAiABKAUSDQoFcHJpY2UYAyABKAMiPgodRXhjaGFuZ2VCaWdTdG9yZVNlYXJjaFJlcXVlc3QSDAoEdHlwZRgBIAEoBRIPCgd1bmljX2lkGAIgASgFIisKGUV4Y2hhbmdlR2V0Q3JhZnRlclJlcXVlc3QSDgoGam9iX2lkGAEgASgFIhUKE0V4Y2hhbmdlUmVwbGF5Q3JhZnQiJAoTRXhjaGFuZ2VSZXBlYXRDcmFmdBINCgVjb3VudBgBIAEoBSIZChdFeGNoYW5nZVN0b3BSZXBlYXRDcmFmdCIpChZFeGNoYW5nZUdldE1pZGRsZVByaWNlEg8KB2l0ZW1faWQYASABKAUisAIKFkV4Y2hhbmdlTW91bnRPcGVyYXRpb24SOAoJb3BlcmF0aW9uGAEgASgOMiUuZG9mdXMuRXhjaGFuZ2VNb3VudE9wZXJhdGlvbi5Nb3VudE9wEhAKCG1vdW50X2lkGAIgASgFIskBCgdNb3VudE9wEhgKFE1PVU5UX09QX1VOU1BFQ0lGSUVEEAASEAoMUklERV9UT19QQVJLEAESEgoOUklERV9UT19TVEFCTEUQAhIXChNSSURFX1RPX0NFUlRJRklDQVRFEAMSFwoTQ0VSVElGSUNBVEVfVE9fUklERRAEEhIKDlBBUktfVE9fU1RBQkxFEAUSEgoOU1RBQkxFX1RPX1BBUksQBhISCg5GUkVFX1BBUktfRlJFRRAHEhAKDEZSRUVfVE9fUklERRAIYgZwcm90bzM", [file_common]);
 
 /**
  * ER - Exchange request response.
@@ -668,7 +668,13 @@ export const ExchangeListSchema: GenMessage<ExchangeList> = /*@__PURE__*/
   messageDesc(file_exchange, 18);
 
 /**
- * ES - Sell response
+ * ES - Sell response.
+ *
+ * `error_code` is this server's own vocabulary ("bad-type", "no-slot",
+ * "no-tax"...), not 1.29's numbered errors: the client maps it to the
+ * sentence its lang bundle already carries. Without it a refusal is a
+ * bare `false` and the window has to invent a reason — which is worse
+ * than saying nothing, because the invented one is usually wrong.
  *
  * @generated from message dofus.ExchangeSell
  */
@@ -677,6 +683,11 @@ export type ExchangeSell = Message<"dofus.ExchangeSell"> & {
    * @generated from field: bool success = 1;
    */
   success: boolean;
+
+  /**
+   * @generated from field: string error_code = 2;
+   */
+  errorCode: string;
 };
 
 /**
@@ -687,7 +698,7 @@ export const ExchangeSellSchema: GenMessage<ExchangeSell> = /*@__PURE__*/
   messageDesc(file_exchange, 19);
 
 /**
- * EB - Buy response
+ * EB - Buy response. Same shape, same reasoning.
  *
  * @generated from message dofus.ExchangeBuy
  */
@@ -696,6 +707,11 @@ export type ExchangeBuy = Message<"dofus.ExchangeBuy"> & {
    * @generated from field: bool success = 1;
    */
   success: boolean;
+
+  /**
+   * @generated from field: string error_code = 2;
+   */
+  errorCode: string;
 };
 
 /**
@@ -816,6 +832,18 @@ export const ExchangeBigStoreItemListSchema: GenMessage<ExchangeBigStoreItemList
   messageDesc(file_exchange, 24);
 
 /**
+ * One row of the price grid.
+ *
+ * `line_id` names a **group**, not always a single listing. For an item
+ * whose stats vary — equipment, a weapon, a pet — every exemplar is its
+ * own group and only `price_qty1` is set. For a generic resource the
+ * group is the template, and the three prices are the cheapest lot of
+ * each size currently on sale, which may well come from three different
+ * sellers: that is what `bigstore/BigStorePriceItem.as` draws, three
+ * independently buyable prices sharing one `oItem.id`. `EHB` therefore
+ * names a price by group **and** amount, and the server resolves which
+ * actual lot that is.
+ *
  * @generated from message dofus.BigStoreListingLine
  */
 export type BigStoreListingLine = Message<"dofus.BigStoreListingLine"> & {
@@ -828,13 +856,6 @@ export type BigStoreListingLine = Message<"dofus.BigStoreListingLine"> & {
    * @generated from field: int32 template_id = 2;
    */
   templateId: number;
-
-  /**
-   * Compressed effects.
-   *
-   * @generated from field: string stats = 3;
-   */
-  stats: string;
 
   /**
    * 0 = absent.
@@ -852,6 +873,16 @@ export type BigStoreListingLine = Message<"dofus.BigStoreListingLine"> & {
    * @generated from field: int64 price_qty100 = 6;
    */
   priceQty100: bigint;
+
+  /**
+   * The exemplar this row stands for, effects included — the buyer's
+   * item card opens on it. A whole `ItemData` rather than 1.29's packed
+   * stats string for the reason QA-104 gives: every other item on this
+   * protocol travels as `ItemData`, and the client already renders one.
+   *
+   * @generated from field: dofus.ItemData item = 7;
+   */
+  item?: ItemData | undefined;
 };
 
 /**
@@ -865,6 +896,14 @@ export const BigStoreListingLineSchema: GenMessage<BigStoreListingLine> = /*@__P
  * EHm - Big store items movement. StarLoco SocketManager.java:1842/1847
  * — "EHm-<id>" for delete, "EHm+<lineId>|<tpl>|<stats>|p1|p10|p100"
  * for add.
+ *
+ * **This server does not emit it.** A generic item's row is a group of
+ * interchangeable lots named after the cheapest one in it, so its id
+ * changes as soon as that lot is bought or undercut — and an upsert
+ * keyed on the id then leaves the stale row standing beside the new one.
+ * `BigStoreFlow` resends the whole `EHl` instead; a price grid is a
+ * handful of rows, and it cannot drift. Kept declared because a future
+ * server that gives each group a row of its own could use it.
  *
  * @generated from message dofus.ExchangeBigStoreItemMovement
  */
@@ -897,6 +936,183 @@ export const ExchangeBigStoreItemMovementSchema: GenMessage<ExchangeBigStoreItem
   messageDesc(file_exchange, 26);
 
 /**
+ * EHK - the parameters of the auction house that just opened.
+ *
+ * 1.29 packs these into `EC` itself: `Exchange.as:439-467` splits
+ * `<q1,q2,q3>;<types>;<taxe>;<niveauMax>;<objetsMax>;<npcId>;<durée>`
+ * out of the create frame's extra data. `ExchangeCreate` here carries
+ * only success/type/error_code and serves all eighteen exchange types,
+ * so these travel beside it rather than being piled into it — the same
+ * split `ExchangeList` already makes for a storage's contents.
+ *
+ * Sent immediately after `EC`, and before anything else.
+ *
+ * @generated from message dofus.ExchangeBigStoreParams
+ */
+export type ExchangeBigStoreParams = Message<"dofus.ExchangeBigStoreParams"> & {
+  /**
+   * The three standard lots. Always 1, 10, 100 — sent rather than
+   * assumed because the client indexes into this list: `EHB` names a
+   * lot by its 1-based position here, not by its size.
+   *
+   * @generated from field: repeated int32 lot_sizes = 1;
+   */
+  lotSizes: number[];
+
+  /**
+   * The `item_types.id` this hall accepts. Its whole specialisation.
+   *
+   * @generated from field: repeated int32 types = 2;
+   */
+  types: number[];
+
+  /**
+   * Listing tax, in percent of the lot price. The client previews it as
+   * `max(1, round(price * tax / 100))` while the seller types a price.
+   *
+   * @generated from field: double tax_percent = 3;
+   */
+  taxPercent: number;
+
+  /**
+   * @generated from field: int32 level_max = 4;
+   */
+  levelMax: number;
+
+  /**
+   * Simultaneous listings allowed **per account** in this hall.
+   *
+   * @generated from field: int32 max_items = 5;
+   */
+  maxItems: number;
+
+  /**
+   * The vendor's sprite id, so "Mode vente" / "Mode achat" can re-open
+   * the other mode against the same NPC without a second click on it.
+   *
+   * @generated from field: int32 npc_id = 6;
+   */
+  npcId: number;
+
+  /**
+   * @generated from field: int32 sell_time_hours = 7;
+   */
+  sellTimeHours: number;
+
+  /**
+   * The names of `types`, positionally. 1.29 reads them out of its own
+   * `items` lang bundle; this server already resolves a type's name for
+   * every `ItemTemplateData` it sends, and a hall's category dropdown
+   * has to be filled before a single template has arrived for it.
+   *
+   * @generated from field: repeated string type_names = 8;
+   */
+  typeNames: string[];
+};
+
+/**
+ * Describes the message dofus.ExchangeBigStoreParams.
+ * Use `create(ExchangeBigStoreParamsSchema)` to create a new message.
+ */
+export const ExchangeBigStoreParamsSchema: GenMessage<ExchangeBigStoreParams> = /*@__PURE__*/
+  messageDesc(file_exchange, 27);
+
+/**
+ * One of your own lots, as "Stock en magasin" lists it.
+ *
+ * `ExchangeList` is the storage form and carries bare `ItemData`; a lot
+ * also has a price and a size, and its line id is what withdrawing it
+ * names. This is the shape that message's own docblock said an auction
+ * listing would need.
+ *
+ * @generated from message dofus.BigStoreOwnListing
+ */
+export type BigStoreOwnListing = Message<"dofus.BigStoreOwnListing"> & {
+  /**
+   * @generated from field: int64 line_id = 1;
+   */
+  lineId: bigint;
+
+  /**
+   * The stock in full, effects included: the seller's item card opens on
+   * it, and a listed exemplar keeps the jet it was rolled with.
+   *
+   * @generated from field: dofus.ItemData item = 2;
+   */
+  item?: ItemData | undefined;
+
+  /**
+   * @generated from field: int32 lot_size = 3;
+   */
+  lotSize: number;
+
+  /**
+   * @generated from field: int64 price = 4;
+   */
+  price: bigint;
+};
+
+/**
+ * Describes the message dofus.BigStoreOwnListing.
+ * Use `create(BigStoreOwnListingSchema)` to create a new message.
+ */
+export const BigStoreOwnListingSchema: GenMessage<BigStoreOwnListing> = /*@__PURE__*/
+  messageDesc(file_exchange, 28);
+
+/**
+ * EHo - every lot you currently have on sale in this hall. Sent on
+ * opening the sell mode, like `EL` for a storage.
+ *
+ * @generated from message dofus.ExchangeBigStoreOwnList
+ */
+export type ExchangeBigStoreOwnList = Message<"dofus.ExchangeBigStoreOwnList"> & {
+  /**
+   * @generated from field: repeated dofus.BigStoreOwnListing listings = 1;
+   */
+  listings: BigStoreOwnListing[];
+};
+
+/**
+ * Describes the message dofus.ExchangeBigStoreOwnList.
+ * Use `create(ExchangeBigStoreOwnListSchema)` to create a new message.
+ */
+export const ExchangeBigStoreOwnListSchema: GenMessage<ExchangeBigStoreOwnList> = /*@__PURE__*/
+  messageDesc(file_exchange, 29);
+
+/**
+ * EHO - one lot of yours appeared or went away.
+ *
+ * @generated from message dofus.ExchangeBigStoreOwnMovement
+ */
+export type ExchangeBigStoreOwnMovement = Message<"dofus.ExchangeBigStoreOwnMovement"> & {
+  /**
+   * @generated from field: bool add = 1;
+   */
+  add: boolean;
+
+  /**
+   * Removal: only this is populated.
+   *
+   * @generated from field: int64 line_id = 2;
+   */
+  lineId: bigint;
+
+  /**
+   * Addition: the full lot.
+   *
+   * @generated from field: dofus.BigStoreOwnListing listing = 3;
+   */
+  listing?: BigStoreOwnListing | undefined;
+};
+
+/**
+ * Describes the message dofus.ExchangeBigStoreOwnMovement.
+ * Use `create(ExchangeBigStoreOwnMovementSchema)` to create a new message.
+ */
+export const ExchangeBigStoreOwnMovementSchema: GenMessage<ExchangeBigStoreOwnMovement> = /*@__PURE__*/
+  messageDesc(file_exchange, 30);
+
+/**
  * EHP - Big store middle price
  *
  * @generated from message dofus.ExchangeBigStoreMiddlePrice
@@ -918,7 +1134,7 @@ export type ExchangeBigStoreMiddlePrice = Message<"dofus.ExchangeBigStoreMiddleP
  * Use `create(ExchangeBigStoreMiddlePriceSchema)` to create a new message.
  */
 export const ExchangeBigStoreMiddlePriceSchema: GenMessage<ExchangeBigStoreMiddlePrice> = /*@__PURE__*/
-  messageDesc(file_exchange, 27);
+  messageDesc(file_exchange, 31);
 
 /**
  * EHS - Big store search result. Returns matching listings for a
@@ -943,7 +1159,7 @@ export type ExchangeBigStoreSearch = Message<"dofus.ExchangeBigStoreSearch"> & {
  * Use `create(ExchangeBigStoreSearchSchema)` to create a new message.
  */
 export const ExchangeBigStoreSearchSchema: GenMessage<ExchangeBigStoreSearch> = /*@__PURE__*/
-  messageDesc(file_exchange, 28);
+  messageDesc(file_exchange, 32);
 
 /**
  * EJ - Crafter list for a job. StarLoco emits "EJ"+<list> where list is
@@ -968,7 +1184,7 @@ export type ExchangeCrafterList = Message<"dofus.ExchangeCrafterList"> & {
  * Use `create(ExchangeCrafterListSchema)` to create a new message.
  */
 export const ExchangeCrafterListSchema: GenMessage<ExchangeCrafterList> = /*@__PURE__*/
-  messageDesc(file_exchange, 29);
+  messageDesc(file_exchange, 33);
 
 /**
  * @generated from message dofus.CrafterSummary
@@ -1005,7 +1221,7 @@ export type CrafterSummary = Message<"dofus.CrafterSummary"> & {
  * Use `create(CrafterSummarySchema)` to create a new message.
  */
 export const CrafterSummarySchema: GenMessage<CrafterSummary> = /*@__PURE__*/
-  messageDesc(file_exchange, 30);
+  messageDesc(file_exchange, 34);
 
 /**
  * EA - Craft loop. StarLoco SocketManager.java:1479 sends "EA"+<str>;
@@ -1030,7 +1246,7 @@ export type ExchangeCraftLoop = Message<"dofus.ExchangeCraftLoop"> & {
  * Use `create(ExchangeCraftLoopSchema)` to create a new message.
  */
 export const ExchangeCraftLoopSchema: GenMessage<ExchangeCraftLoop> = /*@__PURE__*/
-  messageDesc(file_exchange, 31);
+  messageDesc(file_exchange, 35);
 
 /**
  * Ea - Craft loop end. StarLoco SocketManager.java:1474 sends "Ea"+<str>
@@ -1055,7 +1271,7 @@ export type ExchangeCraftLoopEnd = Message<"dofus.ExchangeCraftLoopEnd"> & {
  * Use `create(ExchangeCraftLoopEndSchema)` to create a new message.
  */
 export const ExchangeCraftLoopEndSchema: GenMessage<ExchangeCraftLoopEnd> = /*@__PURE__*/
-  messageDesc(file_exchange, 32);
+  messageDesc(file_exchange, 36);
 
 /**
  * Client sends ER<type>|<id>|<cellNum>
@@ -1088,7 +1304,7 @@ export type ExchangeRequestSend = Message<"dofus.ExchangeRequestSend"> & {
  * Use `create(ExchangeRequestSendSchema)` to create a new message.
  */
 export const ExchangeRequestSendSchema: GenMessage<ExchangeRequestSend> = /*@__PURE__*/
-  messageDesc(file_exchange, 33);
+  messageDesc(file_exchange, 37);
 
 /**
  * Client sends EA
@@ -1103,7 +1319,7 @@ export type ExchangeAccept = Message<"dofus.ExchangeAccept"> & {
  * Use `create(ExchangeAcceptSchema)` to create a new message.
  */
 export const ExchangeAcceptSchema: GenMessage<ExchangeAccept> = /*@__PURE__*/
-  messageDesc(file_exchange, 34);
+  messageDesc(file_exchange, 38);
 
 /**
  * Client sends EK
@@ -1118,7 +1334,7 @@ export type ExchangeSetReady = Message<"dofus.ExchangeSetReady"> & {
  * Use `create(ExchangeSetReadySchema)` to create a new message.
  */
 export const ExchangeSetReadySchema: GenMessage<ExchangeSetReady> = /*@__PURE__*/
-  messageDesc(file_exchange, 35);
+  messageDesc(file_exchange, 39);
 
 /**
  * Client sends EMO[+/-]<itemId>|<quantity>|<price>
@@ -1130,6 +1346,18 @@ export const ExchangeSetReadySchema: GenMessage<ExchangeSetReady> = /*@__PURE__*
  * where `nID` is the instance and `nUnicID` the template — the two
  * names are the wrong way round in the original, which is exactly why
  * this field spells out which one it is.
+ * In an auction house this frame means something different in each
+ * direction, exactly as it does in 1.29 where `BigStoreSell` calls the
+ * same `movementItems`:
+ *
+ *   - `add = true` puts a lot on sale. `item_unic_id` is a stack in the
+ *     seller's bag, `quantity` is the **lot size** (1, 10 or 100 — not
+ *     an amount to move), and `price` is the price of the whole lot.
+ *   - `add = false` takes a lot off sale, and `item_unic_id` is then a
+ *     **listing id**, not an item id at all.
+ *
+ * That inversion is invisible at the call site and has nowhere else to
+ * be written down, which is why it is written down here.
  *
  * @generated from message dofus.ExchangeMoveItem
  */
@@ -1162,7 +1390,7 @@ export type ExchangeMoveItem = Message<"dofus.ExchangeMoveItem"> & {
  * Use `create(ExchangeMoveItemSchema)` to create a new message.
  */
 export const ExchangeMoveItemSchema: GenMessage<ExchangeMoveItem> = /*@__PURE__*/
-  messageDesc(file_exchange, 36);
+  messageDesc(file_exchange, 40);
 
 /**
  * Client sends EMG<quantity>
@@ -1181,7 +1409,7 @@ export type ExchangeMoveKama = Message<"dofus.ExchangeMoveKama"> & {
  * Use `create(ExchangeMoveKamaSchema)` to create a new message.
  */
 export const ExchangeMoveKamaSchema: GenMessage<ExchangeMoveKama> = /*@__PURE__*/
-  messageDesc(file_exchange, 37);
+  messageDesc(file_exchange, 41);
 
 /**
  * Client sends EP<garbage>O[+/-]<itemId>|<qty>|<price>
@@ -1215,7 +1443,7 @@ export type ExchangeMovePayItem = Message<"dofus.ExchangeMovePayItem"> & {
  * Use `create(ExchangeMovePayItemSchema)` to create a new message.
  */
 export const ExchangeMovePayItemSchema: GenMessage<ExchangeMovePayItem> = /*@__PURE__*/
-  messageDesc(file_exchange, 38);
+  messageDesc(file_exchange, 42);
 
 /**
  * Client sends EP<garbage>G<quantity>
@@ -1234,7 +1462,7 @@ export type ExchangeMovePayKama = Message<"dofus.ExchangeMovePayKama"> & {
  * Use `create(ExchangeMovePayKamaSchema)` to create a new message.
  */
 export const ExchangeMovePayKamaSchema: GenMessage<ExchangeMovePayKama> = /*@__PURE__*/
-  messageDesc(file_exchange, 39);
+  messageDesc(file_exchange, 43);
 
 /**
  * Client sends ES<itemId>|<quantity>
@@ -1258,7 +1486,7 @@ export type ExchangeSellRequest = Message<"dofus.ExchangeSellRequest"> & {
  * Use `create(ExchangeSellRequestSchema)` to create a new message.
  */
 export const ExchangeSellRequestSchema: GenMessage<ExchangeSellRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 40);
+  messageDesc(file_exchange, 44);
 
 /**
  * Client sends EB<itemId>|<quantity>
@@ -1282,7 +1510,7 @@ export type ExchangeBuyRequest = Message<"dofus.ExchangeBuyRequest"> & {
  * Use `create(ExchangeBuyRequestSchema)` to create a new message.
  */
 export const ExchangeBuyRequestSchema: GenMessage<ExchangeBuyRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 41);
+  messageDesc(file_exchange, 45);
 
 /**
  * Client sends EV
@@ -1297,7 +1525,7 @@ export type ExchangeLeaveRequest = Message<"dofus.ExchangeLeaveRequest"> & {
  * Use `create(ExchangeLeaveRequestSchema)` to create a new message.
  */
 export const ExchangeLeaveRequestSchema: GenMessage<ExchangeLeaveRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 42);
+  messageDesc(file_exchange, 46);
 
 /**
  * Client sends Eq
@@ -1312,7 +1540,7 @@ export type ExchangeAskOfflineRequest = Message<"dofus.ExchangeAskOfflineRequest
  * Use `create(ExchangeAskOfflineRequestSchema)` to create a new message.
  */
 export const ExchangeAskOfflineRequestSchema: GenMessage<ExchangeAskOfflineRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 43);
+  messageDesc(file_exchange, 47);
 
 /**
  * Client sends EQ
@@ -1327,7 +1555,7 @@ export type ExchangeOfflineRequest = Message<"dofus.ExchangeOfflineRequest"> & {
  * Use `create(ExchangeOfflineRequestSchema)` to create a new message.
  */
 export const ExchangeOfflineRequestSchema: GenMessage<ExchangeOfflineRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 44);
+  messageDesc(file_exchange, 48);
 
 /**
  * Client sends Es<npcId>
@@ -1346,7 +1574,7 @@ export type ExchangeShopRequest = Message<"dofus.ExchangeShopRequest"> & {
  * Use `create(ExchangeShopRequestSchema)` to create a new message.
  */
 export const ExchangeShopRequestSchema: GenMessage<ExchangeShopRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 45);
+  messageDesc(file_exchange, 49);
 
 /**
  * Client sends EW[+/-]
@@ -1365,7 +1593,7 @@ export type ExchangeSetPublicMode = Message<"dofus.ExchangeSetPublicMode"> & {
  * Use `create(ExchangeSetPublicModeSchema)` to create a new message.
  */
 export const ExchangeSetPublicModeSchema: GenMessage<ExchangeSetPublicMode> = /*@__PURE__*/
-  messageDesc(file_exchange, 46);
+  messageDesc(file_exchange, 50);
 
 /**
  * Client sends EHT<typeId>
@@ -1384,7 +1612,7 @@ export type ExchangeBigStoreTypeRequest = Message<"dofus.ExchangeBigStoreTypeReq
  * Use `create(ExchangeBigStoreTypeRequestSchema)` to create a new message.
  */
 export const ExchangeBigStoreTypeRequestSchema: GenMessage<ExchangeBigStoreTypeRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 47);
+  messageDesc(file_exchange, 51);
 
 /**
  * Client sends EHl<unicId>
@@ -1403,7 +1631,7 @@ export type ExchangeBigStoreItemListRequest = Message<"dofus.ExchangeBigStoreIte
  * Use `create(ExchangeBigStoreItemListRequestSchema)` to create a new message.
  */
 export const ExchangeBigStoreItemListRequestSchema: GenMessage<ExchangeBigStoreItemListRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 48);
+  messageDesc(file_exchange, 52);
 
 /**
  * Client sends EHM<monsters>
@@ -1422,7 +1650,7 @@ export type ExchangeBigStoreSoulListRequest = Message<"dofus.ExchangeBigStoreSou
  * Use `create(ExchangeBigStoreSoulListRequestSchema)` to create a new message.
  */
 export const ExchangeBigStoreSoulListRequestSchema: GenMessage<ExchangeBigStoreSoulListRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 49);
+  messageDesc(file_exchange, 53);
 
 /**
  * Client sends EHB<itemId>|<qtyIndex>|<price>
@@ -1451,7 +1679,7 @@ export type ExchangeBigStoreBuyRequest = Message<"dofus.ExchangeBigStoreBuyReque
  * Use `create(ExchangeBigStoreBuyRequestSchema)` to create a new message.
  */
 export const ExchangeBigStoreBuyRequestSchema: GenMessage<ExchangeBigStoreBuyRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 50);
+  messageDesc(file_exchange, 54);
 
 /**
  * Client sends EHS<type>|<unicId>
@@ -1475,7 +1703,7 @@ export type ExchangeBigStoreSearchRequest = Message<"dofus.ExchangeBigStoreSearc
  * Use `create(ExchangeBigStoreSearchRequestSchema)` to create a new message.
  */
 export const ExchangeBigStoreSearchRequestSchema: GenMessage<ExchangeBigStoreSearchRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 51);
+  messageDesc(file_exchange, 55);
 
 /**
  * Client sends EJF<jobId>
@@ -1494,7 +1722,7 @@ export type ExchangeGetCrafterRequest = Message<"dofus.ExchangeGetCrafterRequest
  * Use `create(ExchangeGetCrafterRequestSchema)` to create a new message.
  */
 export const ExchangeGetCrafterRequestSchema: GenMessage<ExchangeGetCrafterRequest> = /*@__PURE__*/
-  messageDesc(file_exchange, 52);
+  messageDesc(file_exchange, 56);
 
 /**
  * Client sends EL
@@ -1509,7 +1737,7 @@ export type ExchangeReplayCraft = Message<"dofus.ExchangeReplayCraft"> & {
  * Use `create(ExchangeReplayCraftSchema)` to create a new message.
  */
 export const ExchangeReplayCraftSchema: GenMessage<ExchangeReplayCraft> = /*@__PURE__*/
-  messageDesc(file_exchange, 53);
+  messageDesc(file_exchange, 57);
 
 /**
  * Client sends EMR<count>
@@ -1528,7 +1756,7 @@ export type ExchangeRepeatCraft = Message<"dofus.ExchangeRepeatCraft"> & {
  * Use `create(ExchangeRepeatCraftSchema)` to create a new message.
  */
 export const ExchangeRepeatCraftSchema: GenMessage<ExchangeRepeatCraft> = /*@__PURE__*/
-  messageDesc(file_exchange, 54);
+  messageDesc(file_exchange, 58);
 
 /**
  * Client sends EMr
@@ -1543,7 +1771,7 @@ export type ExchangeStopRepeatCraft = Message<"dofus.ExchangeStopRepeatCraft"> &
  * Use `create(ExchangeStopRepeatCraftSchema)` to create a new message.
  */
 export const ExchangeStopRepeatCraftSchema: GenMessage<ExchangeStopRepeatCraft> = /*@__PURE__*/
-  messageDesc(file_exchange, 55);
+  messageDesc(file_exchange, 59);
 
 /**
  * Client sends EHP<itemId>
@@ -1562,7 +1790,7 @@ export type ExchangeGetMiddlePrice = Message<"dofus.ExchangeGetMiddlePrice"> & {
  * Use `create(ExchangeGetMiddlePriceSchema)` to create a new message.
  */
 export const ExchangeGetMiddlePriceSchema: GenMessage<ExchangeGetMiddlePrice> = /*@__PURE__*/
-  messageDesc(file_exchange, 56);
+  messageDesc(file_exchange, 60);
 
 /**
  * Client sends Erp, Erg, Erc, ErC, Efp, Efg, Eff, Erf<mountId>
@@ -1586,7 +1814,7 @@ export type ExchangeMountOperation = Message<"dofus.ExchangeMountOperation"> & {
  * Use `create(ExchangeMountOperationSchema)` to create a new message.
  */
 export const ExchangeMountOperationSchema: GenMessage<ExchangeMountOperation> = /*@__PURE__*/
-  messageDesc(file_exchange, 57);
+  messageDesc(file_exchange, 61);
 
 /**
  * @generated from enum dofus.ExchangeMountOperation.MountOp
@@ -1658,5 +1886,5 @@ export enum ExchangeMountOperation_MountOp {
  * Describes the enum dofus.ExchangeMountOperation.MountOp.
  */
 export const ExchangeMountOperation_MountOpSchema: GenEnum<ExchangeMountOperation_MountOp> = /*@__PURE__*/
-  enumDesc(file_exchange, 57, 0);
+  enumDesc(file_exchange, 61, 0);
 
