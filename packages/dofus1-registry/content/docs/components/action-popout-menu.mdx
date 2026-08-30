@@ -1,0 +1,63 @@
+---
+title: ActionPopoutMenu
+description: A context menu triggered by right-click or programmatically, styled like the Dofus Zaap menu.
+---
+
+import {
+  ActionPopoutMenu,
+  ActionPopoutMenuTrigger,
+  ActionPopoutMenuContent,
+  ActionPopoutMenuHeader,
+  ActionPopoutMenuItem,
+} from "@/registry/dofus1/ui/action-popout-menu";
+
+## Preview
+
+<PreviewCard><ActionPopoutMenu><ActionPopoutMenuTrigger><div className="flex h-24 w-48 items-center justify-center border border-dashed border-muted-foreground/40 rounded text-sm text-muted-foreground">Right-click me</div></ActionPopoutMenuTrigger><ActionPopoutMenuContent><ActionPopoutMenuHeader>Zaap</ActionPopoutMenuHeader><ActionPopoutMenuItem>Use</ActionPopoutMenuItem><ActionPopoutMenuItem>Save coordinates</ActionPopoutMenuItem></ActionPopoutMenuContent></ActionPopoutMenu></PreviewCard>
+
+## Installation
+
+```bash
+npx shadcn@latest add action-popout-menu
+```
+
+## Usage
+
+Import the components:
+
+```tsx
+import {
+  ActionPopoutMenu,
+  ActionPopoutMenuTrigger,
+  ActionPopoutMenuContent,
+  ActionPopoutMenuHeader,
+  ActionPopoutMenuItem,
+} from "@/components/ui/action-popout-menu";
+```
+
+Then use them in your component:
+
+```tsx
+<ActionPopoutMenu>
+  <ActionPopoutMenuTrigger>
+    <div>Right-click me</div>
+  </ActionPopoutMenuTrigger>
+  <ActionPopoutMenuContent>
+    <ActionPopoutMenuHeader>Zaap</ActionPopoutMenuHeader>
+    <ActionPopoutMenuItem onClick={() => console.log("use")}>
+      Use
+    </ActionPopoutMenuItem>
+  </ActionPopoutMenuContent>
+</ActionPopoutMenu>
+```
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| `ActionPopoutMenu` | Root. Wraps the context menu. Supports `open` / `onOpenChange` for controlled mode. |
+| `ActionPopoutMenuTrigger` | The area that listens for right-click. |
+| `ActionPopoutMenuContent` | The popup container with Zaap-style borders. |
+| `ActionPopoutMenuHeader` | Non-interactive label row (e.g. "Zaap"). |
+| `ActionPopoutMenuItem` | Interactive action row. Accepts `onClick` and `disabled`. |
+| `ActionPopoutMenuSeparator` | Visual divider between items. |

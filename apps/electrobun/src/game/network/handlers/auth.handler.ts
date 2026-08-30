@@ -1,13 +1,17 @@
-import { loginActor } from "@/game/machines/actors";
 import type { MessageHandler } from "@/game/network/message-handler";
 import type {
-  AccountCharactersList,
   AccountCharacterSelected,
+  AccountCharactersList,
   AccountLoginResponse,
   AccountSelectServer,
   AccountServersList,
   HandshakeConnectionKey,
 } from "@/game/network/protocol";
+import { loginActor } from "@/game/machines/actors";
+import {
+  checkServerContractCompatibility,
+  type ServerContractVersions,
+} from "@/game/network/contract-compatibility";
 import { LoginError, SelectServerError } from "@/game/network/protocol";
 import { createLogger } from "@/utils/logger";
 
@@ -15,6 +19,7 @@ const log = createLogger("AuthHandler");
 
 export interface AuthHandlerState {
   connectionKey: string | null;
+  serverContract: ServerContractVersions | null;
   ticket: string | null;
   selectedCharacter: AccountCharacterSelected | null;
 }
@@ -31,11 +36,18 @@ export interface AuthHandlerState {
 export class AuthHandler {
   private state: AuthHandlerState = {
     connectionKey: null,
+    serverContract: null,
     ticket: null,
     selectedCharacter: null,
   };
 
-  constructor(private readonly messageHandler: MessageHandler) {
+  constructor(
+    private readonly messageHandler: MessageHandler,
+    private readonly contractEvents: {
+      onCompatible?: () => void;
+      onIncompatible?: (reason: string) => void;
+    } = {}
+  ) {
     this.register();
   }
 
@@ -48,23 +60,41 @@ export class AuthHandler {
       "handshakeConnectionKey",
       (payload: HandshakeConnectionKey) => {
         this.state.connectionKey = payload.connectionKey;
-        log.debug("Handshake key received");
+        const serverContract: ServerContractVersions = {
+          protoVersion: payload.protoVersion,
+          gridVersion: payload.gridVersion,
+          navigationSchemaVersion: payload.navigationSchemaVersion,
+          navigationWorldRevision: payload.navigationWorldRevision,
+        };
+        this.state.serverContract = serverContract;
+
+        log.info(
+          `Contract: proto=${serverContract.protoVersion} ` +
+            `grid=${serverContract.gridVersion} ` +
+            `navigation=${serverContract.navigationSchemaVersion}:${serverContract.navigationWorldRevision}`
+        );
+
+        const compatibility = checkServerContractCompatibility(serverContract);
+        if (!compatibility.compatible) {
+          const reason = compatibility.reasons.join("; ");
+          log.error(`Incompatible server contract: ${reason}`);
+          this.contractEvents.onIncompatible?.(reason);
+          return;
+        }
+        this.contractEvents.onCompatible?.();
       }
     );
 
-    this.messageHandler.on(
-      "accountLogin",
-      (payload: AccountLoginResponse) => {
-        if (payload.success) {
-          log.info("Login OK");
-          loginActor.send({ type: "AUTH_SUCCESS" });
-          return;
-        }
-        const reason = describeLoginError(payload);
-        log.warn("Login failed:", reason);
-        loginActor.send({ type: "AUTH_FAILURE", reason });
+    this.messageHandler.on("accountLogin", (payload: AccountLoginResponse) => {
+      if (payload.success) {
+        log.info("Login OK");
+        loginActor.send({ type: "AUTH_SUCCESS" });
+        return;
       }
-    );
+      const reason = describeLoginError(payload);
+      log.warn("Login failed:", reason);
+      loginActor.send({ type: "AUTH_FAILURE", reason });
+    });
 
     this.messageHandler.on(
       "accountServersList",

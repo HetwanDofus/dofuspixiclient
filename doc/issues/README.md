@@ -91,15 +91,15 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**122 entrées**, dont **118 encore ouvertes**.
+**126 entrées**, dont **122 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 49 | 49 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 45 | 45 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 51 | 51 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 47 | 47 |
 | P3 — finition, confort, cosmétique | 20 | 21 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -108,9 +108,9 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | Statut | Entrées |
 |---|---|
 | `open` — observé, non reproduit méthodiquement | 46 |
-| `confirmed` — reproduit, preuve au dossier | 17 |
+| `confirmed` — reproduit, preuve au dossier | 18 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 42 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 45 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -119,7 +119,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | Domaine | Restantes | Total |
 |---|---|---|
 | [`audio/`](audio/) | 0 | 1 |
-| [`auth/`](auth/) | 2 | 2 |
+| [`auth/`](auth/) | 3 | 3 |
 | [`camera-zoom/`](camera-zoom/) | 3 | 3 |
 | [`chat/`](chat/) | 5 | 5 |
 | [`exchange/`](exchange/) | 17 | 17 |
@@ -128,13 +128,13 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`hud-panels/`](hud-panels/) | 14 | 15 |
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
-| [`network/`](network/) | 6 | 6 |
-| [`progression/`](progression/) | 4 | 4 |
+| [`network/`](network/) | 7 | 7 |
+| [`progression/`](progression/) | 5 | 5 |
 | [`server-runtime/`](server-runtime/) | 7 | 7 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 9 | 9 |
 | [`world-render/`](world-render/) | 10 | 10 |
-| [`worldmap/`](worldmap/) | 7 | 8 |
+| [`worldmap/`](worldmap/) | 8 | 9 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
 
@@ -198,6 +198,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-116](exchange/QA-116-tableau-js-vers-jsonb.md) | P1 | exchange | bug | fixed | Un tableau JS passé à une colonne jsonb est encodé comme un tableau Postgres — les objets créés se dédoublent au lieu de se cumuler |
 | [QA-117](exchange/QA-117-kamas-de-coffre-de-maison.md) | P1 | exchange | bug | fixed | Les kamas d'un coffre de maison ne se transfèrent pas — seuls le joueur et la banque étaient reconnus |
 | [QA-118](exchange/QA-118-consulter-son-coffre-grise.md) | P1 | exchange | gap | fixed | « Consulter son coffre personnel » est grisé — une réponse ne pouvait porter qu'une navigation |
+| [QA-123](progression/QA-123-boucle-de-recolte-inexistante.md) | P1 | progression | gap | confirmed | La boucle de récolte n'existe pas de bout en bout |
+| [QA-126](auth/QA-126-api-admin-de-provisionnement-de-comptes-absente.md) | P1 | auth | feature | fixed | L'API admin ne permet pas de provisionner un compte et son premier personnage |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -248,6 +250,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-119](world-content/QA-119-bankcost-litteral.md) | P2 | world-content | gap | open | Le banquier annonce un coût de consultation en affichant le littéral [bankCost] |
 | [QA-120](exchange/QA-120-aucun-controle-de-surcharge.md) | P2 | exchange | gap | open | Aucun contrôle de surcharge : un échange peut mettre le receveur en surpoids |
 | [QA-121](server-runtime/QA-121-aucun-evenement-d-interruption.md) | P2 | server-runtime | gap | open | Aucun événement de domaine hors session.* — un combat qui démarre n'interrompt rien |
+| [QA-124](worldmap/QA-124-manifeste-public-de-navigation-absent.md) | P2 | worldmap | feature | fixed | Aucun manifeste public ne décrit la topologie navigable du monde |
+| [QA-125](network/QA-125-contrats-typescript-non-publies.md) | P2 | network | feature | fixed | Les contrats TypeScript du client ne sont pas publiés |
 
 ## P3 — finition, confort, cosmétique
 

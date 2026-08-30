@@ -57,6 +57,12 @@ services:
     depends_on:
       - authd
       - gamed
+    environment:
+      # Only `POST /admin/accounts` uses this, and only when
+      # GATEWAY_ADMIN_TOKEN is set — see apps/gameserver-ts/src/gateway/
+      # admin-accounts.ts (QA-126). The gateway opens no other connection.
+      DATABASE_URL: postgres://dofus:dofus@postgres:5432/dofus
+      GATEWAY_ADMIN_TOKEN: ${GATEWAY_ADMIN_TOKEN:-}
     volumes:
       - sockets:/sockets
 

@@ -163,6 +163,13 @@ export class GameClient {
 
   private onConnected?: () => void;
   private onDisconnected?: () => void;
+  private contractState:
+    | { status: "pending"; waiters: Array<(error?: Error) => void> }
+    | { status: "compatible" }
+    | { status: "incompatible"; error: Error } = {
+    status: "pending",
+    waiters: [],
+  };
 
   constructor(config?: GameClientConfig) {
     this.connection = new Connection({
@@ -172,7 +179,11 @@ export class GameClient {
     this.audioManager = AudioManager.getInstance();
     this.audioManager.init();
 
-    this.authHandler = new AuthHandler(this.messageHandler);
+    this.authHandler = new AuthHandler(this.messageHandler, {
+      onCompatible: () => this.setContractCompatible(),
+      onIncompatible: (reason) =>
+        this.setContractIncompatible(new Error(reason)),
+    });
     this.characterHandler = new CharacterHandler(this.messageHandler, {
       onCharacterSelected: (character) => {
         this.battlefield?.setDebugPlayerId(character.id);
@@ -227,6 +238,11 @@ export class GameClient {
                 create(AccountSendTicketSchema, { ticket })
               )
             );
+          } else {
+            // Every auth connection must prove its own contract. Keep pending
+            // waiters on the first connection, but do not reuse a contract
+            // accepted before an authd reconnect or server upgrade.
+            this.resetContractForAuthConnection();
           }
           markConnected();
           this.onConnected?.();
@@ -1058,8 +1074,19 @@ export class GameClient {
   // ── Pre-game commands ────────────────────────────────────────────
 
   async login(username: string, password: string): Promise<void> {
-    const passwordKey = await derivePasswordKey(password, username);
     loginActor.send({ type: "START_LOGIN", username });
+
+    try {
+      await this.waitForCompatibleContract();
+    } catch (error) {
+      loginActor.send({
+        type: "AUTH_FAILURE",
+        reason: `incompatible server contract: ${(error as Error).message}`,
+      });
+      return;
+    }
+
+    const passwordKey = await derivePasswordKey(password, username);
     this.connection.send(
       encodeClient(
         "accountSendIdentity",
@@ -1069,6 +1096,49 @@ export class GameClient {
         })
       )
     );
+  }
+
+  private waitForCompatibleContract(): Promise<void> {
+    if (this.contractState.status === "compatible") {
+      return Promise.resolve();
+    }
+    if (this.contractState.status === "incompatible") {
+      return Promise.reject(this.contractState.error);
+    }
+    return new Promise((resolve, reject) => {
+      this.contractState.status === "pending" &&
+        this.contractState.waiters.push((error) =>
+          error ? reject(error) : resolve()
+        );
+    });
+  }
+
+  private setContractCompatible(): void {
+    if (this.contractState.status !== "pending") {
+      return;
+    }
+    const waiters = this.contractState.waiters;
+    this.contractState = { status: "compatible" };
+    for (const waiter of waiters) {
+      waiter();
+    }
+  }
+
+  private setContractIncompatible(error: Error): void {
+    if (this.contractState.status !== "pending") {
+      return;
+    }
+    const waiters = this.contractState.waiters;
+    this.contractState = { status: "incompatible", error };
+    for (const waiter of waiters) {
+      waiter(error);
+    }
+  }
+
+  private resetContractForAuthConnection(): void {
+    if (this.contractState.status !== "pending") {
+      this.contractState = { status: "pending", waiters: [] };
+    }
   }
 
   requestServers(): void {

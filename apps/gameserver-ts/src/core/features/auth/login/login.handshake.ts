@@ -1,10 +1,14 @@
+import type { Session } from "@shared/gateway-adapter/session-registry";
 import { create } from "@bufbuild/protobuf";
 import { HandshakeConnectionKeySchema } from "@dofus/proto/account_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { Injectable, Logger } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
-import type { Session } from "@shared/gateway-adapter/session-registry";
+
+import { loadServerContract } from "./server-contract";
+
+const serverContract = loadServerContract();
 
 @Injectable()
 export class LoginHandshake {
@@ -23,11 +27,16 @@ export class LoginHandshake {
           case: "handshakeConnectionKey",
           value: create(HandshakeConnectionKeySchema, {
             connectionKey: key,
+            ...serverContract,
           }),
         },
-      }),
+      })
     );
 
-    this.logger.log(`Sent connection key to session=${session.sessionId}`);
+    this.logger.log(
+      `Sent connection contract to session=${session.sessionId} ` +
+        `proto=${serverContract.protoVersion} grid=${serverContract.gridVersion} ` +
+        `navigation=${serverContract.navigationSchemaVersion}:${serverContract.navigationWorldRevision}`
+    );
   }
 }

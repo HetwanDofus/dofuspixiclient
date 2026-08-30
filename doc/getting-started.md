@@ -37,8 +37,8 @@ Set `VELLO_ROOT` to override the location.
 ```bash
 git lfs install --local
 git lfs pull                    # ~30 MB of SWF-derived sources
-git submodule update --init --recursive
 bun install
+bun run contracts:build          # dist/ publiables de @dofus/proto + @dofus/grid
 ```
 
 ## 4. Build the WASM renderer

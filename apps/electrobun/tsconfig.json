@@ -20,7 +20,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "vello-wasm": ["../../../dofus-vello-custom-format/packages/vello-wasm/pkg/vello_wasm.d.ts"]
+      "vello-wasm": ["src/types/vello-wasm.d.ts"]
     }
   },
   "include": ["src", "lingui.config.ts", "*.d.ts"],
@@ -29,6 +29,7 @@
     "dist",
     "build",
     "../../package/dist",
+    "src/window/bun",
     "src/game/spells",
     "src/game/stores/inventory-store.spec.ts",
     "src/game/machines/fight.machine.spec.ts",

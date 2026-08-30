@@ -1,4 +1,12 @@
 export {
+  AreaKind,
+  cellsInArea,
+  type FightMapDims,
+  type FightMapLos,
+  fightDistance,
+  hasLineOfSight,
+} from "./area.ts";
+export {
   cellToCoord,
   cellToRowCol,
   getCellPosition,
@@ -33,14 +41,7 @@ export {
 export { findOppositeEdgeCell, getEdgeTransitionDir } from "./edge.ts";
 export { getNeighbors, isValidDirection } from "./neighbors.ts";
 export { DofusPathfinding } from "./pathfinding.ts";
-export {
-  AreaKind,
-  cellsInArea,
-  fightDistance,
-  type FightMapDims,
-  type FightMapLos,
-  hasLineOfSight,
-} from "./area.ts";
+export { GRID_VERSION } from "./version.ts";
 export {
   type DecodedZone,
   decodeZonePair,

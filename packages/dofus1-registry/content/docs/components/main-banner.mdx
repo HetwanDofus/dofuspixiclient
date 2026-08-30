@@ -1,0 +1,172 @@
+---
+title: MainBanner
+description: The bottom HUD bar from Dofus 1.29 with chat, minimap circle, action buttons, and fight mode.
+---
+
+import {
+  MainBanner,
+  MainBannerChat,
+  MainBannerChatInput,
+  MainBannerCircle,
+  MainBannerButtons,
+  MainBannerRightPanel,
+  MainBannerHeart,
+  MainBannerFightControls,
+  MainBannerIconButton,
+  MainBannerMorePanel,
+  MainBannerTurnButton,
+  MainBannerGrid,
+  MainBannerGridSlot,
+} from "@/registry/dofus1/ui/main-banner";
+import { Button } from "@/registry/dofus1/ui/button";
+
+## Preview — Normal Mode
+
+<PreviewCard className="min-h-[40rem] !items-end">
+  <MainBanner mode="normal">
+    <MainBannerChat>
+      <div>[General] Welcome to Dofus!</div>
+      <div>[General] Type /help for commands.</div>
+    </MainBannerChat>
+    <MainBannerChatInput placeholder="Enter a message..." />
+    <MainBannerCircle fill={0.65} />
+    <MainBannerHeart hp={75} max={100} />
+    <MainBannerButtons>
+      <MainBannerIconButton icon="stats" />
+      <MainBannerIconButton icon="spells" />
+      <MainBannerIconButton icon="inventory" />
+      <MainBannerIconButton icon="quests" />
+      <MainBannerIconButton icon="map" />
+      <MainBannerIconButton icon="friends" />
+      <MainBannerIconButton icon="guild" />
+      <MainBannerIconButton icon="pvp" />
+    </MainBannerButtons>
+    <MainBannerMorePanel>
+      <MainBannerIconButton icon="mount" />
+      <MainBannerIconButton icon="job" />
+      <MainBannerIconButton icon="achievement" />
+      <MainBannerIconButton icon="event" />
+      <MainBannerIconButton icon="title" />
+    </MainBannerMorePanel>
+    <MainBannerRightPanel />
+    <MainBannerGrid tabs={[{ value: "spells", label: "Spells" }, { value: "items", label: "Itm." }]}>
+      {Array.from({ length: 14 }, (_, i) => (
+        <MainBannerGridSlot key={i} />
+      ))}
+    </MainBannerGrid>
+  </MainBanner>
+</PreviewCard>
+
+## Preview — Fight Mode
+
+<PreviewCard className="min-h-[40rem] !items-end">
+  <MainBanner mode="fight">
+    <MainBannerChat>
+      <div>[Fight] Your turn!</div>
+    </MainBannerChat>
+    <MainBannerChatInput placeholder="Enter a message..." />
+    <MainBannerCircle />
+    <MainBannerHeart hp={40} />
+    <MainBannerButtons>
+      <MainBannerIconButton icon="stats" />
+      <MainBannerIconButton icon="spells" />
+      <MainBannerIconButton icon="inventory" />
+      <MainBannerIconButton icon="quests" />
+      <MainBannerIconButton icon="map" />
+      <MainBannerIconButton icon="friends" />
+      <MainBannerIconButton icon="guild" />
+      <MainBannerIconButton icon="pvp" />
+    </MainBannerButtons>
+    <MainBannerMorePanel>
+      <MainBannerIconButton icon="mount" />
+      <MainBannerIconButton icon="job" />
+      <MainBannerIconButton icon="achievement" />
+      <MainBannerIconButton icon="event" />
+      <MainBannerIconButton icon="title" />
+    </MainBannerMorePanel>
+    <MainBannerTurnButton />
+    <MainBannerFightControls>
+      <Button variant="rectangle">Give Up</Button>
+    </MainBannerFightControls>
+    <MainBannerRightPanel />
+    <MainBannerGrid tabs={[{ value: "spells", label: "Spells" }, { value: "items", label: "Itm." }]}>
+      {Array.from({ length: 14 }, (_, i) => (
+        <MainBannerGridSlot key={i} />
+      ))}
+    </MainBannerGrid>
+  </MainBanner>
+</PreviewCard>
+
+## Installation
+
+```bash
+npx shadcn@latest add main-banner
+```
+
+## Usage
+
+```tsx
+import {
+  MainBanner,
+  MainBannerChat,
+  MainBannerChatInput,
+  MainBannerCircle,
+  MainBannerButtons,
+  MainBannerIconButton,
+  MainBannerMorePanel,
+  MainBannerRightPanel,
+  MainBannerHeart,
+  MainBannerFightControls,
+  MainBannerGrid,
+  MainBannerGridSlot,
+} from "@/components/ui/main-banner";
+```
+
+```tsx
+<MainBanner mode="normal">
+  <MainBannerChat>{/* Chat messages */}</MainBannerChat>
+  <MainBannerChatInput placeholder="Enter a message..." />
+  <MainBannerCircle>{/* Minimap content */}</MainBannerCircle>
+  <MainBannerHeart hp={100} />
+  <MainBannerButtons>
+    <MainBannerIconButton icon="stats" />
+    <MainBannerIconButton icon="spells" />
+    <MainBannerIconButton icon="inventory" />
+    <MainBannerIconButton icon="quests" />
+    <MainBannerIconButton icon="map" />
+    <MainBannerIconButton icon="friends" />
+    <MainBannerIconButton icon="guild" />
+    <MainBannerIconButton icon="pvp" />
+  </MainBannerButtons>
+  <MainBannerMorePanel>
+    <MainBannerIconButton icon="mount" />
+    <MainBannerIconButton icon="job" />
+    <MainBannerIconButton icon="achievement" />
+    <MainBannerIconButton icon="event" />
+    <MainBannerIconButton icon="title" />
+  </MainBannerMorePanel>
+  <MainBannerRightPanel />
+  <MainBannerGrid tabs={[{ value: "spells", label: "Spells" }, { value: "items", label: "Itm." }]}>
+    {Array.from({ length: 14 }, (_, i) => (
+      <MainBannerGridSlot key={i} />
+    ))}
+  </MainBannerGrid>
+</MainBanner>
+```
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| `MainBanner` | Root container. Accepts `mode="normal"` or `mode="fight"`. |
+| `MainBannerChat` | Left chat message area. |
+| `MainBannerChatInput` | Text input bar at bottom of chat area. |
+| `MainBannerCircle` | Center circle with minimap rings. Expands on hover in normal mode. |
+| `MainBannerHeart` | Heart health display with HP bar. Accepts `hp` prop (0-100). |
+| `MainBannerButtons` | Action button row. Positions children at exact game coordinates. |
+| `MainBannerIconButton` | Round orange button. Accepts `icon` name: `"stats"`, `"spells"`, `"inventory"`, `"quests"`, `"map"`, `"friends"`, `"guild"`, `"pvp"`, `"mount"`, `"job"`, `"achievement"`, `"event"`, `"title"`. |
+| `MainBannerMorePanel` | Toggleable vertical panel above the last button slot (+/- toggle). |
+| `MainBannerFightControls` | Fight-only controls. Only renders in fight mode. |
+| `MainBannerRightPanel` | Notched tan panel on the right side. |
+| `MainBannerGrid` | Spell/item grid with optional vertical tabs. Positioned over the right panel. |
+| `MainBannerGridSlot` | Individual grid slot inside `MainBannerGrid`. |

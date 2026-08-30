@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "button",
+  "title": "Button",
+  "description": "A pill-shaped button styled like the Dofus 1.29 UI with pressed state.",
+  "dependencies": [
+    "@radix-ui/react-slot"
+  ],
+  "files": [
+    {
+      "path": "registry/dofus1/ui/button.tsx",
+      "content": "import type * as React from \"react\";\nimport { Slot } from \"@radix-ui/react-slot\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\n\nimport { cn } from \"@/lib/utils\";\n\nconst buttonVariants = cva(\n  [\n    \"inline-flex cursor-pointer items-center justify-center select-none outline-none font-[Verdana,sans-serif]\",\n    \"h-[calc(18px*var(--resolution-factor))]\",\n    \"text-[calc(8px*var(--resolution-factor))]\",\n    \"border-[calc(1px*var(--resolution-factor))]\",\n    \"bg-button-bg bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.2)_100%)] text-white\",\n    \"shadow-[inset_0_calc(1px*var(--resolution-factor))_0_0_var(--button-highlight)]\",\n    \"active:bg-button-bg-active\",\n    \"active:shadow-[inset_0_calc(-1px*var(--resolution-factor))_0_0_var(--button-highlight-active)]\",\n    \"disabled:pointer-events-none disabled:opacity-70\",\n  ],\n  {\n    variants: {\n      variant: {\n        pill: \"rounded-[calc(9px*var(--resolution-factor))] px-[calc(9px*var(--resolution-factor))]\",\n        rectangle:\n          \"rounded-[calc(4px*var(--resolution-factor))] px-[calc(4px*var(--resolution-factor))]\",\n      },\n      borderColor: {\n        brown: \"border-button-border active:border-button-border-active\",\n        white:\n          \"border-button-white-border active:border-button-white-border-active\",\n      },\n    },\n    defaultVariants: {\n      variant: \"pill\",\n      borderColor: \"brown\",\n    },\n  },\n);\n\ninterface ButtonProps\n  extends\n    React.ButtonHTMLAttributes<HTMLButtonElement>,\n    VariantProps<typeof buttonVariants> {\n  asChild?: boolean;\n}\n\nfunction Button({\n  className,\n  variant,\n  borderColor,\n  asChild = false,\n  children,\n  ...props\n}: ButtonProps) {\n  const Comp = asChild ? Slot : \"button\";\n\n  return (\n    <Comp\n      className={cn(buttonVariants({ variant, borderColor, className }))}\n      {...props}\n    >\n      {children}\n    </Comp>\n  );\n}\n\nexport { Button, buttonVariants };\nexport type { ButtonProps };\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

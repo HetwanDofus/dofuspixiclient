@@ -1,0 +1,46 @@
+---
+title: Button
+description: A pill-shaped button styled like the Dofus 1.29 UI with pressed state.
+---
+
+import { Button } from "@/registry/dofus1/ui/button";
+
+## Preview — Brown Border (default)
+
+<PreviewCard><div className="flex gap-4 items-center flex-wrap"><Button>Pill</Button><Button variant="rectangle">Rectangle</Button><Button disabled>Disabled</Button></div></PreviewCard>
+
+## Preview — White Border
+
+<PreviewCard><div className="flex gap-4 items-center flex-wrap"><Button borderColor="white">Pill</Button><Button variant="rectangle" borderColor="white">Rectangle</Button><Button borderColor="white" disabled>Disabled</Button></div></PreviewCard>
+
+## Preview — All Variants
+
+<PreviewCard><div className="flex flex-col gap-4 items-center"><div className="flex gap-4 items-center"><Button>Pill Brown</Button><Button borderColor="white">Pill White</Button></div><div className="flex gap-4 items-center"><Button variant="rectangle">Rect Brown</Button><Button variant="rectangle" borderColor="white">Rect White</Button></div><div className="flex gap-4 items-center"><Button disabled>Disabled Brown</Button><Button borderColor="white" disabled>Disabled White</Button></div></div></PreviewCard>
+
+## Installation
+
+```bash
+npx shadcn@latest add button
+```
+
+## Usage
+
+```tsx
+import { Button } from "@/components/ui/button";
+```
+
+```tsx
+<Button>Pill (default)</Button>
+<Button variant="rectangle">Rectangle</Button>
+<Button borderColor="white">White border</Button>
+<Button variant="rectangle" borderColor="white">Rectangle white</Button>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"pill" \| "rectangle"` | `"pill"` | Button shape variant. |
+| `borderColor` | `"brown" \| "white"` | `"brown"` | Border color style. |
+| `asChild` | `boolean` | `false` | Render as child element via Radix Slot. |
+| `disabled` | `boolean` | `false` | Disables the button. |

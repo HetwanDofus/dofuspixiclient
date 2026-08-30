@@ -42,7 +42,7 @@ packages/
   dofasset-format/   TypeScript reader for the .dofasset vector format
   spell-runtime/     AS2-equivalent spell animation runtime
   uds-transport/     the gateway ↔ core frame codec
-  dofus1-registry/   git submodule: documentation site
+  dofus1-registry/   component registry and documentation site
 tools/
   asset-pipeline/    extract → atlas → compile → publish, per asset category
   combat-exporter/   SWF spell extraction (PHP + Arakne)

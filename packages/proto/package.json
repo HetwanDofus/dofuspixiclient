@@ -1,17 +1,48 @@
 {
   "name": "@dofus/proto",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
-  "main": "gen/index.ts",
+  "description": "Published protobuf contracts for Dofus clients and servers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hugoperier/dofuspixiclient.git",
+    "directory": "packages/proto"
+  },
+  "homepage": "https://github.com/hugoperier/dofuspixiclient/tree/main/packages/proto",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
-    ".": "./gen/index.ts",
-    "./*": "./gen/*.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3"
   },
   "scripts": {
-    "gen": "cd ../.. && buf generate"
+    "gen": "cd ../.. && buf generate && bun scripts/sync-package-version.ts packages/proto gen/version.ts PROTO_VERSION",
+    "sync-version": "bun ../../scripts/sync-package-version.ts . gen/version.ts PROTO_VERSION",
+    "build": "bun run sync-version && tsc -p tsconfig.build.json",
+    "prepack": "if [ \"$SKIP_PROTO_GEN\" = \"1\" ]; then bun run build; else bun run gen && bun run build; fi"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.2.3"
+    "@bufbuild/protobuf": "^2.11.0"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   }
 }

@@ -14,10 +14,18 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Checkout Vello renderer
+        uses: actions/checkout@v6
+        with:
+          repository: HetwanDofus/vello-dofasset-format
+          ref: 6faa9f4f29d5ee8213bdb53103454c64953d9b0a
+          path: .deps/vello-dofasset-format
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -26,19 +34,51 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build Vello WASM runtime
+        shell: bash
+        env:
+          VELLO_ROOT: ${{ github.workspace }}/.deps/vello-dofasset-format
+        run: |
+          rustup target add wasm32-unknown-unknown
+          if ! command -v wasm-pack >/dev/null 2>&1; then
+            cargo install wasm-pack --version 0.15.0 --locked
+          fi
+          bunx just wasm
+
+      - name: Regenerate protobuf contracts
+        run: bun run --cwd packages/proto gen
+
+      - name: Check generated contracts are committed
+        run: git diff --exit-code -- packages/proto/gen
+
+      - name: Test navigation manifest fixture
+        working-directory: apps/gameserver-ts
+        run: bun test scripts/navigation-manifest.spec.ts
+
+      - name: Pack and test public contracts outside the workspace
+        run: bun run contracts:verify
+
       - name: Lint (biome)
         run: bunx biome check apps/electrobun/src
         continue-on-error: true
 
       - name: Type-check (electrobun)
         working-directory: apps/electrobun
-        run: bunx tsc --noEmit
+        run: bun run check-types
 
       - name: Test (electrobun)
         working-directory: apps/electrobun
         run: bun test
 
+      - name: Type-check (gameserver)
+        working-directory: apps/gameserver-ts
+        run: bun run typecheck
+
+      - name: Validate issue tracker
+        run: bunx just issues-check
+
       - name: Build (turbo)
         run: bun run build
         env:
           TURBO_TELEMETRY_DISABLED: 1
+          VELLO_ROOT: ${{ github.workspace }}/.deps/vello-dofasset-format

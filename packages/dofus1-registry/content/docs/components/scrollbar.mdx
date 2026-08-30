@@ -1,0 +1,44 @@
+---
+title: Scrollbar
+description: A Dofus 1.29-styled scrollbar with vertical and horizontal axis variants.
+---
+
+import { Scrollbar } from "@/registry/dofus1/ui/scrollbar";
+
+## Preview — Vertical
+
+<PreviewCard className="!items-center"><div className="h-[120px] w-[12px] relative"><Scrollbar axis="vertical" className="absolute inset-0" /></div></PreviewCard>
+
+## Preview — Horizontal
+
+<PreviewCard className="!items-center"><div className="h-[12px] w-[120px] relative"><Scrollbar axis="horizontal" className="absolute inset-0" /></div></PreviewCard>
+
+## Installation
+
+```bash
+npx shadcn@latest add scrollbar
+```
+
+## Usage
+
+```tsx
+import { Scrollbar } from "@/components/ui/scrollbar";
+```
+
+```tsx
+<Scrollbar axis="vertical" className="absolute top-0 right-0 h-full" />
+<Scrollbar axis="horizontal" className="absolute bottom-0 left-0 w-full" />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `axis` | `"vertical" \| "horizontal"` | `"vertical"` | Orientation of the scrollbar. |
+| `className` | `string` | — | Extra classes (typically sizing and positioning). |
+| `onScrollStart` | `() => void` | — | Called when the up/left arrow is clicked. |
+| `onScrollEnd` | `() => void` | — | Called when the down/right arrow is clicked. |
+
+## Sizing
+
+The scrollbar sizes its cross-axis to `12px` (scaled by `--resolution-factor`). Its main axis is controlled by the parent container — set either `height` (vertical) or `width` (horizontal) on the parent or on `className`.

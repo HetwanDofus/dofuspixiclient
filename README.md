@@ -38,7 +38,7 @@ checked out **next to** this one, under the name `dofus-vello-custom-format`
 ## Quick Start
 
 ```bash
-git lfs pull && git submodule update --init --recursive
+git lfs pull
 bun install
 
 just wasm      # build the Vello WASM renderer

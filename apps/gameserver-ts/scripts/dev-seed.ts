@@ -32,15 +32,21 @@
  *    content importer first (`bun run scripts/import-starloco-content.ts
  *    game.sql`) or the character starts with kamas but an empty bag.
  */
-import { createHash, pbkdf2 as pbkdf2Cb } from "node:crypto";
-import { promisify } from "node:util";
-
 import { CamelCasePlugin, Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 
+import {
+  derivePasswordKey,
+  hashPasswordKey,
+} from "../src/core/features/auth/password-key.ts";
+import {
+  characterGfx,
+  grantClassSpells,
+} from "../src/core/features/auth/provision-account/provision-account.service.ts";
 import { rollItemEffects } from "../src/core/modules/inventory/item-effects.ts";
 import { OwnerKind } from "../src/core/modules/items/item-owner.ts";
 import { decodeCells } from "../src/core/modules/maps/maps.cells-codec.ts";
+import { findSpawnCell } from "../src/core/modules/maps/spawn-point.ts";
 
 /**
  * Same alphabet the StarLoco / Dofus 1.29 cell payload uses — see
@@ -62,47 +68,18 @@ const HASH_CELL =
 const BLANK_WALKABLE_CELL =
   HASH_CELL[33]! + HASH_CELL[7]! + HASH_CELL[32]! + HASH_CELL[0]?.repeat(7);
 
-const pbkdf2 = promisify(pbkdf2Cb);
-
-/**
- * The raw password never reaches the server: the client stretches it and
- * sends the base64 key as `AccountSendIdentity.encrypted_password`, and the
- * login handler runs `Bun.password.verify(thatKey, accounts.pwd_hash)`. So
- * the stored hash must be over the derived key, not the password.
- *
- * Keep in sync with `apps/electrobun/src/game/auth/pbkdf2.ts`, which owns
- * these parameters.
- */
-const PBKDF2_ITERATIONS = 600_000;
-const PBKDF2_KEY_BYTES = 32;
-
-async function derivePasswordKey(
-  password: string,
-  username: string
-): Promise<string> {
-  const salt = createHash("sha256")
-    .update(`dofus:${username.toLowerCase()}`)
-    .digest();
-  const derived = await pbkdf2(
-    password,
-    salt,
-    PBKDF2_ITERATIONS,
-    PBKDF2_KEY_BYTES,
-    "sha256"
-  );
-  return derived.toString("base64");
-}
-
 const username = process.argv[2] ?? "dev";
 const password = process.argv[3] ?? "dev";
 const characterName = process.argv[4] ?? "Dev";
 
 /**
- * Where the character wakes up. Defaults to the schema's own default map.
- * Override with `SPAWN_MAP_ID=7365` (Cité d'Astrub) for a map with scenery —
- * see the warning `spawnCell` prints.
+ * Where the character wakes up: map 7411, the Astrub zaap (`waypoints` id
+ * 49) — the same value the gateway gives the provisioning API, so a seeded
+ * and a provisioned character land on the same map. Override with
+ * `SPAWN_MAP_ID=...` for another one; an existing character keeps the
+ * position it walked to unless `RESET_POSITION=1`.
  */
-const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 10_300);
+const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 7411);
 /**
  * Feca by default. Drives both `players.class` and which `class_spells` rows
  * the character gets. Override with `CHARACTER_CLASS=2` (1..12, the 1.29
@@ -111,11 +88,7 @@ const SPAWN_MAP_ID = Number(process.env.SPAWN_MAP_ID ?? 10_300);
  */
 const CHARACTER_CLASS = Number(process.env.CHARACTER_CLASS ?? 1);
 const CHARACTER_SEX = Number(process.env.CHARACTER_SEX ?? 0);
-/**
- * The 1.29 sprite id is `breed * 10 + sex` — class 1 sex 0 is 10, class 2
- * sex 1 is 21.
- */
-const CHARACTER_GFX = CHARACTER_CLASS * 10 + CHARACTER_SEX;
+const CHARACTER_GFX = characterGfx(CHARACTER_CLASS, CHARACTER_SEX);
 /** Used only when the spawn map has no row yet — see the walkability note. */
 const FALLBACK_SPAWN_CELL = 311;
 
@@ -217,7 +190,7 @@ const db = new Kysely<any>({
   plugins: [new CamelCasePlugin()],
 });
 
-const pwdHash = await Bun.password.hash(
+const pwdHash = await hashPasswordKey(
   await derivePasswordKey(password, username)
 );
 
@@ -290,42 +263,15 @@ async function spawnCell(): Promise<number> {
     );
   }
 
-  const map2 = await db
-    .selectFrom("maps")
-    .select(["width", "height"])
-    .where("id", "=", SPAWN_MAP_ID)
-    .executeTakeFirstOrThrow();
+  // The pick itself is shared with `POST /admin/accounts` — a seeded
+  // character and a provisioned one must wake up the same way.
+  const cellId = await findSpawnCell(db, SPAWN_MAP_ID);
 
-  // Spawn in the middle of the map rather than on the first walkable cell —
-  // cell ids start at the top corner of the diamond, which is usually off the
-  // top of the viewport, so a naive pick makes the character look missing.
-  const stride = 2 * map2.width - 1;
-  const centreRow = map2.height - 1;
-  const centreCol = Math.floor(map2.width / 2);
-
-  let best: { id: number; d: number } | null = null;
-
-  for (const cell of cells) {
-    if (!cell.active || !cell.walkable) {
-      continue;
-    }
-
-    const pair = Math.floor(cell.id / stride);
-    const offset = cell.id % stride;
-    const row = offset < map2.width ? pair * 2 : pair * 2 + 1;
-    const col = offset < map2.width ? offset : offset - map2.width;
-    const d = Math.abs(row - centreRow) + Math.abs(col - centreCol);
-
-    if (!best || d < best.d) {
-      best = { id: cell.id, d };
-    }
-  }
-
-  if (!best) {
+  if (cellId === null) {
     throw new Error(`map ${SPAWN_MAP_ID} has no walkable cell`);
   }
 
-  return best.id;
+  return cellId;
 }
 
 /**
@@ -497,9 +443,8 @@ if (itemRows.length > 0) {
  */
 const classSpells = await db
   .selectFrom("classSpells")
-  .select(["spellId", "position", "learnLevel"])
+  .select("spellId")
   .where("classId", "=", CHARACTER_CLASS)
-  .orderBy("position")
   .execute();
 
 if (classSpells.length === 0) {
@@ -508,10 +453,6 @@ if (classSpells.length === 0) {
       `\`just db-migrate\` (migration 0048) or the character starts mute.`
   );
 } else {
-  const known = classSpells.filter(
-    (s: { learnLevel: number }) => s.learnLevel <= character.level
-  );
-
   await db
     .deleteFrom("playerSpells")
     .where("playerId", "=", character.id)
@@ -522,21 +463,15 @@ if (classSpells.length === 0) {
     )
     .execute();
 
-  await db
-    .insertInto("playerSpells")
-    .values(
-      known.map((s: { spellId: number; position: number }) => ({
-        playerId: character.id,
-        spellId: s.spellId,
-        level: 1,
-        position: s.position,
-      }))
-    )
-    .onConflict((oc) => oc.columns(["playerId", "spellId"]).doNothing())
-    .execute();
+  // The grant itself is the one `POST /admin/accounts` uses. Only the trim
+  // above is a seed concern: it is what still repairs a character seeded
+  // before migration 0044 with the whole catalogue.
+  const granted = await grantClassSpells(db, character.id, CHARACTER_CLASS, {
+    level: character.level,
+  });
 
   console.log(
-    `spellbook: ${known.length}/${classSpells.length} class ` +
+    `spellbook: ${granted}/${classSpells.length} class ` +
       `${CHARACTER_CLASS} spells granted at level ${character.level}`
   );
 }

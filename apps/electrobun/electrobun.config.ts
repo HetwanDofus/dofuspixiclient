@@ -7,6 +7,9 @@ export default {
 		version: "0.0.1",
 	},
 	build: {
+		cottontail: {
+			entrypoint: "src/window/bun/index.ts",
+		},
 		copy: {
 			"dist/index.html": "views/mainview/index.html",
 			"dist/assets": "views/mainview/assets",
