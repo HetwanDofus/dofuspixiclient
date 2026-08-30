@@ -1,8 +1,14 @@
+import type { ReactNode } from "react";
+
 import type { ItemData, ItemTemplateData } from "@/game/network/protocol";
 import type { InventoryWeight } from "@/game/stores/inventory-store";
 
 import { Panel } from "../components/Panel";
-import { ItemGrid, type ItemGridAction } from "../inventory/ItemGrid";
+import {
+  ItemGrid,
+  type ItemGridAction,
+  type ItemGridMetrics,
+} from "../inventory/ItemGrid";
 import {
   FILTER_CATEGORIES,
   INVENTORY_COLORS,
@@ -24,6 +30,32 @@ interface TradeInventoryPanelProps {
   zoom: number;
   /** The window's title in retail is the player's own character name. */
   characterName: string;
+  /**
+   * Extra height and a strip under the grid.
+   *
+   * The auction house reuses this window verbatim — same header, same
+   * grid, same filtering — and adds one checkbox to it ("Filtrer pour cet
+   * HDV"). Two props are cheaper than a second copy of a 200-line panel
+   * that would then drift from this one.
+   */
+  height?: number;
+  footer?: ReactNode;
+  /**
+   * What the header reads when no category button is pressed — that is,
+   * when the grid is showing everything. The trade says "Inventaire";
+   * the auction house says so explicitly, because there the grid is
+   * *also* narrowed by "Filtrer pour cet HDV" and the player needs to
+   * see that no second filter is hiding anything.
+   */
+  allCategoriesLabel?: string;
+  /**
+   * Grid geometry. The auction house gives its bag one more visible row
+   * than the trade does, because its window is taller.
+   */
+  metrics?: ItemGridMetrics;
+  /** All four borders — see `Panel`. The auction house floats; the trade
+   * window sits on the banner and does not. */
+  floating?: boolean;
   items: ItemData[];
   templates: Map<number, ItemTemplateData>;
   kamas: number;
@@ -47,6 +79,11 @@ interface TradeInventoryPanelProps {
 export function TradeInventoryPanel({
   zoom,
   characterName,
+  height = TRADE_INVENTORY_PANEL.height,
+  footer,
+  allCategoriesLabel = "Inventaire",
+  metrics = TRADE_INVENTORY_METRICS,
+  floating = false,
   items,
   templates,
   kamas,
@@ -65,7 +102,7 @@ export function TradeInventoryPanel({
 
   const activeLabel =
     FILTER_CATEGORIES.find((c) => c.id === filters.categoryId)?.label ??
-    "Inventaire";
+    allCategoriesLabel;
 
   const podsPct =
     weight.max > 0 ? Math.min(100, (weight.current / weight.max) * 100) : 0;
@@ -74,8 +111,9 @@ export function TradeInventoryPanel({
     <Panel
       title={characterName || "Inventaire"}
       width={TRADE_INVENTORY_PANEL.width}
-      height={TRADE_INVENTORY_PANEL.height}
+      height={height}
       zoom={zoom}
+      floating={floating}
       onClose={onClose}
     >
       <div
@@ -206,16 +244,13 @@ export function TradeInventoryPanel({
           showTitle={false}
           showFilters={false}
           boxBackground="transparent"
-          metrics={TRADE_INVENTORY_METRICS}
+          metrics={metrics}
           box={{
             x: TRADE_PAD,
             y: 6 + HEADER.rowHeight + 4 + HEADER.filterSize + 4,
             width: TRADE_INVENTORY_PANEL.width - TRADE_PAD * 2 - 6,
             // The grid track plus `ItemGrid`'s own 2/4 vertical margins.
-            height:
-              TRADE_INVENTORY_METRICS.visibleRows *
-                TRADE_INVENTORY_METRICS.cellSize +
-              8,
+            height: metrics.visibleRows * metrics.cellSize + 8,
           }}
           items={filters.visible}
           templates={templates}
@@ -223,6 +258,12 @@ export function TradeInventoryPanel({
           onSelect={onSelect}
           actions={actions}
         />
+
+        {/* `ItemGrid` is absolutely positioned, so this column only ever
+            lays out the two header rows; `marginTop: auto` is what puts
+            the strip at the bottom of the panel rather than immediately
+            under them. */}
+        {footer && <div style={{ marginTop: "auto" }}>{footer}</div>}
       </div>
     </Panel>
   );

@@ -215,14 +215,22 @@ message ExchangeList {
   int64             kamas = 2;
 }
 
-// ES - Sell response
+// ES - Sell response.
+//
+// `error_code` is this server's own vocabulary ("bad-type", "no-slot",
+// "no-tax"...), not 1.29's numbered errors: the client maps it to the
+// sentence its lang bundle already carries. Without it a refusal is a
+// bare `false` and the window has to invent a reason — which is worse
+// than saying nothing, because the invented one is usually wrong.
 message ExchangeSell {
-  bool success = 1;
+  bool   success = 1;
+  string error_code = 2;
 }
 
-// EB - Buy response
+// EB - Buy response. Same shape, same reasoning.
 message ExchangeBuy {
-  bool success = 1;
+  bool   success = 1;
+  string error_code = 2;
 }
 
 // Eq - Ask offline exchange
@@ -257,22 +265,108 @@ message ExchangeBigStoreItemList {
   repeated BigStoreListingLine lines = 2;
 }
 
+// One row of the price grid.
+//
+// `line_id` names a **group**, not always a single listing. For an item
+// whose stats vary — equipment, a weapon, a pet — every exemplar is its
+// own group and only `price_qty1` is set. For a generic resource the
+// group is the template, and the three prices are the cheapest lot of
+// each size currently on sale, which may well come from three different
+// sellers: that is what `bigstore/BigStorePriceItem.as` draws, three
+// independently buyable prices sharing one `oItem.id`. `EHB` therefore
+// names a price by group **and** amount, and the server resolves which
+// actual lot that is.
 message BigStoreListingLine {
   int64  line_id = 1;
   int32  template_id = 2;
-  string stats = 3;           // Compressed effects.
+  reserved 3;                 // was `string stats`; see `item` below.
   int64  price_qty1 = 4;      // 0 = absent.
   int64  price_qty10 = 5;
   int64  price_qty100 = 6;
+  // The exemplar this row stands for, effects included — the buyer's
+  // item card opens on it. A whole `ItemData` rather than 1.29's packed
+  // stats string for the reason QA-104 gives: every other item on this
+  // protocol travels as `ItemData`, and the client already renders one.
+  ItemData item = 7;
 }
 
 // EHm - Big store items movement. StarLoco SocketManager.java:1842/1847
 // — "EHm-<id>" for delete, "EHm+<lineId>|<tpl>|<stats>|p1|p10|p100"
 // for add.
+//
+// **This server does not emit it.** A generic item's row is a group of
+// interchangeable lots named after the cheapest one in it, so its id
+// changes as soon as that lot is bought or undercut — and an upsert
+// keyed on the id then leaves the stale row standing beside the new one.
+// `BigStoreFlow` resends the whole `EHl` instead; a price grid is a
+// handful of rows, and it cannot drift. Kept declared because a future
+// server that gives each group a row of its own could use it.
 message ExchangeBigStoreItemMovement {
   bool                add = 1;
   int64               line_id = 2;   // Delete: only this is populated.
   BigStoreListingLine line = 3;      // Add: full line (line.line_id == line_id).
+}
+
+// EHK - the parameters of the auction house that just opened.
+//
+// 1.29 packs these into `EC` itself: `Exchange.as:439-467` splits
+// `<q1,q2,q3>;<types>;<taxe>;<niveauMax>;<objetsMax>;<npcId>;<durée>`
+// out of the create frame's extra data. `ExchangeCreate` here carries
+// only success/type/error_code and serves all eighteen exchange types,
+// so these travel beside it rather than being piled into it — the same
+// split `ExchangeList` already makes for a storage's contents.
+//
+// Sent immediately after `EC`, and before anything else.
+message ExchangeBigStoreParams {
+  // The three standard lots. Always 1, 10, 100 — sent rather than
+  // assumed because the client indexes into this list: `EHB` names a
+  // lot by its 1-based position here, not by its size.
+  repeated int32 lot_sizes = 1;
+  // The `item_types.id` this hall accepts. Its whole specialisation.
+  repeated int32 types = 2;
+  // Listing tax, in percent of the lot price. The client previews it as
+  // `max(1, round(price * tax / 100))` while the seller types a price.
+  double tax_percent = 3;
+  int32  level_max = 4;
+  // Simultaneous listings allowed **per account** in this hall.
+  int32  max_items = 5;
+  // The vendor's sprite id, so "Mode vente" / "Mode achat" can re-open
+  // the other mode against the same NPC without a second click on it.
+  int32  npc_id = 6;
+  int32  sell_time_hours = 7;
+  // The names of `types`, positionally. 1.29 reads them out of its own
+  // `items` lang bundle; this server already resolves a type's name for
+  // every `ItemTemplateData` it sends, and a hall's category dropdown
+  // has to be filled before a single template has arrived for it.
+  repeated string type_names = 8;
+}
+
+// One of your own lots, as "Stock en magasin" lists it.
+//
+// `ExchangeList` is the storage form and carries bare `ItemData`; a lot
+// also has a price and a size, and its line id is what withdrawing it
+// names. This is the shape that message's own docblock said an auction
+// listing would need.
+message BigStoreOwnListing {
+  int64    line_id = 1;
+  // The stock in full, effects included: the seller's item card opens on
+  // it, and a listed exemplar keeps the jet it was rolled with.
+  ItemData item = 2;
+  int32    lot_size = 3;
+  int64    price = 4;
+}
+
+// EHo - every lot you currently have on sale in this hall. Sent on
+// opening the sell mode, like `EL` for a storage.
+message ExchangeBigStoreOwnList {
+  repeated BigStoreOwnListing listings = 1;
+}
+
+// EHO - one lot of yours appeared or went away.
+message ExchangeBigStoreOwnMovement {
+  bool               add = 1;
+  int64              line_id = 2;   // Removal: only this is populated.
+  BigStoreOwnListing listing = 3;   // Addition: the full lot.
 }
 
 // EHP - Big store middle price
@@ -343,6 +437,18 @@ message ExchangeSetReady {}
 // where `nID` is the instance and `nUnicID` the template — the two
 // names are the wrong way round in the original, which is exactly why
 // this field spells out which one it is.
+// In an auction house this frame means something different in each
+// direction, exactly as it does in 1.29 where `BigStoreSell` calls the
+// same `movementItems`:
+//
+//   - `add = true` puts a lot on sale. `item_unic_id` is a stack in the
+//     seller's bag, `quantity` is the **lot size** (1, 10 or 100 — not
+//     an amount to move), and `price` is the price of the whole lot.
+//   - `add = false` takes a lot off sale, and `item_unic_id` is then a
+//     **listing id**, not an item id at all.
+//
+// That inversion is invisible at the call site and has nowhere else to
+// be written down, which is why it is written down here.
 message ExchangeMoveItem {
   bool  add = 1;
   int32 item_unic_id = 2;

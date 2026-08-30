@@ -8,6 +8,9 @@ import { HandoffPart } from "@shared/handoff/handoff-part.decorator";
 // against the remaining delay after a restart — jobs that fell due while
 // the process was down fire immediately on restore.
 
+/** The largest delay `setTimeout` can hold without overflowing: 2^31-1 ms. */
+const MAX_TIMEOUT = 2_147_483_647;
+
 export interface ScheduledJob<T = unknown> {
   id: string;
   dueAt: number;
@@ -60,6 +63,21 @@ export class SchedulerService
 
   private arm(job: ScheduledJob): void {
     const delay = Math.max(0, job.dueAt - Date.now());
+
+    // `setTimeout` stores its delay in a signed 32-bit integer: anything
+    // past ~24.8 days overflows and the callback runs **immediately**,
+    // silently. An auction lot listed for 30 days therefore expired the
+    // instant it was created and its goods went straight to the seller's
+    // bank — which is how this was found. A long wait is re-armed in
+    // slices instead, and the job stays in `jobs` throughout so `cancel`,
+    // `has` and the handoff all keep working across the slices.
+    if (delay > MAX_TIMEOUT) {
+      this.timers.set(
+        job.id,
+        setTimeout(() => this.arm(job), MAX_TIMEOUT)
+      );
+      return;
+    }
 
     this.timers.set(
       job.id,

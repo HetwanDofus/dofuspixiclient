@@ -3,6 +3,16 @@ import { ExchangeType } from "@dofus/proto/common_pb";
 import {
   type ExchangeAccept,
   ExchangeAcceptSchema,
+  type ExchangeBigStoreBuyRequest,
+  ExchangeBigStoreBuyRequestSchema,
+  type ExchangeBigStoreItemListRequest,
+  ExchangeBigStoreItemListRequestSchema,
+  type ExchangeBigStoreSearchRequest,
+  ExchangeBigStoreSearchRequestSchema,
+  type ExchangeBigStoreTypeRequest,
+  ExchangeBigStoreTypeRequestSchema,
+  type ExchangeGetMiddlePrice,
+  ExchangeGetMiddlePriceSchema,
   type ExchangeLeaveRequest,
   ExchangeLeaveRequestSchema,
   type ExchangeMoveItem,
@@ -15,6 +25,9 @@ import {
   ExchangeSetReadySchema,
 } from "@dofus/proto/exchange_pb";
 import { ExchangeService } from "@modules/exchange/exchange.service";
+import { HdvService } from "@modules/exchange/hdv.service";
+import { MapNpcService } from "@modules/npcs/map-npc.service";
+import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
@@ -42,19 +55,31 @@ export class ExchangeHandler {
 
   constructor(
     private readonly sessions: SessionRegistry,
+    private readonly presence: PlayerPresenceService,
+    private readonly npcs: MapNpcService,
+    private readonly halls: HdvService,
     private readonly exchange: ExchangeService
   ) {}
 
   /**
-   * `ER<type>|<id>` — ask to trade.
+   * `ER<type>|<id>` — ask to open an exchange.
    *
-   * Only type 1 is served. An unknown type is refused rather than
-   * ignored: the canonical client leaves its "En attente..." box up
-   * until something answers, so silence would hang the window.
+   * Types 1 (another player) and 10/11 (an auction house) are served.
+   * An unknown type is refused rather than ignored: the canonical client
+   * leaves its "En attente..." box up until something answers, so
+   * silence would hang the window.
    */
   @MessageHandler(ExchangeRequestSendSchema)
-  request(ctx: HandlerContext, msg: ExchangeRequestSend): void {
+  async request(ctx: HandlerContext, msg: ExchangeRequestSend): Promise<void> {
     if (!this.inWorld(ctx.sessionId)) {
+      return;
+    }
+
+    if (
+      msg.exchangeType === ExchangeType.EXCHANGE_BIGSTORE_SELL ||
+      msg.exchangeType === ExchangeType.EXCHANGE_BIGSTORE_BUY
+    ) {
+      await this.openBigStore(ctx, msg);
       return;
     }
 
@@ -73,6 +98,128 @@ export class ExchangeHandler {
         `ER refused (${result.reason}) session=${ctx.sessionId}`
       );
     }
+  }
+
+  /**
+   * The auction house of the map the player is standing on.
+   *
+   * Two checks, and they are different things: the **NPC** proves the
+   * click was real — it is resolved against the player's own map, so a
+   * client naming any id it likes resolves nothing — and the **map**
+   * decides which hall opens, because `hdvs` is keyed by map and the
+   * vendor is only the door.
+   */
+  private async openBigStore(
+    ctx: HandlerContext,
+    msg: ExchangeRequestSend
+  ): Promise<void> {
+    const session = this.sessions.get(ctx.sessionId);
+    const placed = session?.characterId
+      ? this.presence.getByCharacter(session.characterId)
+      : undefined;
+
+    if (!session?.characterId || !placed) {
+      this.exchange.refuseRequest(ctx.sessionId, "not-in-world");
+      return;
+    }
+
+    const npc = this.npcs.onMapById(placed.mapId, Number(msg.targetId));
+
+    if (!npc) {
+      this.logger.warn(
+        `ER${msg.exchangeType}: sprite ${msg.targetId} is not an NPC on ` +
+          `map ${placed.mapId} session=${ctx.sessionId}`
+      );
+      this.exchange.refuseRequest(ctx.sessionId, "no-such-npc");
+      return;
+    }
+
+    const hall = await this.halls.onMap(placed.mapId);
+
+    if (!hall) {
+      // The vendor is there and the hall is not: `hdv_templates` has no
+      // row for this map, which means the world import has not run or
+      // the dump does not describe this one.
+      this.logger.warn(
+        `ER${msg.exchangeType}: no auction house on map ${placed.mapId}`
+      );
+      this.exchange.refuseRequest(ctx.sessionId, "no-hall");
+      return;
+    }
+
+    await this.exchange.openBigStore(
+      ctx.sessionId,
+      session.accountId,
+      session.characterId,
+      hall,
+      msg.exchangeType,
+      npc.id
+    );
+  }
+
+  /** `EHT` — the templates on sale in one category. */
+  @MessageHandler(ExchangeBigStoreTypeRequestSchema)
+  async bigStoreType(
+    ctx: HandlerContext,
+    msg: ExchangeBigStoreTypeRequest
+  ): Promise<void> {
+    await this.exchange.browseBigStoreType(ctx.sessionId, msg.typeId);
+  }
+
+  /**
+   * `EHl` — one template's price grid.
+   *
+   * `unic_id` is 1.29's name for it and it is a **template** id here:
+   * `BigStoreBuy` builds its object list out of
+   * `new Item(0, templateId, ...)`, whose second argument the original
+   * calls `nUnicID`. The two names are the wrong way round in the
+   * original; the field keeps its name and this comment carries the
+   * meaning.
+   */
+  @MessageHandler(ExchangeBigStoreItemListRequestSchema)
+  async bigStoreItemList(
+    ctx: HandlerContext,
+    msg: ExchangeBigStoreItemListRequest
+  ): Promise<void> {
+    await this.exchange.browseBigStoreTemplate(ctx.sessionId, msg.unicId);
+  }
+
+  /** `EHB` — buy one lot. */
+  @MessageHandler(ExchangeBigStoreBuyRequestSchema)
+  async bigStoreBuy(
+    ctx: HandlerContext,
+    msg: ExchangeBigStoreBuyRequest
+  ): Promise<void> {
+    const result = await this.exchange.buyBigStore(
+      ctx.sessionId,
+      String(msg.itemId),
+      msg.quantityIndex,
+      msg.price
+    );
+
+    if (!result.ok) {
+      this.logger.debug(
+        `EHB refused (${result.reason}) session=${ctx.sessionId}`
+      );
+    }
+  }
+
+  /** `EHS` — the search box, which lands on the same price grid. */
+  @MessageHandler(ExchangeBigStoreSearchRequestSchema)
+  async bigStoreSearch(
+    ctx: HandlerContext,
+    msg: ExchangeBigStoreSearchRequest
+  ): Promise<void> {
+    await this.exchange.searchBigStore(ctx.sessionId, msg.unicId);
+  }
+
+  /** `EHP` — what one template has been selling for. */
+  @MessageHandler(ExchangeGetMiddlePriceSchema)
+  async bigStoreMiddlePrice(
+    ctx: HandlerContext,
+    msg: ExchangeGetMiddlePrice
+  ): Promise<void> {
+    await this.exchange.bigStoreMiddlePrice(ctx.sessionId, msg.itemId);
   }
 
   @MessageHandler(ExchangeAcceptSchema)
@@ -107,7 +254,8 @@ export class ExchangeHandler {
       ctx.sessionId,
       msg.add,
       String(msg.itemUnicId),
-      msg.quantity
+      msg.quantity,
+      msg.price
     );
 
     if (!result.ok) {

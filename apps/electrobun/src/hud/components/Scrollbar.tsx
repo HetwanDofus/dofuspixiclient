@@ -45,9 +45,18 @@ export function Scrollbar({
 
   const arrow = width;
   const trackHeight = viewportHeight - 2 * arrow;
-  const thumbHeight = Math.max(
-    width * 2,
-    (viewportHeight / contentHeight) * trackHeight
+  // Clamped to the track at both ends. A list shorter than its own
+  // viewport gives a ratio above 1, and without the ceiling the thumb
+  // grew to several times the track — a 4000 px button inside a 600 px
+  // panel, which is how this was found. Every earlier caller happened to
+  // pad its content to at least a full viewport, so nothing had ever
+  // passed a ratio above 1.
+  const thumbHeight = Math.min(
+    trackHeight,
+    Math.max(
+      width * 2,
+      (viewportHeight / Math.max(1, contentHeight)) * trackHeight
+    )
   );
   const travel = trackHeight - thumbHeight;
   const thumbTop = maxScroll > 0 ? (scrollTop / maxScroll) * travel : 0;

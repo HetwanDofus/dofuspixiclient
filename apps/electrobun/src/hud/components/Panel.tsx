@@ -21,6 +21,15 @@ interface PanelProps {
    * — the partner's kamas on their offer board.
    */
   titleRight?: ReactNode;
+  /**
+   * A window that floats over the map rather than sitting on the banner.
+   *
+   * 1.29's docked panels — inventory, spells, characteristics — are
+   * drawn open at the bottom, because the banner closes them: hence no
+   * bottom border and only the top corners rounded. A window that floats
+   * has nothing under it to close it, so it needs all four sides.
+   */
+  floating?: boolean;
 }
 
 const CLOSE_UP = "/themes/classic/assets/common/close-up.svg";
@@ -41,6 +50,7 @@ export function Panel({
   style,
   showTitleBar = true,
   titleRight,
+  floating = false,
 }: PanelProps) {
   const [closePressed, setClosePressed] = useState(false);
 
@@ -59,7 +69,12 @@ export function Panel({
         width: scaledW,
         height: scaledH,
         borderWidth: border,
-        borderRadius: `${radius}px ${radius}px 0 0`,
+        borderRadius: floating ? radius : `${radius}px ${radius}px 0 0`,
+        // The class sets `border-bottom-style: none` for the docked
+        // case; an inline style is what overrides it.
+        ...(floating
+          ? { borderBottomStyle: "solid" as const, borderBottomWidth: border }
+          : {}),
         pointerEvents: "auto",
         ...style,
       }}
@@ -104,7 +119,7 @@ export function Panel({
           position: relative;
           border-style: solid;
           border-color: white;
-          border-bottom: none;
+          border-bottom-style: none;
           background: var(--dofus-bg, #d5cfaa);
           display: flex;
           flex-direction: column;

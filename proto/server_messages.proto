@@ -177,6 +177,9 @@ message DofusMessage {
     ExchangeCrafterList          exchange_crafter_list          = 525; // EJ
     ExchangeCraftLoop            exchange_craft_loop            = 526; // EA
     ExchangeCraftLoopEnd         exchange_craft_loop_end        = 527; // Ea
+    ExchangeBigStoreParams       exchange_bigstore_params       = 528; // EHK
+    ExchangeBigStoreOwnList      exchange_bigstore_own_list     = 529; // EHo
+    ExchangeBigStoreOwnMovement  exchange_bigstore_own_mov      = 530; // EHO
 
     // --- Friends (F) ---
     FriendsList                  friends_list                   = 600; // FL

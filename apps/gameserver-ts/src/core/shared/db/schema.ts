@@ -851,16 +851,25 @@ export type ContainerKamasRow = Selectable<ContainerKamasTable>;
 export type NewContainerKamas = Insertable<ContainerKamasTable>;
 export type ContainerKamasUpdate = Updateable<ContainerKamasTable>;
 
+/**
+ * One auction lot on sale.
+ *
+ * The stock itself is **not** here: it is the single `items` row owned
+ * by `(OwnerKind.BigStore, this.id)`. A sold or withdrawn listing is
+ * deleted, and `item_ledger` is the record of what happened to it.
+ */
 export interface BigStoreListingsTable {
   id: Generated<string>;
+  hdvId: number;
   sellerId: string;
+  /** The slot cap and the delivery of proceeds are both per account. */
+  sellerAccountId: string;
   templateId: number;
-  quantity: number;
+  /** 1, 10 or 100. A unitary item is always a lot of 1. */
+  lotSize: number;
   price: string;
-  effects: Json;
   postedAt: Generated<TimestampTz>;
   expiresAt: TimestampTz;
-  sold: boolean;
 }
 
 export type BigStoreListingRow = Selectable<BigStoreListingsTable>;
@@ -1425,14 +1434,21 @@ export type ItemActionRow = Selectable<ItemActionsTable>;
 export type NewItemAction = Insertable<ItemActionsTable>;
 export type ItemActionUpdate = Updateable<ItemActionsTable>;
 
+/**
+ * One auction house, keyed by the **map** it stands on — that is how the
+ * 1.29 dump keys it, and the vendor NPC is only the way in.
+ */
 export interface HdvTemplatesTable {
   id: number;
   mapId: number;
+  /** Comma-separated `item_types.id` this hall accepts. */
   categories: string;
+  /** Listing tax, in percent of the lot price. */
   sellTax: number;
   levelMax: number;
+  /** Simultaneous listings allowed per account, in this hall. */
   accountItems: number;
-  sellTimeDays: number;
+  sellTimeHours: number;
 }
 
 export type HdvTemplateRow = Selectable<HdvTemplatesTable>;

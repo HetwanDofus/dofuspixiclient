@@ -1,25 +1,29 @@
+import type { BigStoreResult } from "@modules/exchange/big-store.flow";
 import type {
   CloseReason,
   ExchangeKind,
   ExchangeSession,
   OpenDenialReason,
 } from "@modules/exchange/exchange.types";
+import type { Hall } from "@modules/exchange/hdv.service";
 import type { StorageMoveResult } from "@modules/exchange/storage.flow";
 import type { TradeResult } from "@modules/exchange/trade.flow";
 import type { ItemOwner } from "@modules/items/item-owner";
 import { ExchangeType } from "@dofus/proto/common_pb";
+import { BigStoreFlow } from "@modules/exchange/big-store.flow";
 import { ExchangeFramesService } from "@modules/exchange/exchange.frames.service";
 import { ExchangeRegistryService } from "@modules/exchange/exchange.registry";
 import { ExchangeSerializer } from "@modules/exchange/exchange.serializer";
 import { StorageFlow } from "@modules/exchange/storage.flow";
 import { TradeFlow } from "@modules/exchange/trade.flow";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { OwnerKind } from "@modules/items/item-owner";
 import { Injectable, Logger } from "@nestjs/common";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 
 export type OpenResult = { ok: true } | { ok: false; reason: OpenDenialReason };
 
-export type MoveResult = StorageMoveResult | TradeResult;
+export type MoveResult = StorageMoveResult | TradeResult | BigStoreResult;
 
 /**
  * The way in and out of an exchange.
@@ -46,6 +50,7 @@ export class ExchangeService {
     private readonly frames: ExchangeFramesService,
     private readonly storage: StorageFlow,
     private readonly trade: TradeFlow,
+    private readonly bigStore: BigStoreFlow,
     private readonly fights: FightRegistryService,
     private readonly sessions: SessionRegistry
   ) {}
@@ -95,6 +100,113 @@ export class ExchangeService {
     );
 
     return { ok: true };
+  }
+
+  /**
+   * `ER10` / `ER11` — walk up to an auction house.
+   *
+   * Unlike a storage this *is* client-requested: 1.29's bubble action 5
+   * and 6 both send an `ER` naming the vendor, and the two modes are two
+   * exchange types rather than a tab. Switching between them is another
+   * `ER` on the other type, which is why an already-open auction house
+   * is closed here instead of being refused by the occupancy lock —
+   * "Mode vente" would otherwise answer "already exchanging" every time.
+   *
+   * `remote` names the **hall**, not a container of items: a lot's stock
+   * belongs to the lot (`OwnerKind.BigStore` + the listing id), never to
+   * the hall. Nothing here may treat it the way `StorageFlow` treats its
+   * own `remote`.
+   */
+  async openBigStore(
+    sessionId: string,
+    accountId: string,
+    characterId: string,
+    hall: Hall,
+    kind: ExchangeKind,
+    npcSpriteId: number
+  ): Promise<OpenResult> {
+    const current = this.registry.get(sessionId);
+
+    if (current && isBigStore(current.kind)) {
+      this.leave(sessionId, "left");
+    }
+
+    const denial = this.claim(sessionId);
+
+    if (denial) {
+      this.frames.refuse(sessionId, denial);
+      return { ok: false, reason: denial };
+    }
+
+    const session: ExchangeSession = {
+      sessionId,
+      characterId,
+      accountId,
+      kind,
+      remote: { kind: OwnerKind.BigStore, id: String(hall.id) },
+      phase: "open",
+      lockKey: sessionId,
+      openedAt: Date.now(),
+    };
+
+    this.registry.open(session);
+
+    await this.serializer.runExclusive(session.lockKey, () =>
+      this.bigStore.announceOpen(session, hall, npcSpriteId)
+    );
+
+    this.logger.log(
+      `exchange: opened auction house ${hall.id} mode=${kind} ` +
+        `session=${sessionId} character=${characterId}`
+    );
+
+    return { ok: true };
+  }
+
+  /** `EHT` — browse one category of the open hall. */
+  browseBigStoreType(sessionId: string, typeId: number): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      this.bigStore.browseType(session, typeId)
+    );
+  }
+
+  /** `EHl` — open one template's price grid. */
+  browseBigStoreTemplate(
+    sessionId: string,
+    templateId: number
+  ): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      this.bigStore.browseTemplate(session, templateId)
+    );
+  }
+
+  /** `EHS` — the same grid, reached from the search box. */
+  searchBigStore(sessionId: string, templateId: number): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      this.bigStore.search(session, templateId)
+    );
+  }
+
+  /** `EHP` — what one template has been selling for. */
+  bigStoreMiddlePrice(
+    sessionId: string,
+    templateId: number
+  ): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      this.bigStore.middlePrice(session, templateId)
+    );
+  }
+
+  /** `EHB` — buy one lot. */
+  buyBigStore(
+    sessionId: string,
+    lineId: string,
+    quantityIndex: number,
+    price: bigint
+  ): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      this.bigStore.buy(session, lineId, quantityIndex, price)
+    );
   }
 
   /**
@@ -163,22 +275,45 @@ export class ExchangeService {
     sessionId: string,
     add: boolean,
     itemId: string,
-    quantity: number
+    quantity: number,
+    price = 0n
   ): Promise<MoveResult> {
-    return this.onSession(sessionId, (session) =>
-      session.kind === ExchangeType.EXCHANGE_PLAYER
-        ? this.trade.moveItem(session, add, itemId, quantity)
-        : this.storage.moveItem(session, add, itemId, quantity)
-    );
+    return this.onSession(sessionId, (session) => {
+      if (session.kind === ExchangeType.EXCHANGE_PLAYER) {
+        return this.trade.moveItem(session, add, itemId, quantity);
+      }
+
+      // An auction house reads this frame in its own dialect, and the
+      // proto says so: on the way in `quantity` is the lot *size* and
+      // `price` matters; on the way out `itemId` is a listing id.
+      if (isBigStore(session.kind)) {
+        return add
+          ? this.bigStore.list(session, itemId, quantity, price)
+          : this.bigStore.withdraw(session, itemId);
+      }
+
+      return this.storage.moveItem(session, add, itemId, quantity);
+    });
   }
 
   /** `EMG`. Signed for a storage, absolute for a trade. */
   moveKamas(sessionId: string, amount: bigint): Promise<MoveResult> {
-    return this.onSession(sessionId, (session) =>
-      session.kind === ExchangeType.EXCHANGE_PLAYER
-        ? this.trade.moveKamas(session, amount)
-        : this.storage.moveKamas(session, amount)
-    );
+    return this.onSession(sessionId, (session) => {
+      if (session.kind === ExchangeType.EXCHANGE_PLAYER) {
+        return this.trade.moveKamas(session, amount);
+      }
+
+      // There is no purse on either side of an auction house: kamas move
+      // as the price of a lot, never as a deposit.
+      if (isBigStore(session.kind)) {
+        return Promise.resolve({
+          ok: false as const,
+          reason: "unsupported-owner",
+        });
+      }
+
+      return this.storage.moveKamas(session, amount);
+    });
   }
 
   /**
@@ -214,6 +349,7 @@ export class ExchangeService {
 
     this.registry.close(sessionId);
     this.serializer.forget(session.lockKey);
+    this.bigStore.forget(sessionId);
 
     if (reason !== "disconnected") {
       this.frames.leave(sessionId);
@@ -294,4 +430,12 @@ export class ExchangeService {
 
     return null;
   }
+}
+
+/** The two halves of an auction house, which share one flow. */
+function isBigStore(kind: ExchangeKind): boolean {
+  return (
+    kind === ExchangeType.EXCHANGE_BIGSTORE_SELL ||
+    kind === ExchangeType.EXCHANGE_BIGSTORE_BUY
+  );
 }
