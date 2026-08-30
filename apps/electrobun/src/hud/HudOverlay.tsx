@@ -188,10 +188,15 @@ export function HudOverlay({
 
         {/* And the trade, for the same reason plus one: it carries its
             own inventory grid, so it must not evict the bag panel the
-            player may already have open beside it. */}
-        <div style={panelWrapStyle}>
-          <TradeWindow zoom={baseZoom} gameClient={gameClient} />
-        </div>
+            player may already have open beside it. Outside
+            `panelWrapStyle`, which pins a single window to the right
+            edge — retail spreads the trade's three windows across the
+            play area, so it places itself. */}
+        <TradeWindow
+          zoom={baseZoom}
+          gameClient={gameClient}
+          playArea={{ width: canvasRect.w, height: bannerTopPx }}
+        />
 
         {/* The proposal boxes. Outside every panel wrapper: they are a
             modal question, not a window, and they centre themselves. */}

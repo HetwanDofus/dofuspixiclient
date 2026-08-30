@@ -180,6 +180,7 @@ function harness(
       sendItemAdd: () => {},
       sendItemQuantity: () => {},
       sendItemRemove: () => {},
+      sendTemplateFor: async () => {},
     } as unknown as InventoryFramesService,
     { sendStats: async () => {} } as unknown as StatsService
   );

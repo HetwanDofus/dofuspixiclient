@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ItemData, ItemTemplateData } from "@/game/network/protocol";
 import { showContextMenu } from "@/game/stores/context-menu-store";
@@ -12,6 +12,7 @@ import {
   RESOURCES_METRICS,
 } from "./inventory-theme";
 import { TypeSelect } from "./TypeSelect";
+import { useItemFilters } from "./use-item-filters";
 
 const C = INVENTORY_COLORS;
 const GRID_ASSET_BASE = "/themes/classic/assets/panels/inventory";
@@ -23,7 +24,14 @@ export interface ItemGridBox {
   height: number;
 }
 
-export type ItemGridMetrics = typeof RESOURCES_METRICS;
+/**
+ * The measurements a grid draws itself from. Widened from
+ * `typeof RESOURCES_METRICS`, whose `as const` literals rejected any other
+ * shape — the exchange windows pass 8×3 and 7×2 grids with no title row.
+ */
+export type ItemGridMetrics = {
+  readonly [K in keyof typeof RESOURCES_METRICS]: number;
+};
 
 /**
  * One entry of a cell's context menu, and — for the first one whose
@@ -67,6 +75,23 @@ export interface ItemGridProps {
    * your own offer is filtering a list you can already see whole.
    */
   showFilters?: boolean;
+  /**
+   * Draw the header line holding `title`.
+   *
+   * On by default. The three exchange windows turn it off: there the
+   * container's name is the `Panel`'s own title bar, and a second copy of
+   * it inside the box is a row of wasted height retail does not spend.
+   */
+  showTitle?: boolean;
+  /**
+   * The rounded box drawn behind the whole browser.
+   *
+   * `INVENTORY_COLORS.boxBg` — the dark frame — everywhere the grid is a
+   * box nested inside a bigger window. The exchange windows pass
+   * `"transparent"`: there the grid *is* the window's content, and retail
+   * draws its cells straight onto the panel's tan.
+   */
+  boxBackground?: string;
 }
 
 /**
@@ -96,13 +121,23 @@ export function ItemGrid({
   actions,
   cellExtraProps,
   showFilters = true,
+  showTitle = true,
+  boxBackground,
 }: ItemGridProps) {
   const M = metrics ?? RESOURCES_METRICS;
   const p = (n: number) => Math.round(n * zoom);
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [typeName, setTypeName] = useState<string | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const {
+    categoryId,
+    setCategoryId,
+    typeName,
+    setTypeName,
+    typeOptions,
+    search,
+    setSearch,
+    searchOpen,
+    setSearchOpen,
+    visible,
+  } = useItemFilters(items, templates);
   const [scrollTop, setScrollTop] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,45 +146,6 @@ export function ItemGrid({
       searchInputRef.current?.focus();
     }
   }, [searchOpen]);
-
-  const category = FILTER_CATEGORIES.find((c) => c.id === categoryId) ?? null;
-
-  const byCategory = useMemo(() => {
-    if (!category) {
-      return items;
-    }
-    return items.filter((item) => {
-      const template = templates.get(item.itemId);
-      return !!template && category.superTypes?.includes(template.superType);
-    });
-  }, [items, category, templates]);
-
-  const typeOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const item of byCategory) {
-      const name = templates.get(item.itemId)?.typeName;
-      if (name) {
-        names.add(name);
-      }
-    }
-    return Array.from(names).sort((a, b) => a.localeCompare(b, "fr"));
-  }, [byCategory, templates]);
-
-  const visible = useMemo(() => {
-    return byCategory.filter((item) => {
-      const template = templates.get(item.itemId);
-      if (typeName && template?.typeName !== typeName) {
-        return false;
-      }
-      if (
-        search.trim() &&
-        !template?.name.toLowerCase().includes(search.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [byCategory, templates, typeName, search]);
 
   // Retail always fills the whole frame with cells, empty or not — a
   // filtered-down sac still shows the grid, not a bare rectangle. `rows`
@@ -177,26 +173,28 @@ export function ItemGrid({
         top: p(box.y),
         width: p(box.width),
         height: p(box.height),
-        background: C.boxBg,
+        background: boxBackground ?? C.boxBg,
         borderRadius: p(10),
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
       }}
     >
-      <div
-        style={{
-          textAlign: "center",
-          color: "#ffffff",
-          fontWeight: "bold",
-          fontSize: p(11),
-          marginTop: p(M.titleTop),
-          height: p(M.titleHeight),
-          fontFamily: "Verdana, sans-serif",
-        }}
-      >
-        {title}
-      </div>
+      {showTitle && (
+        <div
+          style={{
+            textAlign: "center",
+            color: "#ffffff",
+            fontWeight: "bold",
+            fontSize: p(11),
+            marginTop: p(M.titleTop),
+            height: p(M.titleHeight),
+            fontFamily: "Verdana, sans-serif",
+          }}
+        >
+          {title}
+        </div>
+      )}
 
       {showFilters && (
         <div
@@ -214,10 +212,7 @@ export function ItemGrid({
               type="button"
               aria-pressed={categoryId === c.id}
               title={c.label}
-              onClick={() => {
-                setCategoryId((current) => (current === c.id ? null : c.id));
-                setTypeName(null);
-              }}
+              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
               style={{
                 width: p(M.filterSize),
                 height: p(M.filterSize),

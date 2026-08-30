@@ -27,6 +27,15 @@ interface ItemDetailPanelProps {
   zoom: number;
   item: ItemData | null;
   template: ItemTemplateData | null;
+  /**
+   * Where the card sits inside its window, in base units.
+   *
+   * `DETAIL_BOX` — its slot under the paperdoll — by default. The trade
+   * floats the same card top-left of the play area instead, which is the
+   * only thing that differs between the two: the card's own internals are
+   * measured from its box, not from the inventory window.
+   */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
 /**
@@ -39,6 +48,7 @@ export function ItemDetailPanel({
   zoom,
   item,
   template,
+  box = DETAIL_BOX,
 }: ItemDetailPanelProps) {
   const p = (n: number) => Math.round(n * zoom);
   const [tab, setTab] = useState<"effects" | "conditions">("effects");
@@ -55,10 +65,10 @@ export function ItemDetailPanel({
     <div
       style={{
         position: "absolute",
-        left: p(DETAIL_BOX.x),
-        top: p(DETAIL_BOX.y),
-        width: p(DETAIL_BOX.width),
-        height: p(DETAIL_BOX.height),
+        left: p(box.x),
+        top: p(box.y),
+        width: p(box.width),
+        height: p(box.height),
         background: C.detailBody,
         borderRadius: p(10),
         overflow: "hidden",
@@ -199,7 +209,7 @@ export function ItemDetailPanel({
               // `descriptionTop` is already measured from `DETAIL_BOX`'s top,
               // so the header must not be subtracted a second time — doing so
               // left the box 33 units tall instead of the capture's 55.
-              height: p(DETAIL_BOX.height - M.descriptionTop),
+              height: p(box.height - M.descriptionTop),
             }}
           >
             <div style={{ textDecoration: "underline", marginBottom: p(3) }}>

@@ -7,7 +7,7 @@ import { Panel } from "../components/Panel";
 import { INVENTORY_COLORS } from "../inventory/inventory-theme";
 
 const C = INVENTORY_COLORS;
-const BOX = { width: 260, height: 116 } as const;
+const BOX = { width: 300, height: 140 } as const;
 
 /**
  * The two boxes of a trade proposal.
@@ -54,10 +54,15 @@ export function TradeRequestDialog({
       }}
     >
       <Panel title="Echange" width={BOX.width} height={BOX.height} zoom={zoom}>
+        {/* A plain child of `.dofus-panel__content` — the flex:1 area
+            `Panel` leaves below its title bar. Positioning this absolutely
+            at `inset: 0` instead resolved against `.dofus-panel` itself,
+            which is `position: relative`, and wrote the sentence straight
+            over the title bar (QA problem-1). Same trap `InventoryWindow`
+            documents. */}
         <div
           style={{
-            position: "absolute",
-            inset: 0,
+            height: "100%",
             padding: `${p(14)}px ${p(16)}px ${p(10)}px`,
             boxSizing: "border-box",
             display: "flex",

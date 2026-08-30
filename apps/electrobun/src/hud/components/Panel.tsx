@@ -8,6 +8,19 @@ interface PanelProps {
   onClose?: () => void;
   children: ReactNode;
   style?: CSSProperties;
+  /**
+   * Draw the dark title bar at all.
+   *
+   * Every 1.29 window has one except the exchange's own offer board,
+   * which retail draws as a bare rounded box — the board is titled by the
+   * window beside it, not by itself.
+   */
+  showTitleBar?: boolean;
+  /**
+   * Content pinned to the right of the title bar, before the close button
+   * — the partner's kamas on their offer board.
+   */
+  titleRight?: ReactNode;
 }
 
 const CLOSE_UP = "/themes/classic/assets/common/close-up.svg";
@@ -26,6 +39,8 @@ export function Panel({
   onClose,
   children,
   style,
+  showTitleBar = true,
+  titleRight,
 }: PanelProps) {
   const [closePressed, setClosePressed] = useState(false);
 
@@ -49,34 +64,37 @@ export function Panel({
         ...style,
       }}
     >
-      <div
-        className="dofus-panel__titlebar"
-        style={{
-          minHeight: titleH,
-          padding: `0 ${Math.round(5 * zoom)}px`,
-          borderRadius: `${radius - border}px ${radius - border}px 0 0`,
-        }}
-      >
-        <span className="dofus-panel__title" style={{ fontSize }}>
-          {title}
-        </span>
-        {onClose && (
-          <img
-            src={closePressed ? CLOSE_DOWN : CLOSE_UP}
-            alt="Close"
-            width={closeSize}
-            height={closeSize}
-            draggable={false}
-            style={{ cursor: "pointer" }}
-            onPointerDown={() => setClosePressed(true)}
-            onPointerUp={() => {
-              setClosePressed(false);
-              onClose();
-            }}
-            onPointerLeave={() => setClosePressed(false)}
-          />
-        )}
-      </div>
+      {showTitleBar && (
+        <div
+          className="dofus-panel__titlebar"
+          style={{
+            minHeight: titleH,
+            padding: `0 ${Math.round(5 * zoom)}px`,
+            borderRadius: `${radius - border}px ${radius - border}px 0 0`,
+          }}
+        >
+          <span className="dofus-panel__title" style={{ fontSize }}>
+            {title}
+          </span>
+          {titleRight}
+          {onClose && (
+            <img
+              src={closePressed ? CLOSE_DOWN : CLOSE_UP}
+              alt="Close"
+              width={closeSize}
+              height={closeSize}
+              draggable={false}
+              style={{ cursor: "pointer" }}
+              onPointerDown={() => setClosePressed(true)}
+              onPointerUp={() => {
+                setClosePressed(false);
+                onClose();
+              }}
+              onPointerLeave={() => setClosePressed(false)}
+            />
+          )}
+        </div>
+      )}
       <div className="dofus-panel__content" style={{ fontSize }}>
         {children}
       </div>

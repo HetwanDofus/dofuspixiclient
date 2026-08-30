@@ -10,52 +10,41 @@ import {
   VALIDATE_DELAY_MS,
 } from "@/game/stores/trade-store";
 
-import { Panel } from "../components/Panel";
-import { ItemGrid } from "../inventory/ItemGrid";
-import { INVENTORY_COLORS } from "../inventory/inventory-theme";
-
-const C = INVENTORY_COLORS;
-
-/**
- * Geometry, in the same base units as `inventory-theme`.
- *
- * The inventory keeps `RESOURCES_BOX`'s 145 so its cells are drawn at
- * the size every other 1.29 grid draws them; the two offer panes are the
- * same width, stacked, and shorter because they hold a handful of stacks
- * rather than a bag.
- */
-const WINDOW = { width: 330, height: 470 } as const;
-const LEFT_X = 12;
-const RIGHT_X = 173;
-const INVENTORY = { y: 13, width: 145, height: 345 } as const;
-const OFFER = { width: 145, height: 158 } as const;
-const THEIRS_Y = 13;
-const MINE_Y = 200;
-const KAMAS_Y = 366;
-const FOOTER_Y = 400;
+import { ItemDetailPanel } from "../inventory/ItemDetailPanel";
+import { TradeInventoryPanel } from "./TradeInventoryPanel";
+import { TradeOfferPanel } from "./TradeOfferPanel";
+import {
+  TRADE_ARROW,
+  TRADE_BUTTON_HEIGHT,
+  TRADE_DETAIL_PANEL,
+  TRADE_MARGIN,
+  TRADE_OFFER_PANEL,
+} from "./trade-theme";
 
 /**
  * Player to player — exchange type 1.
  *
- * Three grids in one panel: the live inventory on the left, the
- * partner's offer and mine on the right. Retail floats them as three
- * separate windows; one panel is the shape `StorageWindow` already
- * established here, and it means opening a trade cannot fight the
- * `activePanel` rotation for the inventory.
+ * Not a window: retail floats **three** of them, and this is what places
+ * them. The bag browser goes top right, the two offer boards along the
+ * bottom (the partner's on the left, yours on the right) with the exchange
+ * arrow between, and the item card — the same one the inventory draws —
+ * top left, only while something is selected.
  *
- * The left grid reads the **live** inventory store, unlike canonical
- * 1.29 which clones it and moves quantities into a "garbage" pile. The
- * clone exists there so the client can show an offered stack leaving the
- * bag before the server has agreed to anything. Here nothing leaves the
- * bag until the trade commits — the offer is server state — so a clone
- * would only be a second copy to keep in step.
+ * The bag it hands the browser is the live inventory store minus whatever
+ * is already on your side of the table, so an offered stack visibly leaves
+ * the bag. That is display only: `TradeFlow.moveItem` writes nothing until
+ * both players validate, and no inventory frame arrives in the meantime.
+ * The offer is the server's, the subtraction is ours.
  */
 export function TradeWindow({
   zoom,
   gameClient,
+  playArea,
 }: {
   zoom: number;
   gameClient: GameClient | null;
+  /** The play area, in CSS px — everything above the banner. */
+  playArea: { width: number; height: number };
 }) {
   const trade = useSyncExternalStore(
     tradeStore.subscribe,
@@ -65,13 +54,12 @@ export function TradeWindow({
     inventoryStore.subscribe,
     inventoryStore.getSnapshot
   );
-  const { kamas } = useSyncExternalStore(
+  const { name, kamas } = useSyncExternalStore(
     characterStore.subscribe,
     characterStore.getSnapshot
   );
 
   const [selected, setSelected] = useState<number | null>(null);
-  const [amount, setAmount] = useState("");
   const locked = useValidateLock(trade.changedAt, trade.phase === "open");
 
   if (trade.phase !== "open") {
@@ -79,7 +67,6 @@ export function TradeWindow({
   }
 
   const p = (n: number) => Math.round(n * zoom);
-  const bag = getBagItems(inventory);
   const mine = getTradeItems(trade.mine);
   const theirs = getTradeItems(trade.theirs);
 
@@ -93,11 +80,26 @@ export function TradeWindow({
   const offered = (unicId: number) =>
     trade.mine.items.get(unicId)?.quantity ?? 0;
 
+  /**
+   * The whole stack, as the server still sees it.
+   *
+   * The cells below are drawn with the *remaining* quantity, so their
+   * `item.quantity` is not what a "tout proposer" should send — it would
+   * cap the offer at what is left in the bag.
+   */
+  const owned = (item: ItemData) =>
+    inventory.items.get(item.unicId)?.quantity ?? item.quantity;
+
+  const bag = getBagItems(inventory).flatMap((item) => {
+    const left = item.quantity - offered(item.unicId);
+    return left > 0 ? [{ ...item, quantity: left }] : [];
+  });
+
   const propose = (item: ItemData, quantity: number) => {
     gameClient?.exchangeMoveItem(
       item.unicId,
       true,
-      Math.min(quantity, item.quantity)
+      Math.min(quantity, owned(item))
     );
   };
 
@@ -109,13 +111,13 @@ export function TradeWindow({
     },
     {
       label: "Proposer 10",
-      enabled: (item: ItemData) => item.quantity > 1,
+      enabled: (item: ItemData) => owned(item) > 1,
       run: (item: ItemData) => propose(item, offered(item.unicId) + 10),
     },
     {
       label: "Tout proposer",
-      enabled: (item: ItemData) => item.quantity > 1,
-      run: (item: ItemData) => propose(item, item.quantity),
+      enabled: (item: ItemData) => owned(item) > 1,
+      run: (item: ItemData) => propose(item, owned(item)),
     },
   ];
 
@@ -142,129 +144,165 @@ export function TradeWindow({
     },
   ];
 
-  const offerKamas = () => {
-    const value = Number.parseInt(amount, 10);
+  // Clicking a cell opens its card; clicking it again closes it, the same
+  // toggle the inventory window uses.
+  const select = (item: ItemData) =>
+    setSelected((current) => (current === item.unicId ? null : item.unicId));
 
-    if (!Number.isFinite(value) || value < 0) {
-      return;
-    }
+  // A selected stack can sit in any of the three grids, and the two offers
+  // hold the authoritative copy of anything on the table — look there
+  // first so the card shows the offered quantity, not the bag's.
+  const selectedItem =
+    selected === null
+      ? null
+      : (trade.mine.items.get(selected) ??
+        trade.theirs.items.get(selected) ??
+        inventory.items.get(selected) ??
+        null);
+  const selectedTemplate = selectedItem
+    ? (inventory.templates.get(selectedItem.itemId) ?? null)
+    : null;
 
-    gameClient?.exchangeMoveKamas(value);
-    setAmount("");
-  };
+  const offerRowHeight = p(TRADE_OFFER_PANEL.height + 4 + TRADE_BUTTON_HEIGHT);
 
   return (
-    <Panel
-      title="Echange"
-      width={WINDOW.width}
-      height={WINDOW.height}
-      zoom={zoom}
-      onClose={() => gameClient?.exchangeLeave()}
-      style={{ pointerEvents: "auto" }}
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: playArea.width,
+        height: playArea.height,
+        pointerEvents: "none",
+      }}
     >
-      <ItemGrid
-        zoom={zoom}
-        title="Inventaire"
-        box={{ x: LEFT_X, ...INVENTORY }}
-        items={bag}
-        templates={inventory.templates}
-        selectedUnicId={selected}
-        onSelect={(item) => setSelected(item.unicId)}
-        actions={bagActions}
-      />
-
-      <OfferPane
-        zoom={zoom}
-        x={RIGHT_X}
-        y={THEIRS_Y}
-        ready={trade.theirs.ready}
-      >
-        <ItemGrid
-          zoom={zoom}
-          title={trade.partnerName || "Son offre"}
-          box={{ x: RIGHT_X, y: THEIRS_Y, ...OFFER }}
-          items={theirs}
-          templates={inventory.templates}
-          selectedUnicId={selected}
-          onSelect={(item) => setSelected(item.unicId)}
-          // No actions: taking things off somebody else's side of the
-          // table is not a thing a trade lets you do.
-          actions={[]}
-          showFilters={false}
-        />
-      </OfferPane>
-
-      <OfferPane zoom={zoom} x={RIGHT_X} y={MINE_Y} ready={trade.mine.ready}>
-        <ItemGrid
-          zoom={zoom}
-          title="Vous"
-          box={{ x: RIGHT_X, y: MINE_Y, ...OFFER }}
-          items={mine}
-          templates={inventory.templates}
-          selectedUnicId={selected}
-          onSelect={(item) => setSelected(item.unicId)}
-          actions={mineActions}
-          showFilters={false}
-        />
-      </OfferPane>
-
-      <KamasRow
-        zoom={zoom}
-        x={LEFT_X}
-        width={INVENTORY.width}
-        label="Bourse"
-        value={kamas}
-      />
-      <KamasRow
-        zoom={zoom}
-        x={RIGHT_X}
-        width={OFFER.width}
-        label="Sur la table"
-        value={trade.mine.kamas}
-      />
+      {selectedItem && selectedTemplate && (
+        <div
+          style={{
+            position: "absolute",
+            left: p(TRADE_MARGIN),
+            top: p(TRADE_MARGIN),
+            width: p(TRADE_DETAIL_PANEL.width),
+            height: p(TRADE_DETAIL_PANEL.height),
+            // The white rounded chrome every 1.29 window carries; the card
+            // itself draws its own dark name/level header inside it.
+            border: `${p(3)}px solid #ffffff`,
+            borderBottom: "none",
+            borderRadius: `${p(13)}px ${p(13)}px 0 0`,
+            overflow: "hidden",
+            pointerEvents: "auto",
+          }}
+        >
+          <ItemDetailPanel
+            zoom={zoom}
+            item={selectedItem}
+            template={selectedTemplate}
+            box={{ x: 0, y: 0, ...TRADE_DETAIL_PANEL }}
+          />
+        </div>
+      )}
 
       <div
         style={{
           position: "absolute",
-          left: p(LEFT_X),
-          top: p(FOOTER_Y),
-          width: p(WINDOW.width - LEFT_X * 2),
-          display: "flex",
-          gap: p(4),
-          alignItems: "center",
+          right: p(TRADE_MARGIN),
+          top: p(TRADE_MARGIN),
+          pointerEvents: "auto",
         }}
       >
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
-          placeholder="Kamas"
-          aria-label="Kamas à proposer"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: p(20),
-            boxSizing: "border-box",
-            border: "none",
-            borderRadius: p(4),
-            padding: `0 ${p(5)}px`,
-            fontFamily: "Verdana, sans-serif",
-            fontSize: p(9),
-            color: C.text,
-          }}
-        />
-        <FooterButton zoom={zoom} label="Proposer" onClick={offerKamas} />
-        <FooterButton zoom={zoom} label="Message privé" disabled />
-        <FooterButton
+        <TradeInventoryPanel
           zoom={zoom}
-          label={trade.mine.ready ? "Annuler" : "Accepter"}
-          // The three-second lock after any change, canonical
-          // `DELAY_BEFORE_VALIDATE`. It is what stops a partner from
-          // swapping the offer under a finger already on its way down.
-          disabled={locked}
-          onClick={() => gameClient?.exchangeSetReady()}
+          characterName={name}
+          items={bag}
+          templates={inventory.templates}
+          kamas={kamas}
+          weight={inventory.weight}
+          selectedUnicId={selected}
+          onSelect={select}
+          actions={bagActions}
+          onClose={() => gameClient?.exchangeLeave()}
         />
       </div>
-    </Panel>
+
+      <div
+        style={{
+          position: "absolute",
+          left: p(TRADE_MARGIN),
+          right: p(TRADE_MARGIN),
+          bottom: p(TRADE_MARGIN),
+          height: offerRowHeight,
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: p(8),
+          pointerEvents: "auto",
+        }}
+      >
+        <TradeOfferPanel
+          zoom={zoom}
+          title={trade.partnerName || "Son offre"}
+          items={theirs}
+          templates={inventory.templates}
+          kamas={trade.theirs.kamas}
+          ready={trade.theirs.ready}
+          selectedUnicId={selected}
+          onSelect={select}
+          // Taking things off somebody else's side of the table is not a
+          // thing a trade lets you do.
+          actions={[]}
+          button={{ label: "Message privé", disabled: true }}
+        />
+
+        <ExchangeArrow zoom={zoom} />
+
+        <TradeOfferPanel
+          zoom={zoom}
+          title=""
+          items={mine}
+          templates={inventory.templates}
+          kamas={trade.mine.kamas}
+          ready={trade.mine.ready}
+          selectedUnicId={selected}
+          onSelect={select}
+          actions={mineActions}
+          onKamas={(quantity) => gameClient?.exchangeMoveKamas(quantity)}
+          button={{
+            label: trade.mine.ready ? "Annuler" : "Accepter",
+            // The three-second lock after any change, canonical
+            // `DELAY_BEFORE_VALIDATE`. It is what stops a partner from
+            // swapping the offer under a finger already on its way down.
+            disabled: locked,
+            onClick: () => gameClient?.exchangeSetReady(),
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The double arrow between the two boards. Drawn inline — there is no
+ * extracted asset for it, same case as `EquipmentPanel`'s mount cross.
+ */
+function ExchangeArrow({ zoom }: { zoom: number }) {
+  const p = (n: number) => Math.round(n * zoom);
+
+  return (
+    <svg
+      width={p(TRADE_ARROW.width)}
+      height={p(TRADE_ARROW.height)}
+      viewBox="0 0 54 32"
+      aria-hidden="true"
+      style={{ alignSelf: "center", flexShrink: 0 }}
+    >
+      <path
+        d="M14 10 H40 V4 L52 16 L40 28 V22 H14 V28 L2 16 L14 4 Z"
+        fill="#e9e6d4"
+        stroke="#6b6552"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -294,129 +332,4 @@ function useValidateLock(changedAt: number, active: boolean): boolean {
   }, [changedAt, active]);
 
   return active && performance.now() < changedAt + VALIDATE_DELAY_MS;
-}
-
-/**
- * The tint canonical `updateReadyState` applies to a validated half of
- * the window. Both panes carry it, each from its own flag.
- */
-function OfferPane({
-  zoom,
-  x,
-  y,
-  ready,
-  children,
-}: {
-  zoom: number;
-  x: number;
-  y: number;
-  ready: boolean;
-  children: React.ReactNode;
-}) {
-  const p = (n: number) => Math.round(n * zoom);
-
-  return (
-    <>
-      {children}
-      {ready && (
-        <div
-          style={{
-            position: "absolute",
-            left: p(x),
-            top: p(y),
-            width: p(OFFER.width),
-            height: p(OFFER.height),
-            borderRadius: p(10),
-            boxShadow: `inset 0 0 0 ${p(2)}px #7ac943`,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-function KamasRow({
-  zoom,
-  x,
-  width,
-  label,
-  value,
-}: {
-  zoom: number;
-  x: number;
-  width: number;
-  label: string;
-  value: number;
-}) {
-  const p = (n: number) => Math.round(n * zoom);
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: p(x),
-        top: p(KAMAS_Y),
-        width: p(width),
-        height: p(20),
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: `0 ${p(6)}px`,
-        boxSizing: "border-box",
-        background: C.boxBg,
-        borderRadius: p(6),
-        fontFamily: "Verdana, sans-serif",
-        fontSize: p(9),
-        color: C.kamasText,
-      }}
-    >
-      <span>{label}</span>
-      <span style={{ display: "flex", alignItems: "center", gap: p(3) }}>
-        {value.toLocaleString("fr-FR")}
-        <img
-          src="/themes/classic/assets/panels/inventory/kamas.svg"
-          alt=""
-          style={{ width: p(10), height: p(10) }}
-        />
-      </span>
-    </div>
-  );
-}
-
-function FooterButton({
-  zoom,
-  label,
-  onClick,
-  disabled,
-}: {
-  zoom: number;
-  label: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  const p = (n: number) => Math.round(n * zoom);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        height: p(20),
-        padding: `0 ${p(8)}px`,
-        border: "none",
-        borderRadius: p(6),
-        background: "#df7d2e",
-        color: "#ffffff",
-        fontFamily: "Verdana, sans-serif",
-        fontSize: p(9),
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.4 : 1,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </button>
-  );
 }
