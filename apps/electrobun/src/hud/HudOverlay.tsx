@@ -25,6 +25,7 @@ import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
 import { ChatBubble } from "./world/ChatBubble";
+import { MapLocationLabel } from "./world/MapLocationLabel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 import { PlayerNameplate } from "./world/PlayerNameplate";
 import { WorldMapPanel } from "./worldmap/WorldMapPanel";
@@ -173,8 +174,16 @@ export function HudOverlay({
             left: 8,
             top: 8,
             pointerEvents: "none",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 4,
           }}
         >
+          {/* The location caption shares the slot — retail puts it in the
+              same corner, so the dialogue bubble stacks under it rather
+              than over it. */}
+          <MapLocationLabel />
           <NpcDialog gameClient={gameClient} zoom={baseZoom} />
         </div>
 

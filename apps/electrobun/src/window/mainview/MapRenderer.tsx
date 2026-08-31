@@ -25,7 +25,13 @@ import { activateSlot } from "@/hud/banner/hotbar-actions";
 import { GameClientContext } from "@/hud/contexts/GameClientContext";
 import { PixiAppContext } from "@/hud/contexts/PixiAppContext";
 import { HOTBAR_SHORTCUTS, Keybindings } from "@/hud/core/keybindings";
+import {
+  AdminPanel,
+  MIN_GUTTER_HEIGHT,
+  MIN_GUTTER_WIDTH,
+} from "@/hud/debug/AdminPanel";
 import { HudOverlay } from "@/hud/HudOverlay";
+import { IS_DEV_BUILD } from "@/utils/build-env";
 
 const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
   connecting: "Connexion…",
@@ -50,6 +56,9 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   const [pixiApp, setPixiApp] = useState<Application | null>(null);
   const [baseZoom, setBaseZoom] = useState(2);
   const [canvasRect, setCanvasRect] = useState({ left: 0, top: 0, w: 0, h: 0 });
+  // Size of the .map-renderer box itself — the canvas is centred inside it, so
+  // the difference is the letterbox gutter the admin panel lives in.
+  const [hostSize, setHostSize] = useState({ w: 0, h: 0 });
   // Live, not a snapshot: this used to be a useState set once during setup, so
   // the badge kept claiming "Connected" through core restarts and outright
   // socket deaths alike (QA-046).
@@ -255,7 +264,12 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
     // container would also match nested canvases from HUD components
     // (e.g. the Minimap's standalone PIXI slot), which produces a bogus
     // 176×176 canvasRect and breaks HUD positioning.
-    const canvas = pixiApp.canvas;
+    //
+    // `Application.canvas` reads through `renderer`, which a destroyed app
+    // nulls — the getter then throws. That happens on a hot reload, where the
+    // effect re-runs against the app we tore down; guard rather than crash
+    // the whole renderer subtree.
+    const canvas = pixiApp.renderer ? pixiApp.canvas : null;
 
     if (!canvas) {
       return;
@@ -274,6 +288,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         w: cr.width,
         h: cr.height,
       });
+      setHostSize({ w: pr.width, h: pr.height });
     }
     sync();
     const ro = new ResizeObserver(sync);
@@ -281,6 +296,17 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
     ro.observe(parent);
     return () => ro.disconnect();
   }, [pixiApp]);
+
+  // The right-hand letterbox strip, when there is one worth using.
+  const gutterLeft = canvasRect.left + canvasRect.w;
+  const gutterWidth = hostSize.w - gutterLeft;
+  const adminGutter =
+    IS_DEV_BUILD &&
+    hostSize.w > hostSize.h &&
+    gutterWidth >= MIN_GUTTER_WIDTH &&
+    hostSize.h >= MIN_GUTTER_HEIGHT
+      ? { left: gutterLeft, top: 0, width: gutterWidth, height: hostSize.h }
+      : null;
 
   return (
     <PixiAppContext.Provider value={pixiApp}>
@@ -321,6 +347,11 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
             canvasRect={canvasRect}
             gameClient={gameClientRef.current}
           />
+
+          {/* Dev-only, and only when the window is wide enough to leave a
+              real gutter beside the canvas — the panel never overlaps the
+              play area, so it can't cost the game a pixel or a click. */}
+          {adminGutter && <AdminPanel gutter={adminGutter} />}
 
           <style>{`
         .map-renderer {

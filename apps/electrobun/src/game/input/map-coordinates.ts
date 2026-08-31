@@ -62,3 +62,13 @@ export function getMapTransitionDirection(
 
   return { dx, dy };
 }
+
+/**
+ * The map's world coordinates, or null before `preloadMapCoordinates()`
+ * resolves / for a map `map-data.json` doesn't list. Same source as the
+ * world map, so the caption and the map marker can never disagree.
+ */
+export function getMapCoords(mapId: number): { x: number; y: number } | null {
+  const entry = coords?.[mapId.toString()];
+  return entry ? { x: entry.x, y: entry.y } : null;
+}

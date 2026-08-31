@@ -18,6 +18,7 @@ import {
 } from "@/game/constants/z-index";
 import { computeMapScale } from "@/game/datacenter";
 import { getCellPosition } from "@/game/datacenter/cell";
+import { loadMapsLang } from "@/game/lang/maps-lang";
 import {
   TileLayerBuilder,
   type TilePrefixOverride,
@@ -90,41 +91,6 @@ const TACTIC_DECOR_FRAME_COUNT = 3;
  */
 function tacticDecorFrequency(losCellCount: number): number {
   return Math.max(Math.floor(losCellCount / 9), 3);
-}
-
-/**
- * Lazy lang.MA.sa loader. The maps lang bundle is published per locale but
- * `tt` (theme name) is locale-agnostic — any locale's bundle yields the same
- * theme strings, so we always fetch `fr`.
- */
-interface LangSubarea {
-  tt?: string;
-  tc?: string[];
-}
-let tacticLangCache: Record<string, LangSubarea> | null = null;
-let tacticLangPending: Promise<Record<string, LangSubarea> | null> | null = null;
-async function loadTacticLangSubareas(): Promise<
-  Record<string, LangSubarea> | null
-> {
-  if (tacticLangCache) return tacticLangCache;
-  if (tacticLangPending) return tacticLangPending;
-  tacticLangPending = (async () => {
-    try {
-      const res = await fetch("/assets/langs/fr/maps.json");
-      if (!res.ok) return null;
-      const json = (await res.json()) as {
-        data?: { MA?: { sa?: Record<string, LangSubarea> } };
-      };
-      const sa = json.data?.MA?.sa ?? null;
-      if (sa) tacticLangCache = sa;
-      return sa;
-    } catch {
-      return null;
-    } finally {
-      tacticLangPending = null;
-    }
-  })();
-  return tacticLangPending;
 }
 
 function tacticWalkableTileId(
@@ -614,8 +580,8 @@ export class MapHandler {
   private async resolveTacticThemeTileKey(
     subareaId: number
   ): Promise<string | null> {
-    const sa = await loadTacticLangSubareas();
-    const theme = sa?.[String(subareaId)]?.tt;
+    const lang = await loadMapsLang();
+    const theme = lang.subareas.get(subareaId)?.themeName;
     if (!theme) return null;
     return `tactic_${theme}`;
   }

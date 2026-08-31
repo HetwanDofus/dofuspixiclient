@@ -162,18 +162,29 @@ export async function wireVelloLoaders(
   getUiAssetRenderer().init(vello, ctx.app.renderer);
 
   const spriteLoader = ctx.characterSpriteLoader;
-  ctx.engine.debugInfo = () => {
+  // Sampled once a second by the engine's FPS accumulator and published to
+  // `perfStore` — the admin panel reads it from there. Null until the frame
+  // atlas exists, which is what the panel shows as "en attente".
+  ctx.engine.perfSample = () => {
     const atlas = spriteLoader.getAtlas();
 
     if (!atlas) {
-      return "no atlas";
+      return null;
     }
 
     const s = atlas.stats;
     const war = ctx.worldActors.getRenderer();
-    const updMs = war ? war.lastUpdateMs.toFixed(1) : "?";
-    const n = war ? war.getPlayerIds().length : 0;
-    return `${n}act upd:${updMs}ms | sl:${s.slots}/${s.maxSlots} r:${s.lastRenders} q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms h:${s.lastHits}`;
+
+    return {
+      actors: war ? war.getPlayerIds().length : 0,
+      updateMs: war ? war.lastUpdateMs : 0,
+      atlasSlots: s.slots,
+      atlasMaxSlots: s.maxSlots,
+      renders: s.lastRenders,
+      queueMs: s.lastQueueMs,
+      flushMs: s.lastFlushMs,
+      hits: s.lastHits,
+    };
   };
 }
 

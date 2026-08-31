@@ -12,6 +12,7 @@ beforeEach(() => {
     activePanel: null,
     isWorldMapOpen: false,
     minimapMapId: null,
+    currentSubareaId: null,
     connected: false,
     loggedIn: false,
     debugEnabled: false,
