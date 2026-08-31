@@ -15,6 +15,8 @@ export interface HudState {
   activePanel: PanelName;
   isWorldMapOpen: boolean;
   minimapMapId: number | null;
+  /** Subarea the server put on the current map's GameMapData (0 → null). */
+  currentSubareaId: number | null;
   connected: boolean;
   loggedIn: boolean;
   debugEnabled: boolean;
@@ -25,6 +27,7 @@ const initialState: HudState = {
   activePanel: null,
   isWorldMapOpen: false,
   minimapMapId: null,
+  currentSubareaId: null,
   connected: false,
   loggedIn: false,
   debugEnabled: false,

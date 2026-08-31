@@ -12,6 +12,7 @@ export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
 export type { InventoryState, InventoryWeight } from "./inventory-store";
 export type { NpcDialogAnswer, NpcDialogState } from "./npc-dialog-store";
+export type { PerfSceneSample, PerfState } from "./perf-store";
 export type {
   HotbarTab,
   ResolvedShortcut,
@@ -70,6 +71,7 @@ export {
   getTemplate,
   inventoryStore,
 } from "./inventory-store";
+export { perfStore } from "./perf-store";
 export {
   closeNpcDialog,
   markNpcDialogAnswered,

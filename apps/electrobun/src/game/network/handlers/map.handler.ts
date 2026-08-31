@@ -309,7 +309,10 @@ export class MapHandler {
       battlefield.prepareWorldActors();
 
       this.mapLoadPromise = battlefield.loadMapFromData(mapData, direction);
-      hudStore.setState({ minimapMapId: mapId });
+      hudStore.setState({
+        minimapMapId: mapId,
+        currentSubareaId: payload.subareaId > 0 ? payload.subareaId : null,
+      });
 
       await this.mapLoadPromise;
       battlefield.revealMap();
