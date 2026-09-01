@@ -6,6 +6,7 @@ import { FightHistoryRepository } from "@modules/fight/engine/fight.history.repo
 import { FightLifecycleService } from "@modules/fight/engine/fight.lifecycle.service";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import { InventoryModule } from "@modules/inventory/inventory.module";
+import { JobsModule } from "@modules/jobs/jobs.module";
 import { MapsModule } from "@modules/maps/maps.module";
 import { MonstersModule } from "@modules/monsters/monsters.module";
 import { PlayerPresenceModule } from "@modules/player-presence/player-presence.module";
@@ -28,6 +29,7 @@ import { Global, Module } from "@nestjs/common";
     StatsModule,
     MonstersModule,
     InventoryModule,
+    JobsModule,
   ],
   providers: [
     FightRegistryService,

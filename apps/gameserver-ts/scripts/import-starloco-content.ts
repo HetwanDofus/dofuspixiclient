@@ -77,6 +77,11 @@ import { basename } from "node:path";
 import { CamelCasePlugin, Kysely, PostgresDialect, sql } from "kysely";
 import pg from "pg";
 
+import {
+  filterDialogGraph,
+  type ImportedDialogAction,
+  type ImportedDialogQuestion,
+} from "./dialog-graph.ts";
 import { insertRows, langBundlePath, toRecord } from "./starloco-dump.ts";
 
 const dumpPath = process.argv[2];
@@ -196,12 +201,17 @@ async function upsert(
   if (rows.length === 0) {
     return;
   }
-  const columns = Object.keys(rows[0]!).filter((c) => !conflict.includes(c));
+  const firstRow = rows[0];
+  const firstConflict = conflict[0];
+  if (!firstRow || !firstConflict) {
+    throw new Error(`upsert ${table}: rows and conflict columns are required`);
+  }
+  const columns = Object.keys(firstRow).filter((c) => !conflict.includes(c));
 
   // biome-ignore lint/suspicious/noExplicitAny: builder callbacks inherit the untyped `Kysely<any>` above, so there is no narrower type to give them.
   const onConflict = (oc: any) =>
     (conflict.length === 1
-      ? oc.column(conflict[0]!)
+      ? oc.column(firstConflict)
       : oc.columns(conflict)
     ).doUpdateSet((eb: { ref: (c: string) => unknown }) =>
       Object.fromEntries(columns.map((c) => [c, eb.ref(`excluded.${c}`)]))
@@ -295,6 +305,11 @@ const langItemStats = (
 const langItemSets = (
   await bundle<{ IS: Record<string, { n: string }> }>("itemsets")
 ).IS;
+const langDialog = (
+  await bundle<{
+    D: { q: Record<string, string>; a: Record<string, string> };
+  }>("dialog")
+).D;
 
 console.log(
   `lang bundles: ${Object.keys(langMonsters).length} monsters, ` +
@@ -927,7 +942,7 @@ console.log(
 // are read and dropped: they are the dump's authoring notes, not what 1.29
 // shows. See `dofus/datacenter/Question.as:24-40`.
 
-const dialogQuestions: Record<string, unknown>[] = [];
+const dialogQuestions: ImportedDialogQuestion[] = [];
 
 for (const values of insertRows(dump, "npc_questions")) {
   const row = toRecord(NPC_QUESTION_COLUMNS, values);
@@ -941,16 +956,14 @@ for (const values of insertRows(dump, "npc_questions")) {
     // The dump separates answer ids with `;` in every row that has more than
     // one, but a handful use `,`; splitting on both costs nothing and the
     // order is display order.
-    responseIds: JSON.stringify(idList(row.responses)),
-    parameters: JSON.stringify(textList(row.params)),
+    responseIds: idList(row.responses),
+    parameters: textList(row.params),
     cond: String(row.cond ?? ""),
     ifFalse: num(row.ifFalse),
   });
 }
 
-await upsert("npcDialogQuestions", ["id"], dialogQuestions);
-
-const dialogActions: Record<string, unknown>[] = [];
+const dialogActions: ImportedDialogAction[] = [];
 const seenActions = new Set<string>();
 
 for (const values of insertRows(dump, "npc_reponses_actions")) {
@@ -973,17 +986,65 @@ for (const values of insertRows(dump, "npc_reponses_actions")) {
   dialogActions.push({ responseId, type, args: String(row.args ?? "") });
 }
 
-await upsert("npcDialogResponseActions", ["responseId", "type"], dialogActions);
+function appendResponse(
+  questions: ImportedDialogQuestion[],
+  questionId: number,
+  responseId: number
+): void {
+  const question = questions.find((entry) => entry.id === questionId);
+  if (question && !question.responseIds.includes(responseId)) {
+    question.responseIds.push(responseId);
+  }
+}
 
-const branching = dialogActions.filter(
+// StarLoco 1.39 orphaned two 1.29 learning actions. Incarnam's own NPCs are
+// stable, reachable roots and the response labels already exist in the retail
+// 1.29 bundle, so attach the two missing professions there rather than invent
+// dialog text. Contremaitre Ikul teaches Alchimiste; Pecheur d'Incarnam,
+// Pecheur. A missing success/failure branch means the dialog simply closes.
+appendResponse(dialogQuestions, 3596, 10217);
+dialogActions.push({ responseId: 10217, type: 6, args: "26" });
+appendResponse(dialogQuestions, 3745, 10219);
+dialogActions.push({ responseId: 10219, type: 6, args: "36" });
+
+const filteredDialog = filterDialogGraph({
+  questions: dialogQuestions,
+  actions: dialogActions,
+  questionTexts: langDialog.q,
+  responseTexts: langDialog.a,
+});
+
+// Upsert alone would leave rows rejected by a later, stricter import in the
+// database. These two tables are wholly importer-owned static content.
+await db.deleteFrom("npcDialogResponseActions").execute();
+await db.deleteFrom("npcDialogQuestions").execute();
+
+await upsert(
+  "npcDialogQuestions",
+  ["id"],
+  filteredDialog.questions.map((question) => ({
+    ...question,
+    responseIds: JSON.stringify(question.responseIds),
+    parameters: JSON.stringify(question.parameters),
+  }))
+);
+await upsert(
+  "npcDialogResponseActions",
+  ["responseId", "type"],
+  filteredDialog.actions
+);
+
+const branching = filteredDialog.actions.filter(
   (a) => a.type === 1 && String(a.args).trim() !== "DV"
 ).length;
 
 console.log(
-  `upserted ${dialogQuestions.length} dialog questions and ` +
-    `${dialogActions.length} answer actions ` +
+  `upserted ${filteredDialog.questions.length} dialog questions and ` +
+    `${filteredDialog.actions.length} answer actions ` +
     `(${branching} branch to another question, the rest end the dialog ` +
-    `or fire an effect)`
+    `or fire an effect); rejected ${filteredDialog.rejectedQuestions} ` +
+    `questions without 1.29 text, ${filteredDialog.rejectedResponses} ` +
+    `unrenderable answers (${filteredDialog.rejectedDeadBranches} dead branches)`
 );
 
 // ── Auction houses ──────────────────────────────────────────────────────────

@@ -135,6 +135,38 @@ export function JobsPanel({
                   }}
                 />
               </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: p(1),
+                  fontSize: p(9),
+                  opacity: 0.82,
+                }}
+              >
+                {job.skills.map((skill) => {
+                  const label =
+                    lang?.skills.get(skill.id)?.label ??
+                    `Compétence ${skill.id}`;
+                  const detail =
+                    skill.slots > 0
+                      ? `${skill.slots} case${skill.slots > 1 ? "s" : ""}`
+                      : `niveau ${skill.minLevel}`;
+
+                  return (
+                    <div
+                      key={skill.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>{label}</span>
+                      <span>{detail}</span>
+                    </div>
+                  );
+                })}
+              </div>
               {job.skills.some((skill) => skill.slots > 0) && (
                 <JobOptions
                   zoom={zoom}

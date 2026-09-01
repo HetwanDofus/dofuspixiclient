@@ -1,0 +1,43 @@
+{
+  "$comment": [
+    "Paliers de Chasseur des 30 viandes crues du bundle Dofus 1.29.",
+    "Les couples monstre -> viande, taux et quantites restent ceux de game.sql.",
+    "Le niveau de l'objet n'est pas utilise: plusieurs objets divergent du",
+    "palier de chasse (Viande de Koalak niveau objet 60, palier Chasseur 95).",
+    "Transcrit du guide DofuX publie en 2009, dont le recapitulatif enumere",
+    "chaque famille de viande et son niveau de drop. Consulte le 2026-09-01.",
+    "URL: https://www.dofux.org/articles-545-chasseur-monter-jusqu-au-niveau-100.dx"
+  ],
+  "tiers": [
+    { "itemId": 1896, "minLevel": 1 },
+    { "itemId": 1897, "minLevel": 40 },
+    { "itemId": 1898, "minLevel": 1 },
+    { "itemId": 1899, "minLevel": 10 },
+    { "itemId": 1900, "minLevel": 20 },
+    { "itemId": 1901, "minLevel": 80 },
+    { "itemId": 1902, "minLevel": 20 },
+    { "itemId": 1903, "minLevel": 40 },
+    { "itemId": 1905, "minLevel": 60 },
+    { "itemId": 1911, "minLevel": 10 },
+    { "itemId": 1912, "minLevel": 20 },
+    { "itemId": 1913, "minLevel": 40 },
+    { "itemId": 1914, "minLevel": 50 },
+    { "itemId": 1915, "minLevel": 1 },
+    { "itemId": 1916, "minLevel": 50 },
+    { "itemId": 1917, "minLevel": 30 },
+    { "itemId": 1918, "minLevel": 50 },
+    { "itemId": 1919, "minLevel": 70 },
+    { "itemId": 1921, "minLevel": 60 },
+    { "itemId": 1922, "minLevel": 40 },
+    { "itemId": 1923, "minLevel": 60 },
+    { "itemId": 1924, "minLevel": 70 },
+    { "itemId": 1926, "minLevel": 90 },
+    { "itemId": 1927, "minLevel": 30 },
+    { "itemId": 1929, "minLevel": 50 },
+    { "itemId": 1930, "minLevel": 70 },
+    { "itemId": 1933, "minLevel": 60 },
+    { "itemId": 8498, "minLevel": 60 },
+    { "itemId": 8499, "minLevel": 95 },
+    { "itemId": 8500, "minLevel": 80 }
+  ]
+}

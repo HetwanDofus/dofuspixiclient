@@ -2,6 +2,7 @@ import type { FightChallenge } from "@modules/fight/challenges/fight.challenge.b
 import type { Fight } from "@modules/fight/core/fight.entity";
 import type { Fighter } from "@modules/fight/core/fight.fighter";
 import type { LootRoll } from "@modules/fight/engine/fight.loot";
+import type { ExperienceGain } from "@modules/jobs/jobs.service";
 import type { TransactionalAdapterKysely } from "@nestjs-cls/transactional-adapter-kysely";
 import type { DB } from "@shared/db/schema";
 import { create } from "@bufbuild/protobuf";
@@ -26,7 +27,18 @@ import {
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import { InventoryRepository } from "@modules/inventory/inventory.repository";
-import { rollItemEffects } from "@modules/inventory/item-effects";
+import {
+  parseItemEffects,
+  rollItemEffects,
+} from "@modules/inventory/item-effects";
+import {
+  HUNTER_JOB_ID,
+  HUNTING_WEAPON_EFFECT_ID,
+  RAW_MEAT_ITEM_TYPE,
+  rollHunterMeat,
+} from "@modules/jobs/hunter.rules";
+import { JobsRepository } from "@modules/jobs/jobs.repository";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-entry";
@@ -49,6 +61,17 @@ interface LevelUpOutcome {
   learnedSpells: number;
 }
 
+interface HunterGainOutcome {
+  sessionId: string;
+  playerId: string;
+  gain: ExperienceGain;
+}
+
+interface RolledRewards {
+  loot: Map<number, LootRoll[]>;
+  hunterExperience: Map<number, number>;
+}
+
 @Injectable()
 export class FightEndService {
   private readonly logger = new Logger(FightEndService.name);
@@ -67,6 +90,8 @@ export class FightEndService {
     private readonly monsters: MonstersRepository,
     private readonly inventory: InventoryRepository,
     private readonly items: InventoryFramesService,
+    private readonly jobsRepo: JobsRepository,
+    private readonly jobs: JobsService,
     private readonly txHost: TransactionHost<TransactionalAdapterKysely<DB>>
   ) {}
 
@@ -126,7 +151,7 @@ export class FightEndService {
         ? Math.floor(totalKamas / winnerPlayers.length)
         : 0;
 
-    const loot = await this.rollLoot(
+    const { loot, hunterExperience } = await this.rollLoot(
       fight,
       winner,
       winnerPlayers,
@@ -138,13 +163,14 @@ export class FightEndService {
     // payout the database never took is the worst possible failure here:
     // the player believes they earned it. Writing first means a failed
     // transaction shows nothing rather than a lie.
-    const levelledUp = await this.persistOutcome({
+    const { levelledUp, hunterGains } = await this.persistOutcome({
       fight,
       winner,
       durationMs,
       xpPerPlayer,
       kamasPerPlayer,
       loot,
+      hunterExperience,
     });
 
     // Build results
@@ -208,6 +234,7 @@ export class FightEndService {
     // After the result screen, so the panels the player opens next are
     // already showing the new level, capital and spells.
     await this.announceLevelUps(levelledUp);
+    await this.announceHunterGains(hunterGains);
 
     // Clean buffs and states for all fighters
     for (const f of fight.fighters()) {
@@ -338,11 +365,12 @@ export class FightEndService {
     winner: TeamSide,
     winnerPlayers: readonly Fighter[],
     challengeDropBonus: number
-  ): Promise<Map<number, LootRoll[]>> {
+  ): Promise<RolledRewards> {
     const loot = new Map<number, LootRoll[]>();
+    const hunterExperience = new Map<number, number>();
 
     if (fight.type !== FightType.PvM || winnerPlayers.length === 0) {
-      return loot;
+      return { loot, hunterExperience };
     }
 
     const loserTeam = winner === 0 ? 1 : 0;
@@ -352,14 +380,21 @@ export class FightEndService {
       .filter((id) => id > 0);
 
     if (monsterIds.length === 0) {
-      return loot;
+      return { loot, hunterExperience };
     }
 
     const drops = await this.monsters.dropsFor(monsterIds);
 
     if (drops.length === 0) {
-      return loot;
+      return { loot, hunterExperience };
     }
+
+    // Raw meat is not ordinary loot. Without this split the generic roller
+    // grants it to every character, including non-hunters and hunters with no
+    // hunting weapon — exactly the opposite of the profession's one gate.
+    const ordinaryDrops = drops.filter(
+      (drop) => drop.itemType !== RAW_MEAT_ITEM_TYPE
+    );
 
     for (const fighter of winnerPlayers) {
       if (!fighter.player) {
@@ -371,17 +406,54 @@ export class FightEndService {
       // Reading it here rather than re-querying is both cheaper and more
       // honest — it is the chance the player actually fought with.
       const rolled = rollLoot({
-        drops,
+        drops: ordinaryDrops,
         prospection: prospection(fighter.stats.get(Characteristic.Chance), 0),
         challengeBonusPct: challengeDropBonus,
       });
+
+      const playerId = String(fighter.player.id);
+      const hunter = await this.jobsRepo.findPlayerJob(playerId, HUNTER_JOB_ID);
+      const huntingWeapon = hunter
+        ? await this.hasHuntingWeapon(playerId)
+        : false;
+      const hunted = rollHunterMeat({
+        hasHuntingWeapon: huntingWeapon,
+        hunterLevel: hunter?.level ?? 0,
+        monsterIds,
+        drops,
+        prospection: prospection(fighter.stats.get(Characteristic.Chance), 0),
+      });
+
+      rolled.push(...hunted.items);
+      if (hunted.experience > 0) {
+        hunterExperience.set(fighter.id, hunted.experience);
+      }
 
       if (rolled.length > 0) {
         loot.set(fighter.id, rolled);
       }
     }
 
-    return loot;
+    return { loot, hunterExperience };
+  }
+
+  /** Native hunting tools and runed weapons both carry effect 795. */
+  private async hasHuntingWeapon(playerId: string): Promise<boolean> {
+    const weapon = (await this.inventory.findEquipped(playerId)).find(
+      (item) => item.position === 1
+    );
+
+    if (!weapon) {
+      return false;
+    }
+
+    let effects = parseItemEffects(weapon.effects);
+    if (effects.length === 0) {
+      const template = await this.inventory.findTemplate(weapon.templateId);
+      effects = parseItemEffects(template?.effects);
+    }
+
+    return effects.some((effect) => effect.id === HUNTING_WEAPON_EFFECT_ID);
   }
 
   /**
@@ -400,14 +472,26 @@ export class FightEndService {
     xpPerPlayer: number;
     kamasPerPlayer: number;
     loot: Map<number, LootRoll[]>;
-  }): Promise<LevelUpOutcome[]> {
-    const { fight, winner, durationMs, xpPerPlayer, kamasPerPlayer, loot } =
-      outcome;
+    hunterExperience: Map<number, number>;
+  }): Promise<{
+    levelledUp: LevelUpOutcome[];
+    hunterGains: HunterGainOutcome[];
+  }> {
+    const {
+      fight,
+      winner,
+      durationMs,
+      xpPerPlayer,
+      kamasPerPlayer,
+      loot,
+      hunterExperience,
+    } = outcome;
 
     // Collected inside the transaction, announced outside it: a client
     // told "you reached level 12" by a transaction that then rolls back
     // is the same lie the payout screen is careful not to tell.
     const levelledUp: LevelUpOutcome[] = [];
+    const hunterGains: HunterGainOutcome[] = [];
 
     await this.txHost.withTransaction(async () => {
       const historyResult = await this.historyRepo.insertHistory({
@@ -482,10 +566,38 @@ export class FightEndService {
         }
 
         await this.grantLoot(fighter, playerId, loot.get(fighter.id) ?? []);
+
+        const hunterXp = hunterExperience.get(fighter.id) ?? 0;
+        if (fighter.sessionId && hunterXp > 0) {
+          const gain = await this.jobs.addExperience(
+            playerId,
+            HUNTER_JOB_ID,
+            hunterXp
+          );
+          if (gain) {
+            hunterGains.push({
+              sessionId: fighter.sessionId,
+              playerId,
+              gain,
+            });
+          }
+        }
       }
     });
 
-    return levelledUp;
+    return { levelledUp, hunterGains };
+  }
+
+  private async announceHunterGains(
+    hunterGains: readonly HunterGainOutcome[]
+  ): Promise<void> {
+    for (const entry of hunterGains) {
+      await this.jobs.announceGain(entry.sessionId, entry.playerId, entry.gain);
+
+      if (entry.gain.leveledTo !== null) {
+        await this.stats.sendStats(entry.sessionId, entry.playerId);
+      }
+    }
   }
 
   /**

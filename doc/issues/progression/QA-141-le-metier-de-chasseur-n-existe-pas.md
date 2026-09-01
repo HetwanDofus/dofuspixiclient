@@ -4,10 +4,10 @@ title: Le métier de Chasseur n'existe pas — et ses données non plus
 severity: P3
 domain: progression
 type: feature
-status: confirmed
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-059, QA-060, QA-129]
 files:
@@ -85,3 +85,15 @@ est là, et ce qui manque est identifié.
 Un test couvre : sans arme de chasse pas de viande, monstre non animal pas de
 viande, et le taux qui varie avec l'écart de niveau. En jeu, gagner un combat
 contre un Bouftou avec une arme de chasse donne de la viande et de l'expérience.
+
+## Résolution
+
+Les 30 paliers sont transcrits et sourcés dans
+`data/hunter-meat-tiers.json` ; les divergences avec le niveau des objets sont
+donc explicites. Le butin de type 63 est retiré du lancer générique et passe par
+`hunter.rules.ts`, qui exige le métier 41, une arme portant l'effet 795 et le
+palier requis. La formule de maîtrise et le barème d'XP demandé par ce projet
+sont nommés, documentés et couverts par des tests purs.
+
+La distribution de fin de combat crédite viande et XP dans la même transaction,
+puis émet les frames d'inventaire et de métier après validation.

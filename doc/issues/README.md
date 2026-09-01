@@ -108,9 +108,9 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | Statut | Entrées |
 |---|---|
 | `open` — observé, non reproduit méthodiquement | 45 |
-| `confirmed` — reproduit, preuve au dossier | 19 |
-| `in-progress` — correctif engagé | 19 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 55 |
+| `confirmed` — reproduit, preuve au dossier | 17 |
+| `in-progress` — correctif engagé | 13 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 63 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -202,11 +202,11 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-126](auth/QA-126-api-admin-de-provisionnement-de-comptes-absente.md) | P1 | auth | feature | fixed | L'API admin ne permet pas de provisionner un compte et son premier personnage |
 | [QA-127](server-runtime/QA-127-planificateur-declenche-les-taches-lointaines-immediatement.md) | P1 | server-runtime | bug | fixed | Le planificateur déclenche immédiatement toute tâche à plus de 24,8 jours |
 | [QA-129](progression/QA-129-referentiel-des-metiers-jamais-importe.md) | P1 | progression | data | fixed | Le référentiel des métiers n'est jamais importé — cinq tables vides depuis la migration 0011 |
-| [QA-130](world-content/QA-130-aucun-pnj-n-enseigne-de-metier.md) | P1 | world-content | gap | in-progress | Aucun PNJ n'enseigne de métier — l'action de réponse 6 n'a pas de branche |
-| [QA-131](network/QA-131-protocole-des-metiers-sans-producteur.md) | P1 | network | gap | in-progress | Le protocole des métiers n'a aucun producteur, et JobSkillEntry se trompe de champs |
+| [QA-130](world-content/QA-130-aucun-pnj-n-enseigne-de-metier.md) | P1 | world-content | gap | fixed | Aucun PNJ n'enseigne de métier — l'action de réponse 6 n'a pas de branche |
+| [QA-131](network/QA-131-protocole-des-metiers-sans-producteur.md) | P1 | network | gap | fixed | Le protocole des métiers n'a aucun producteur, et JobSkillEntry se trompe de champs |
 | [QA-135](exchange/QA-135-aucun-atelier.md) | P1 | exchange | feature | fixed | Aucun atelier — l'échange de type 3 est refusé |
 | [QA-136](progression/QA-136-cases-taux-et-xp-d-artisanat.md) | P1 | progression | gap | fixed | Cases de craft, taux de réussite et expérience d'artisanat n'existent pas |
-| [QA-137](hud-panels/QA-137-pas-de-fenetre-d-atelier.md) | P1 | hud-panels | gap | in-progress | Pas de fenêtre d'atelier |
+| [QA-137](hud-panels/QA-137-pas-de-fenetre-d-atelier.md) | P1 | hud-panels | gap | fixed | Pas de fenêtre d'atelier |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -260,12 +260,12 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-124](worldmap/QA-124-manifeste-public-de-navigation-absent.md) | P2 | worldmap | feature | fixed | Aucun manifeste public ne décrit la topologie navigable du monde |
 | [QA-125](network/QA-125-contrats-typescript-non-publies.md) | P2 | network | feature | fixed | Les contrats TypeScript du client ne sont pas publiés |
 | [QA-128](hud-panels/QA-128-ascenseur-plus-haut-que-sa-glissiere.md) | P2 | hud-panels | bug | fixed | L'ascenseur dépasse sa glissière quand la liste est plus courte que sa fenêtre |
-| [QA-132](network/QA-132-gdf-jamais-emis.md) | P2 | network | gap | in-progress | GDF n'est jamais émis — un objet interactif n'a aucun état |
-| [QA-133](progression/QA-133-pods-de-metier-non-comptes.md) | P2 | progression | bug | in-progress | Les pods gagnés par les métiers ne sont jamais comptés |
-| [QA-134](hud-panels/QA-134-pas-de-panneau-metiers.md) | P2 | hud-panels | gap | in-progress | Pas de panneau Métiers — le bouton de bannière est rendu et inerte |
+| [QA-132](network/QA-132-gdf-jamais-emis.md) | P2 | network | gap | fixed | GDF n'est jamais émis — un objet interactif n'a aucun état |
+| [QA-133](progression/QA-133-pods-de-metier-non-comptes.md) | P2 | progression | bug | fixed | Les pods gagnés par les métiers ne sont jamais comptés |
+| [QA-134](hud-panels/QA-134-pas-de-panneau-metiers.md) | P2 | hud-panels | gap | fixed | Pas de panneau Métiers — le bouton de bannière est rendu et inerte |
 | [QA-138](exchange/QA-138-craft-cooperatif-et-securise.md) | P2 | exchange | feature | fixed | Ni craft coopératif ni craft sécurisé |
 | [QA-140](progression/QA-140-on-ne-peut-pas-oublier-un-metier.md) | P2 | progression | feature | fixed | On ne peut pas oublier un métier |
-| [QA-142](world-content/QA-142-branches-de-dialogue-non-affichables.md) | P2 | world-content | data | confirmed | Des branches de dialogue mènent à des questions que le client 1.29 ne sait pas afficher |
+| [QA-142](world-content/QA-142-branches-de-dialogue-non-affichables.md) | P2 | world-content | data | fixed | Des branches de dialogue mènent à des questions que le client 1.29 ne sait pas afficher |
 
 ## P3 — finition, confort, cosmétique
 
@@ -293,7 +293,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-111](exchange/QA-111-inventaire-de-monture-et-enclos.md) | P3 | exchange | feature | open | Ni inventaire de monture, ni étable, ni enclos |
 | [QA-122](exchange/QA-122-pas-de-liste-noire.md) | P3 | exchange | feature | open | Pas de bouton « Ignorer » sur une proposition d'échange, faute de liste noire |
 | [QA-139](exchange/QA-139-livre-des-artisans-et-options-metier.md) | P3 | exchange | feature | fixed | Pas de livre des artisans ni d'options de métier |
-| [QA-141](progression/QA-141-le-metier-de-chasseur-n-existe-pas.md) | P3 | progression | feature | confirmed | Le métier de Chasseur n'existe pas — et ses données non plus |
+| [QA-141](progression/QA-141-le-metier-de-chasseur-n-existe-pas.md) | P3 | progression | feature | fixed | Le métier de Chasseur n'existe pas — et ses données non plus |
 
 ## Sans gravité — vérifications sans défaut
 

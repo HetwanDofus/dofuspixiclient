@@ -4,10 +4,10 @@ title: Aucun PNJ n'enseigne de métier — l'action de réponse 6 n'a pas de bra
 severity: P1
 domain: world-content
 type: gap
-status: in-progress
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-097, QA-123, QA-129]
 files:

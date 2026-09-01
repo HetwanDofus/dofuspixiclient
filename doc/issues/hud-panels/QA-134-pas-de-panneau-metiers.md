@@ -4,10 +4,10 @@ title: Pas de panneau Métiers — le bouton de bannière est rendu et inerte
 severity: P2
 domain: hud-panels
 type: gap
-status: in-progress
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-052, QA-123, QA-131]
 files:

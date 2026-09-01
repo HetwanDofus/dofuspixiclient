@@ -165,7 +165,17 @@ describe("GatherableStateRepository (integration)", () => {
     expect(pending[0]).toMatchObject({ mapId: MAP_ID, cellId: CELL_ID });
 
     // And the same rows are what a newcomer to the map is shown.
-    expect(await repo.depletedOnMap(MAP_ID)).toEqual([{ cellId: CELL_ID }]);
+    expect(await repo.depletedOnMap(MAP_ID)).toEqual([
+      { cellId: CELL_ID, reserved: false },
+    ]);
     expect(await repo.depletedOnMap(MAP_ID + 1)).toEqual([]);
+  });
+
+  test("a newcomer also sees an in-progress reservation as locked", async () => {
+    await repo.reserve(MAP_ID, CELL_ID, ALICE, HOLD_MS);
+
+    expect(await repo.depletedOnMap(MAP_ID)).toEqual([
+      { cellId: CELL_ID, reserved: true },
+    ]);
   });
 });

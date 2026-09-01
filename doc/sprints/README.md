@@ -15,9 +15,9 @@ entre lots, le hors-périmètre, et la recette.
 | [S01](S01-noyau-jouable-securise-scalable.md) | Le noyau : jouable, sécurisé, scalable | à démarrer |
 | [S02](S02-echange-socle-et-banque.md) | L'échange : le socle, prouvé par la banque | à démarrer |
 | [S03](S03-echange-entre-joueurs.md) | L'échange entre joueurs : deux offres, deux validations, un rollback | à démarrer |
-| [S04](S04-metiers-recolte.md) | Les métiers : le référentiel, prouvé par la récolte | à démarrer |
-| [S05](S05-metiers-artisanat.md) | L'artisanat : l'atelier, par-dessus deux socles déjà posés | à démarrer |
-| [S06](S06-metiers-cooperation-et-cycle.md) | Les métiers : la coopération, et fermer le cycle | à démarrer |
+| [S04](S04-metiers-recolte.md) | Les métiers : le référentiel, prouvé par la récolte | terminé |
+| [S05](S05-metiers-artisanat.md) | L'artisanat : l'atelier, par-dessus deux socles déjà posés | terminé |
+| [S06](S06-metiers-cooperation-et-cycle.md) | Les métiers : la coopération, et fermer le cycle | terminé |
 
 ## Écrire un sprint
 

@@ -3,6 +3,16 @@ import type { DB } from "@shared/db/schema";
 import { Injectable } from "@nestjs/common";
 import { TransactionHost } from "@nestjs-cls/transactional";
 
+export interface MonsterDropWithType {
+  monsterId: number;
+  itemTemplateId: number;
+  rate: number;
+  minQuantity: number;
+  maxQuantity: number;
+  /** `item_templates.type`; raw meat is 63. */
+  itemType: number;
+}
+
 @Injectable()
 export class MonstersRepository {
   constructor(
@@ -52,8 +62,20 @@ export class MonstersRepository {
 
     return this.txHost.tx
       .selectFrom("monsterDrops")
-      .selectAll()
+      .innerJoin(
+        "itemTemplates",
+        "itemTemplates.id",
+        "monsterDrops.itemTemplateId"
+      )
+      .select([
+        "monsterDrops.monsterId",
+        "monsterDrops.itemTemplateId",
+        "monsterDrops.rate",
+        "monsterDrops.minQuantity",
+        "monsterDrops.maxQuantity",
+        "itemTemplates.type as itemType",
+      ])
       .where("monsterId", "in", [...monsterIds])
-      .execute();
+      .execute() as Promise<MonsterDropWithType[]>;
   }
 }

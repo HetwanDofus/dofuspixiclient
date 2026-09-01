@@ -120,12 +120,15 @@ export class GatherableStateRepository {
    * The depleted cells of one map, for a client that has just walked onto
    * it. Without this a newcomer sees every stump as a standing tree.
    */
-  async depletedOnMap(mapId: number): Promise<{ cellId: number }[]> {
-    const result = await sql<{ cellId: number }>`
-      SELECT cell_id AS "cellId"
+  async depletedOnMap(
+    mapId: number
+  ): Promise<{ cellId: number; reserved: boolean }[]> {
+    const result = await sql<{ cellId: number; reserved: boolean }>`
+      SELECT cell_id AS "cellId",
+             COALESCE(reserved_until > now(), false) AS "reserved"
         FROM gatherable_cell_states
        WHERE map_id = ${mapId}
-         AND available_at > now()
+         AND (available_at > now() OR reserved_until > now())
     `.execute(this.txHost.tx);
 
     return result.rows;

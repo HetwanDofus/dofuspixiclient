@@ -4,10 +4,10 @@ title: Les pods gagnés par les métiers ne sont jamais comptés
 severity: P2
 domain: progression
 type: bug
-status: in-progress
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-013, QA-123, QA-129]
 files:

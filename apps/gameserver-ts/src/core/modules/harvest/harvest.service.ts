@@ -142,7 +142,7 @@ export class HarvestService implements OnModuleInit {
       [sessionId],
       depleted.map((row) => ({
         cellId: row.cellId,
-        frame: InteractiveFrame.InUse,
+        frame: row.reserved ? InteractiveFrame.Locked : InteractiveFrame.InUse,
       }))
     );
   }

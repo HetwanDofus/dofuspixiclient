@@ -4,10 +4,10 @@ title: Le protocole des métiers n'a aucun producteur, et JobSkillEntry se tromp
 severity: P1
 domain: network
 type: gap
-status: in-progress
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-123, QA-129, QA-125]
 files:

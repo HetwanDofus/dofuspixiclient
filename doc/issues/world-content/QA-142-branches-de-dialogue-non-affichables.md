@@ -4,10 +4,10 @@ title: Des branches de dialogue mènent à des questions que le client 1.29 ne s
 severity: P2
 domain: world-content
 type: data
-status: confirmed
+status: fixed
 session: 7
 opened: 2026-09-01
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-097, QA-130]
 files:
@@ -89,3 +89,17 @@ Deux pistes, la première étant celle qui suit la règle du dépôt :
 - En jeu : Emia Elliesol ne propose plus de branche morte ; Farle Ingalsse
   [5,6] enseigne toujours Paysan.
 - Le script de marche d'arbre relève 19 métiers joignables sur 19.
+
+## Résolution
+
+L'import confronte désormais chaque question et réponse au bundle 1.29, retire
+les textes absents ou vides et propage les destinations mortes jusqu'à leur
+réponse parente. Les branches optionnelles d'une action d'apprentissage sont
+neutralisées si leur question n'est pas affichable, sans perdre l'action utile.
+L'import nettoie les anciennes lignes avant l'upsert pour ne pas conserver un
+graphe rejeté par une exécution ultérieure.
+
+Les réponses 1.29 déjà traduites `10217` et `10219` sont rattachées aux racines
+des PNJ d'Incarnam pour Alchimiste et Pêcheur. L'import réel rejette 395
+questions et 116 réponses non affichables, dont 2 branches mortes ; la marche
+du graphe trouve les 19 métiers joignables sur 19.

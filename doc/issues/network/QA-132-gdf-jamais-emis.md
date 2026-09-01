@@ -4,10 +4,10 @@ title: GDF n'est jamais émis — un objet interactif n'a aucun état
 severity: P2
 domain: network
 type: gap
-status: in-progress
+status: fixed
 session: 6
 opened: 2026-08-31
-closed:
+closed: 2026-09-01
 fixed_in:
 related: [QA-085, QA-123]
 files:

@@ -32,6 +32,8 @@ export interface SkillText {
   jobId: number;
   /** `SK[id].i` — the item a harvest yields, when it is one. */
   harvestItemId: number | null;
+  /** `SK[id].cl` — result templates this craft skill can make. */
+  craftItemIds: number[];
 }
 
 export interface JobsLang {
@@ -44,7 +46,9 @@ type JobsBundle = {
 };
 
 type SkillsBundle = {
-  data?: { SK?: Record<string, { d?: string; j?: number; i?: number }> };
+  data?: {
+    SK?: Record<string, { d?: string; j?: number; i?: number; cl?: number[] }>;
+  };
 };
 
 let cache: JobsLang | null = null;
@@ -88,6 +92,7 @@ function parseBundles(jobsJson: unknown, skillsJson: unknown): JobsLang {
       label: entry.d ?? String(id),
       jobId: entry.j ?? 0,
       harvestItemId: entry.i ?? null,
+      craftItemIds: entry.cl ?? [],
     });
   }
 

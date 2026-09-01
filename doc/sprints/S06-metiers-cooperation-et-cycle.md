@@ -60,14 +60,13 @@ les ressources) décrivent précisément le flux de B1.
 
 | # | Issue | Ce qui change | Ordre de grandeur |
 |---|---|---|---|
-| C1 | [QA-141](../issues/progression/QA-141-le-metier-de-chasseur-n-existe-pas.md) | Une table écrite à la main, ou un `wontfix` assumé | ? |
+| C1 | [QA-141](../issues/progression/QA-141-le-metier-de-chasseur-n-existe-pas.md) | La table sourcée des 30 paliers et le butin de chasse en fin de combat | 1 jour |
 
-**C1 est le seul lot du chantier métiers sans donnée amont.** Ni les bundles
-1.29, ni `game.sql`, ni les scripts Lua de StarLoco — qui ne définissent que
-cinq métiers de récolte — ne portent le tableau monstre → palier → viande. Le
-lot commence par établir si cette table peut être écrite avec assez de
-confiance ; si elle ne peut pas, la fiche passe `wontfix` avec sa raison, ce
-qui est un résultat et non un échec.
+**C1 était le seul lot du chantier métiers sans donnée amont complète.**
+`game.sql` portait déjà les 170 couples monstre → viande et leur taux ; le
+guide historique DofuX 1.29 a permis de transcrire et sourcer les 30 paliers
+restants. Le barème d'expérience et la progression du taux, propres au contrat
+de ce projet, restent nommés et testés comme règles dérivées.
 
 ---
 
@@ -131,6 +130,7 @@ cd ../..             && just issues-check
 
 ## À faire à la clôture
 
-Passer QA-138, QA-139 et QA-140 en `fixed`, trancher QA-141, puis
-`just issues`. Le chantier métiers est alors clos, à l'exception de la
-forgemagie, qui a toujours été hors de son périmètre.
+QA-138 à QA-141 sont `fixed`. QA-142, découverte pendant la recette des maîtres
+de métier, filtre le graphe 1.39 contre les textes 1.29 et rend les 19 métiers
+joignables. Le chantier métiers est clos, à l'exception de la forgemagie, qui
+a toujours été hors de son périmètre.

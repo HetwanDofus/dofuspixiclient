@@ -1,7 +1,12 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { GameClient } from "@/game/game-client";
 import type { ItemData } from "@/game/network/protocol";
+import {
+  craftRecipeTone,
+  loadCraftsLang,
+  matchCraftRecipe,
+} from "@/game/lang/crafts-lang";
 import { jobsLangSnapshot } from "@/game/lang/jobs-lang";
 import { craftStore } from "@/game/stores/craft-store";
 import { getBagItems, inventoryStore } from "@/game/stores/inventory-store";
@@ -55,6 +60,13 @@ export function CraftWindow({
   );
 
   const [selected, setSelected] = useState<number | null>(null);
+  const [craftRecipes, setCraftRecipes] = useState<Awaited<
+    ReturnType<typeof loadCraftsLang>
+  > | null>(null);
+
+  useEffect(() => {
+    void loadCraftsLang().then(setCraftRecipes);
+  }, []);
 
   if (!craft.open) {
     return null;
@@ -69,6 +81,16 @@ export function CraftWindow({
   );
   const skillName =
     jobsLangSnapshot()?.skills.get(craft.skillId)?.label ?? "Atelier";
+  const skill = jobsLangSnapshot()?.skills.get(craft.skillId);
+  const recipe = matchCraftRecipe(
+    skill?.craftItemIds ?? [],
+    laid,
+    craftRecipes
+  );
+  const recipeTone = craftRecipeTone(
+    recipe?.ingredients.length ?? 0,
+    craft.maxSlots
+  );
   const full = craft.slots.size >= craft.maxSlots;
 
   const lay = (item: ItemData, quantity: number) => {
@@ -144,9 +166,28 @@ export function CraftWindow({
         style={{
           position: "absolute",
           left: p(LEFT_X),
-          top: p(FOOTER_Y),
+          top: p(FOOTER_Y - 10),
           width: p(WINDOW.width - LEFT_X * 2),
-          height: p(16),
+          height: p(12),
+          fontFamily: "Verdana, sans-serif",
+          fontSize: p(9),
+          color: recipeColor(recipeTone),
+        }}
+      >
+        {recipe
+          ? `Résultat : ${recipe.resultName}`
+          : craft.slots.size > 0
+            ? "Recette inconnue"
+            : ""}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: p(LEFT_X),
+          top: p(FOOTER_Y + 4),
+          width: p(WINDOW.width - LEFT_X * 2),
+          height: p(12),
           fontFamily: "Verdana, sans-serif",
           fontSize: p(9),
           color: outcomeColor(craft.outcome),
@@ -186,6 +227,19 @@ export function CraftWindow({
       </div>
     </Panel>
   );
+}
+
+function recipeColor(tone: "none" | "grey" | "green" | "red"): string {
+  if (tone === "grey") {
+    return "#858585";
+  }
+  if (tone === "green") {
+    return "#8fae4a";
+  }
+  if (tone === "red") {
+    return "#b4523c";
+  }
+  return C.text;
 }
 
 function outcomeLabel(craft: {
