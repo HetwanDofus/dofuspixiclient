@@ -2,6 +2,10 @@ import type { ExchangeSession } from "@modules/exchange/exchange.types";
 import type { ItemRow } from "@shared/db/schema";
 import { create } from "@bufbuild/protobuf";
 import {
+  ExchangeCoopMovementSchema,
+  ExchangeCraftLoopEndSchema,
+  ExchangeCraftLoopSchema,
+  ExchangeCraftSchema,
   ExchangeCreateSchema,
   ExchangeDistantMovementSchema,
   ExchangeItemMovementSchema,
@@ -9,6 +13,7 @@ import {
   ExchangeLeaveSchema,
   ExchangeListSchema,
   ExchangeLocalMovementSchema,
+  ExchangePayMovementSchema,
   ExchangeReadySchema,
   ExchangeRequestSchema,
   ExchangeStorageMovementSchema,
@@ -67,6 +72,195 @@ export class ExchangeFramesService {
           value: create(ExchangeListSchema, {
             items: contents.map((row) => toItemData(row)),
             kamas,
+          }),
+        },
+      })
+    );
+  }
+
+  /**
+   * `EC` alone — a craft bench.
+   *
+   * No `EL` follows, and that is not an omission. A craft window's left pane
+   * is the player's own inventory, which the client already has, and its
+   * recipe list is built client-side from `Job.crafts` — `Craft.as` reads
+   * `Exchange.inventory` and `Exchange.localGarbage`, never a server list.
+   * Sending `EL` here would hand `datacenter.Storage` a payload it has no
+   * window to draw.
+   */
+  openCraft(sessionId: string, kind: number): void {
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeCreate",
+          value: create(ExchangeCreateSchema, {
+            success: true,
+            exchangeType: kind,
+          }),
+        },
+      })
+    );
+  }
+
+  /**
+   * `EM` — one stack changed on the bench.
+   *
+   * The craft window is one-sided, so only the local case goes out; a trade
+   * sends the distant `Em` alongside because there is somebody to send it to.
+   * `item.quantity` is the **absolute** amount now laid in the slot, the same
+   * contract as an offer.
+   */
+  benchItem(sessionId: string, add: boolean, item: ItemRow): void {
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeLocalMovement",
+          value: create(ExchangeLocalMovementSchema, {
+            success: true,
+            movement: {
+              case: "item",
+              value: create(ExchangeItemMovementSchema, {
+                add,
+                item: toItemData(item),
+              }),
+            },
+          }),
+        },
+      })
+    );
+  }
+
+  /**
+   * `Er` — an ingredient moved on a co-operative bench.
+   *
+   * Both sides see it, and both see the *same* case: unlike a trade, where
+   * each reader has a "mine" and a "theirs" pile, a co-operative craft has
+   * one bench that belongs to the customer and is watched by the artisan.
+   * `Exchange.as:onCoopMovement` writes it into the shared pile for either
+   * reader, which is why one frame goes to two sockets.
+   */
+  coopItem(
+    customerSessionId: string,
+    artisanSessionId: string,
+    add: boolean,
+    item: ItemRow
+  ): void {
+    this.frames.broadcast(
+      [customerSessionId, artisanSessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeCoopMovement",
+          value: create(ExchangeCoopMovementSchema, {
+            success: true,
+            movement: {
+              case: "item",
+              value: create(ExchangeItemMovementSchema, {
+                add,
+                item: toItemData(item),
+              }),
+            },
+          }),
+        },
+      })
+    );
+  }
+
+  /** `Ep` — the customer's payment changed. Same shape, other pile. */
+  payItem(
+    customerSessionId: string,
+    artisanSessionId: string,
+    add: boolean,
+    item: ItemRow
+  ): void {
+    this.frames.broadcast(
+      [customerSessionId, artisanSessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangePayMovement",
+          value: create(ExchangePayMovementSchema, {
+            success: true,
+            movement: {
+              case: "item",
+              value: create(ExchangeItemMovementSchema, {
+                add,
+                item: toItemData(item),
+              }),
+            },
+          }),
+        },
+      })
+    );
+  }
+
+  /** `Ep` for kamas. Absolute, like every other offer in this file. */
+  payKamas(
+    customerSessionId: string,
+    artisanSessionId: string,
+    kamas: bigint
+  ): void {
+    this.frames.broadcast(
+      [customerSessionId, artisanSessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangePayMovement",
+          value: create(ExchangePayMovementSchema, {
+            success: true,
+            movement: {
+              case: "kama",
+              value: create(ExchangeKamaMovementSchema, { quantity: kamas }),
+            },
+          }),
+        },
+      })
+    );
+  }
+
+  /**
+   * `Ec` — how the attempt went.
+   *
+   * A single letter, as 1.29 has it: `S` made it, `E` did not. `O` is the
+   * forgemagie "oops" and is never sent from here.
+   */
+  craftResult(sessionId: string, success: boolean): void {
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeCraft",
+          value: create(ExchangeCraftSchema, {
+            success: true,
+            resultCode: success ? "S" : "E",
+          }),
+        },
+      })
+    );
+  }
+
+  /** `EA` — one iteration of a series is done, this many left. */
+  craftLoop(sessionId: string, remaining: number, itemId: number): void {
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeCraftLoop",
+          value: create(ExchangeCraftLoopSchema, { remaining, itemId }),
+        },
+      })
+    );
+  }
+
+  /** `Ea` — the series is over, whether it ran out or was stopped. */
+  craftLoopEnd(sessionId: string, totalCrafted: number, itemId: number): void {
+    this.frames.broadcast(
+      [sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "exchangeCraftLoopEnd",
+          value: create(ExchangeCraftLoopEndSchema, {
+            totalCrafted,
+            itemId,
           }),
         },
       })

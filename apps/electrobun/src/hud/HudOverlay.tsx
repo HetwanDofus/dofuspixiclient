@@ -9,6 +9,9 @@ import { BannerReact } from "./banner/BannerReact";
 import { BigStoreWindow } from "./bigstore/BigStoreWindow";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { CrafterListWindow } from "./craft/CrafterListWindow";
+import { CraftWindow } from "./craft/CraftWindow";
+import { SecureCraftWindow } from "./craft/SecureCraftWindow";
 import { StorageWindow } from "./exchange/StorageWindow";
 import { TradeRequestDialog } from "./exchange/TradeRequestDialog";
 import { TradeWindow } from "./exchange/TradeWindow";
@@ -19,12 +22,14 @@ import { FriendsPanel } from "./friends/FriendsPanel";
 import { GameContextMenu } from "./GameContextMenu";
 import { GuildPanel } from "./guild/GuildPanel";
 import { InventoryWindow } from "./inventory/InventoryWindow";
+import { JobsPanel } from "./jobs/JobsPanel";
 import { MountPanel } from "./mount/MountPanel";
 import { NpcDialog } from "./npc/NpcDialog";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellBook } from "./spells/SpellBook";
 import { StatsPanel } from "./stats/StatsPanel";
 import { ChatBubble } from "./world/ChatBubble";
+import { HarvestGauge } from "./world/HarvestGauge";
 import { MapLocationLabel } from "./world/MapLocationLabel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 import { PlayerNameplate } from "./world/PlayerNameplate";
@@ -113,6 +118,16 @@ export function HudOverlay({
           </div>
         )}
 
+        {activePanel === "jobs" && (
+          <div style={panelWrapStyle}>
+            <JobsPanel
+              zoom={baseZoom}
+              onClose={() => closeAllPanels()}
+              gameClient={gameClient}
+            />
+          </div>
+        )}
+
         {activePanel === "quests" && (
           <div style={panelWrapStyle}>
             <QuestsPanel zoom={baseZoom} onClose={() => closeAllPanels()} />
@@ -163,6 +178,11 @@ export function HudOverlay({
         <PlayerNameplate />
         <ChatBubble />
 
+        {/* The gauge over a character who is gathering. Without it a
+            harvest is invisible: the character simply stands still for
+            twelve seconds and the wood appears without a word. */}
+        <HarvestGauge />
+
         {/* Top left of the play area, where 1.29 anchors it — the bubble is
             deliberately out of the way of the cell the player is standing on.
             Server-driven: it opens on DC and closes on DV, so it sits outside
@@ -194,6 +214,24 @@ export function HudOverlay({
             shows the two side by side for exactly that reason. */}
         <div style={panelWrapStyle}>
           <StorageWindow zoom={baseZoom} gameClient={gameClient} />
+        </div>
+
+        {/* The workbench, on the same terms as the bank: server-driven,
+            outside the panel rotation, and side by side with the bag the
+            player is picking ingredients out of. */}
+        <div style={panelWrapStyle}>
+          <CraftWindow zoom={baseZoom} gameClient={gameClient} />
+        </div>
+
+        {/* And a craft done for somebody else: both ends see the same
+            three piles, so one window serves types 12 and 13. */}
+        <div style={panelWrapStyle}>
+          <SecureCraftWindow zoom={baseZoom} gameClient={gameClient} />
+        </div>
+
+        {/* The craftsmen's book, likewise server-driven. */}
+        <div style={panelWrapStyle}>
+          <CrafterListWindow zoom={baseZoom} gameClient={gameClient} />
         </div>
 
         {/* And the trade, for the same reason plus one: it carries its

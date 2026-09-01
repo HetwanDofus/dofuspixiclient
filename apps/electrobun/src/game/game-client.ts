@@ -7,6 +7,7 @@ import type { Battlefield } from "@/game/scene";
 import type { CharacterStats } from "@/game/types/stats";
 import { AudioManager } from "@/game/audio/audio-manager";
 import { derivePasswordKey } from "@/game/auth/pbkdf2";
+import { loadJobsLang } from "@/game/lang/jobs-lang";
 import { loginActor } from "@/game/machines/actors";
 import { spellCastActor } from "@/game/machines/spell-cast.machine";
 import {
@@ -25,6 +26,7 @@ import { ChatHandler } from "@/game/network/handlers/chat.handler";
 import { ExchangeHandler } from "@/game/network/handlers/exchange.handler";
 import { FightHandler } from "@/game/network/handlers/fight.handler";
 import { InventoryHandler } from "@/game/network/handlers/inventory.handler";
+import { JobsHandler } from "@/game/network/handlers/jobs.handler";
 import { MapHandler } from "@/game/network/handlers/map.handler";
 import { NpcDialogHandler } from "@/game/network/handlers/npc-dialog.handler";
 import { SpellHandler } from "@/game/network/handlers/spell.handler";
@@ -48,12 +50,17 @@ import {
   ExchangeBigStoreItemListRequestSchema,
   ExchangeBigStoreSearchRequestSchema,
   ExchangeBigStoreTypeRequestSchema,
+  ExchangeGetCrafterRequestSchema,
   ExchangeGetMiddlePriceSchema,
   ExchangeLeaveRequestSchema,
   ExchangeMoveItemSchema,
+  ExchangeMovePayItemSchema,
+  ExchangeMovePayKamaSchema,
   ExchangeMoveKamaSchema,
+  ExchangeRepeatCraftSchema,
   ExchangeRequestSendSchema,
   ExchangeSetReadySchema,
+  ExchangeStopRepeatCraftSchema,
   encodeClient,
   GameActionRequestSchema,
   GameCreateRequestSchema,
@@ -64,6 +71,7 @@ import {
   ItemDropRequestSchema,
   ItemMoveRequestSchema,
   ItemUseRequestSchema,
+  JobChangeOptionsRequestSchema,
   SpellDetailsRequestSchema,
   SpellMoveRequestSchema,
   SpellUpgradeRequestSchema,
@@ -78,6 +86,7 @@ import {
   markLost,
   markReconnecting,
 } from "@/game/stores/connection-store";
+import { noteRequestedSkill } from "@/game/stores/craft-store";
 import { fightActor, fightStore } from "@/game/stores/fight-store";
 import {
   markSpellDetailsPending,
@@ -198,6 +207,11 @@ export class GameClient {
     // Registers itself against `messageHandler` and writes straight into
     // `inventoryStore` — nothing here needs to hold a reference to it.
     new InventoryHandler(this.messageHandler);
+    // Likewise: writes only to `jobsStore`, which the interactive menu and
+    // the Métiers panel read. The lang bundle it needs for labels is loaded
+    // eagerly here because the menu's grey/enabled decision is synchronous.
+    new JobsHandler(this.messageHandler);
+    void loadJobsLang();
     new ExchangeHandler(this.messageHandler);
     new BigStoreHandler(this.messageHandler);
     // Likewise: it only ever writes to `npcDialogStore`.
@@ -356,6 +370,12 @@ export class GameClient {
       // sending `ER`, exactly as `startDialog` does before `DC`.
       this.mapHandler.interruptSelfMove();
       this.requestExchange(targetSpriteId);
+    });
+    battlefield.setOnCraftInvite((targetSpriteId, skillId) => {
+      // Same rule again: the walk is cancelled before the proposal goes
+      // out, or the two players would drift apart while it is on screen.
+      this.mapHandler.interruptSelfMove();
+      this.requestSecureCraft(targetSpriteId, skillId, true);
     });
     // Sole driver of the MP-reachable-range tint: roll-over our own
     // avatar shows the green pattern, roll-out clears it. Replicates
@@ -1285,6 +1305,10 @@ export class GameClient {
 
   private sendInteractiveUse(cellId: number, skillId: number): void {
     log.info(`interactive-use cell=${cellId} skill=${skillId}`);
+    // `EC` will say "a craft window opened" and nothing more; which bench
+    // it is has to be remembered from here. Same in 1.29, whose client
+    // never needed the server to tell it what it had just clicked.
+    noteRequestedSkill(skillId);
     this.connection.send(
       encodeClient(
         "gameAction",
@@ -1490,6 +1514,118 @@ export class GameClient {
   exchangeSetReady(): void {
     this.connection.send(
       encodeClient("exchangeSetReady", create(ExchangeSetReadySchema, {}))
+    );
+  }
+
+  /**
+   * EK at a workbench — the "Créer" button.
+   *
+   * The same frame a trade uses to validate. `Craft.as:379` sends exactly
+   * this, and only when the bench is not empty; the server decides what it
+   * means from the type of the open exchange.
+   */
+  craftOnce(): void {
+    this.exchangeSetReady();
+  }
+
+  /** EMR — craft the same recipe up to `count` times. */
+  craftSeries(count: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeRepeatCraft",
+        create(ExchangeRepeatCraftSchema, { count })
+      )
+    );
+  }
+
+  /** EMr — stop the running series after the round in flight. */
+  stopCraftSeries(): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeStopRepeatCraft",
+        create(ExchangeStopRepeatCraftSchema, {})
+      )
+    );
+  }
+
+  /**
+   * ER12 / ER13 — propose a craft for somebody else.
+   *
+   * `cellNum` carries the skill: 1.29 describes it as an optional cell
+   * number, no secure-craft request has ever needed one, and the menu entry
+   * that sends this ("Inviter à Bûcheron") does have to name a job.
+   */
+  requestSecureCraft(
+    targetSpriteId: number,
+    skillId: number,
+    asArtisan: boolean
+  ): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeRequest",
+        create(ExchangeRequestSendSchema, {
+          exchangeType: asArtisan
+            ? ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN
+            : ExchangeType.EXCHANGE_SECURE_CRAFT_CLIENT,
+          targetId: String(targetSpriteId),
+          cellNum: skillId,
+        })
+      )
+    );
+  }
+
+  /** EPO — offer an item in payment for a co-operative craft. */
+  movePayItem(unicId: number, add: boolean, quantity: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeMovePayItem",
+        create(ExchangeMovePayItemSchema, {
+          add,
+          itemId: unicId,
+          quantity,
+          price: 0n,
+        })
+      )
+    );
+  }
+
+  /** EPG — offer kamas. Absolute, like every other offer. */
+  movePayKamas(quantity: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeMovePayKama",
+        create(ExchangeMovePayKamaSchema, { quantity: BigInt(quantity) })
+      )
+    );
+  }
+
+  /**
+   * JO — set the artisan's terms for a job.
+   *
+   * Sending this is also what puts the artisan in the craftsmen's book: 1.29
+   * has no separate "list me" frame, and asks for the options again at every
+   * connection for exactly that reason.
+   */
+  setJobOptions(jobId: number, options: number, minSlots: number): void {
+    this.connection.send(
+      encodeClient(
+        "jobChangeOptions",
+        create(JobChangeOptionsRequestSchema, {
+          jobId,
+          params: String(options),
+          minSlots,
+        })
+      )
+    );
+  }
+
+  /** EJF — who is offering that job's services right now. */
+  requestCrafters(jobId: number): void {
+    this.connection.send(
+      encodeClient(
+        "exchangeGetCrafter",
+        create(ExchangeGetCrafterRequestSchema, { jobId })
+      )
     );
   }
 

@@ -104,6 +104,13 @@ import-content dump:
 import-triggers dump:
     cd apps/gameserver-ts && bun run scripts/import-starloco-triggers.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
 
+# Import the jobs referential: jobs, skills, tools, recipes and the placed
+# resources found by scanning every map's cells.
+# Needs `import-triggers` to have run first: the gatherable scan reads
+# interactive_objects_templates for the object type and the respawn delay.
+import-jobs dump:
+    cd apps/gameserver-ts && bun run scripts/import-starloco-jobs.ts "{{ if dump =~ '^/' { dump } else { justfile_directory() / dump } }}"
+
 # Publish the read-only, deterministic world-navigation projection consumed by
 # public clients. Pass an alternate .json path for fixtures/CI.
 export-navigation output="":
@@ -111,7 +118,7 @@ export-navigation output="":
 
 # The whole world in one go — geometry, contents, actionable triggers, then the
 # public graph built from exactly those imported tables.
-import-world dump: (import-maps dump) (import-content dump) (import-triggers dump) export-navigation
+import-world dump: (import-maps dump) (import-content dump) (import-triggers dump) (import-jobs dump) export-navigation
 
 # Build the Vello WASM renderer.
 # `vello_root` is the sibling checkout of HetwanDofus/vello-dofasset-format —

@@ -61,6 +61,13 @@ message ItemMovement {
 message ItemTool {
   int32 tool_item_id = 1;   // 0 when no tool equipped
   bool  has_tool = 2;
+  // Which job the tool belongs to; 0 when there is none. Not in 1.29,
+  // which never needed it: its client greys a harvest on the criterion
+  // string alone (`J?V:-`, "does the player have the job") and lets the
+  // server answer "NO_TOOL_JOB" in the chat afterwards. Ours greys the
+  // action instead, and to do that it has to know *whose* tool this is —
+  // `jobs_data.tools` is server-side data with no client counterpart.
+  int32 job_id = 3;
 }
 
 // Ow - Weight (pods) update

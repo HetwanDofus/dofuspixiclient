@@ -636,6 +636,19 @@ export class PlayerRenderer {
     hidePlayerNameplate(id);
   }
 
+  /**
+   * Where a HUD overlay for this sprite should sit, in the same
+   * canvas-relative pixels the nameplate uses.
+   *
+   * Exposed for the harvest gauge, which needs the same anchor and has no
+   * business reaching into `players` to compute it.
+   */
+  getSpriteAnchor(id: number): { x: number; y: number } | null {
+    const player = this.players.get(id);
+
+    return player ? this.computeNameplateAnchor(player) : null;
+  }
+
   private computeNameplateAnchor(player: ActivePlayer): {
     x: number;
     y: number;

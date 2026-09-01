@@ -10,6 +10,7 @@ import {
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { ExchangeService } from "@modules/exchange/exchange.service";
+import { HarvestService } from "@modules/harvest/harvest.service";
 import {
   type CachedMap,
   MapCacheService,
@@ -43,6 +44,7 @@ export class MoveHandler {
     private readonly presence: PlayerPresenceService,
     private readonly pending: PendingMovesService,
     private readonly exchange: ExchangeService,
+    private readonly harvest: HarvestService,
     private readonly sessions: SessionRegistry,
     private readonly frames: GatewayFrameService
   ) {}
@@ -68,6 +70,13 @@ export class MoveHandler {
     if (this.exchange.blocksMovement(ctx.sessionId)) {
       return;
     }
+
+    // Walking away abandons a harvest. It does not *block* the move — 1.29
+    // lets a player leave — so the resource is handed straight back rather
+    // than staying locked for the rest of the action's duration. The other
+    // three interruptions (map change, fight, disconnection) are caught at
+    // the action's own deadline, where the state is re-checked anyway.
+    await this.harvest.interrupt(session.characterId, "moved");
 
     const placed = this.presence.getByCharacter(session.characterId);
 

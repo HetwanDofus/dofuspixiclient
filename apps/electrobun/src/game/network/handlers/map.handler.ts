@@ -19,6 +19,7 @@ import {
 } from "@/game/network/protocol";
 import { numericId } from "@/game/network/sprite-id";
 import { closeNpcDialog, hudStore } from "@/game/stores";
+import { beginHarvest, endHarvest } from "@/game/stores/jobs-store";
 import { createLogger } from "@/utils/logger";
 
 import type { CharacterHandler, CharacterInfo } from "./character.handler";
@@ -31,6 +32,9 @@ const log = createLogger("MapHandler");
  * ever reaches this — a validated one is echoed in the same round trip.
  */
 const SELF_MOVE_TIMEOUT_MS = 2_000;
+
+/** `GameActionType.ACTION_HARVEST` — `GA;501;<cellId>,<durationMs>`. */
+const ACTION_HARVEST = 501;
 
 /**
  * Handles map + actor lifecycle over the new protobuf protocol.
@@ -238,11 +242,31 @@ export class MapHandler {
       void this.handleMovement(payload.entries);
     });
 
+    // `GDF` — interactive elements changing state. Nothing else on the wire
+    // carries it: the map payload is immutable and identical for everyone,
+    // so a felled tree is only ever a frame like this one.
+    this.messageHandler.on("gameFrameObject2", (payload) => {
+      const battlefield = this.getBattlefield();
+
+      for (const entry of payload.entries) {
+        battlefield?.setCellInteractive(entry.cellId, entry.interactive);
+      }
+    });
+
     this.messageHandler.on("gameAction", (payload) => {
       if (payload.actionType === 1 && payload.actionData.case === "movement") {
         const spriteId = payload.spriteId;
         const path = payload.actionData.value.pathCells;
         void this.handleActorPath(spriteId, path, payload.sequenceId);
+      } else if (
+        payload.actionType === ACTION_HARVEST &&
+        payload.actionData.case === "harvest"
+      ) {
+        this.handleHarvestAction(
+          payload.spriteId,
+          payload.actionData.value.cellId,
+          payload.actionData.value.durationMs
+        );
       } else if (payload.actionType === 2) {
         // ACTION_MAP_CHANGE — server moved us to a new map (edge transition,
         // waypoint, scripted cell). Re-enter the game so the server populates
@@ -258,6 +282,33 @@ export class MapHandler {
         );
       }
     });
+  }
+
+  /**
+   * `GA;501` — somebody on this map started harvesting.
+   *
+   * Only the local character's action drives the progress bar; the rest is
+   * for the animation, which the renderer does not have yet. The duration is
+   * the server's own and is not recomputed here — a client that shortened it
+   * would only be lying to its own player.
+   */
+  private handleHarvestAction(
+    spriteId: string,
+    cellId: number,
+    durationMs: number
+  ): void {
+    const self = this.characterHandler.getCurrentCharacter();
+
+    if (!self || String(self.id) !== spriteId) {
+      return;
+    }
+
+    beginHarvest(
+      cellId,
+      durationMs,
+      this.getBattlefield()?.getSpriteAnchor(Number(self.id)) ?? null
+    );
+    globalThis.setTimeout(endHarvest, durationMs);
   }
 
   private async handleMapData(payload: GameMapData): Promise<void> {

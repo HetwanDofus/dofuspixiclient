@@ -1064,6 +1064,10 @@ export interface JobsTable {
   id: number;
   name: string;
   maxLevel: number;
+  /** `J[id].g` — the icon id 1.29 resolves as `clips/jobs/<g>.swf`. */
+  gfxId: number;
+  /** `J[id].s` — 0 for a base job, else the job this one specialises. */
+  specializationOf: number;
 }
 
 export type JobRow = Selectable<JobsTable>;
@@ -1075,21 +1079,84 @@ export interface PlayerJobsTable {
   jobId: number;
   level: number;
   experience: string;
+  learnedAt: Generated<TimestampTz>;
+  /** `JobOptions`'s bitmask: 1 paid, 2 free on failure, 4 client supplies. */
+  options: Generated<number>;
+  /** The smallest recipe the artisan will take on. */
+  minSlots: Generated<number>;
+  /** In the craftsmen's book. Cleared at logout and on losing the tool. */
+  listed: Generated<boolean>;
 }
 
 export type PlayerJobRow = Selectable<PlayerJobsTable>;
 export type NewPlayerJob = Insertable<PlayerJobsTable>;
 export type PlayerJobUpdate = Updateable<PlayerJobsTable>;
 
+/** `job_skills.kind` — which of `SK[id]`'s optional fields the row came from. */
+export const JobSkillKind = {
+  /** Neither: a menu-only skill the server has no behaviour for. */
+  None: 0,
+  /** `SK[id].i` is present — the skill harvests that item. */
+  Harvest: 1,
+  /** `SK[id].cl` is present — the skill crafts that list of items. */
+  Craft: 2,
+  /** `SK[id].f` is present — the skill improves that item type. */
+  Forgemagie: 3,
+} as const;
+
+export type JobSkillKindValue =
+  (typeof JobSkillKind)[keyof typeof JobSkillKind];
+
 export interface JobSkillsTable {
   id: number;
   jobId: number;
   name: string;
+  /** `SK[id].io` — the `IO.d` model id, not a gfx id. */
   interactiveId: number | null;
   toolItemId: number | null;
   minLevel: number;
   action: number;
+  kind: Generated<number>;
+  /** `SK[id].i`, the item a harvest yields. */
+  harvestItemId: number | null;
+  harvestXp: number | null;
+  /**
+   * Set only where the retail action does not scale with the level gap —
+   * the well, which is a flat 1.5 s for anyone.
+   */
+  fixedDurationMs: number | null;
+  quantityMin: number | null;
+  quantityMax: number | null;
+  /** `SK[id].c`, evaluated exactly as `Skill.getState` does. */
+  criteria: Generated<string>;
+  /** `SK[id].f`, the item type a forgemagie skill improves. */
+  fmItemType: number | null;
 }
+
+export interface JobToolsTable {
+  jobId: number;
+  templateId: number;
+}
+
+export type JobToolRow = Selectable<JobToolsTable>;
+export type NewJobTool = Insertable<JobToolsTable>;
+
+/**
+ * The live state of one placed resource. Its referential twin is
+ * `job_gatherable_cells`, which an import rebuilds; this one must survive
+ * that import, which is why it is a second table on the same key.
+ */
+export interface GatherableCellStatesTable {
+  mapId: number;
+  cellId: number;
+  availableAt: Generated<TimestampTz>;
+  reservedBy: string | null;
+  reservedUntil: TimestampTz | null;
+}
+
+export type GatherableCellStateRow = Selectable<GatherableCellStatesTable>;
+export type NewGatherableCellState = Insertable<GatherableCellStatesTable>;
+export type GatherableCellStateUpdate = Updateable<GatherableCellStatesTable>;
 
 export type JobSkillRow = Selectable<JobSkillsTable>;
 export type NewJobSkill = Insertable<JobSkillsTable>;
@@ -1930,6 +1997,8 @@ export type DB = {
   alignmentBalance: AlignmentBalanceTable;
   playerAlignmentLedger: PlayerAlignmentLedgerTable;
   jobs: JobsTable;
+  jobTools: JobToolsTable;
+  gatherableCellStates: GatherableCellStatesTable;
   playerJobs: PlayerJobsTable;
   jobSkills: JobSkillsTable;
   jobGatherableCells: JobGatherableCellsTable;

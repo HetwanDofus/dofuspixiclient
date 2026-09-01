@@ -7,6 +7,7 @@ import { Injectable, Logger } from "@nestjs/common";
  * `branch`    — go to `nextQuestion`.
  * `end`       — close the dialog.
  * `open-bank` — open the account bank, then close.
+ * `learn-job` — grant the job, then branch on the outcome.
  * `blocked`   — listed but greyed: the answer fires an effect this server
  *               does not implement yet (give an item, start a quest,
  *               teleport…).
@@ -16,6 +17,13 @@ export type NpcDialogOutcome =
   | { kind: "end" }
   /** Open the account bank, then close the conversation. */
   | { kind: "open-bank" }
+  /** Teach a job, then branch on whether the slot rules allowed it. */
+  | {
+      kind: "learn-job";
+      jobId: number;
+      onSuccess: number | null;
+      onFailure: number | null;
+    }
   | { kind: "blocked" };
 
 export interface NpcDialogQuestion {
@@ -39,8 +47,34 @@ const ACTION_NAVIGATE = 1;
  */
 const ACTION_OPEN_BANK = -1;
 
+/**
+ * "Apprendre le métier de …" — 40 answers carry it, one per teachable job.
+ *
+ * `args` is four comma-separated numbers. Only the first is unambiguous: it
+ * is the job id, and it matches `jobs.json`'s `J` on all 40 rows. The third
+ * and fourth are question ids, and the twelve answers that *also* carry an
+ * explicit navigate row disagree about which of the two it points at — 851
+ * navigates to `args[2]`, 853 to `args[3]`. Rather than pick a winner, the
+ * navigation here is derived from the pair itself: `args[2]` when the job was
+ * granted, `args[3]` when the slot rules refused it, which is the only
+ * reading under which both of those rows make sense. `args[1]` is not used
+ * by anything and is not interpreted.
+ */
+const ACTION_LEARN_JOB = 6;
+
+/**
+ * A placeholder row. 23 of the 37 type-0 rows carry empty args and do
+ * nothing at all — "Refuser", "Apprendre le métier", "Livrer …". The other
+ * 14 carry a `mapId,cellId` pair and are teleports, which this server does
+ * not perform; only the empty ones are treated as a no-op.
+ */
+const ACTION_NONE = 0;
+
 /** The effect types this server knows how to carry out. */
-const IMPLEMENTED_EFFECTS = new Set<number>([ACTION_OPEN_BANK]);
+const IMPLEMENTED_EFFECTS = new Set<number>([
+  ACTION_OPEN_BANK,
+  ACTION_LEARN_JOB,
+]);
 
 /** `npc_reponses_actions.args` for a navigate action that ends the dialog. */
 const ARGS_LEAVE = "DV";
@@ -166,7 +200,11 @@ export function classify(
   }
 
   const navigations = actions.filter((a) => a.type === ACTION_NAVIGATE);
-  const effects = actions.filter((a) => a.type !== ACTION_NAVIGATE);
+  const effects = actions.filter(
+    (a) =>
+      a.type !== ACTION_NAVIGATE &&
+      !(a.type === ACTION_NONE && a.args.trim() === "")
+  );
 
   if (effects.some((effect) => !IMPLEMENTED_EFFECTS.has(effect.type))) {
     return { kind: "blocked" };
@@ -185,6 +223,24 @@ export function classify(
     return { kind: "open-bank" };
   }
 
+  const learnJob = effects.find((effect) => effect.type === ACTION_LEARN_JOB);
+
+  if (learnJob) {
+    const args = learnJob.args.split(",").map((a) => Number.parseInt(a, 10));
+    const jobId = args[0];
+
+    if (jobId === undefined || !Number.isFinite(jobId) || jobId <= 0) {
+      return { kind: "blocked" };
+    }
+
+    return {
+      kind: "learn-job",
+      jobId,
+      onSuccess: questionOrNull(args[2]),
+      onFailure: questionOrNull(args[3]),
+    };
+  }
+
   const args = navigations[0]?.args.trim();
 
   if (args === undefined || args === ARGS_LEAVE) {
@@ -198,6 +254,13 @@ export function classify(
   return Number.isFinite(next) && next > 0
     ? { kind: "branch", nextQuestion: next }
     : { kind: "end" };
+}
+
+/** A question id, or `null` where the dump wrote nothing usable. */
+function questionOrNull(value: number | undefined): number | null {
+  return value !== undefined && Number.isFinite(value) && value > 0
+    ? value
+    : null;
 }
 
 function toNumbers(value: unknown): number[] {

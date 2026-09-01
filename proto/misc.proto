@@ -306,12 +306,29 @@ message JobEntry {
   repeated JobSkillEntry skills = 2;
 }
 
+// One line of `JS`: `<skillId>~<param1>~<param2>~<param3>~<param4>`.
+//
+// The names are deliberately positional. `dofus/aks/Job.as:onSkills` splits on
+// "~" and hands the four values straight to
+// `new Skill(id, param1, param2, param3, param4)` without interpreting them;
+// what each one *means* is decided by whatever reads it, and only `param1`
+// currently is read — it is the **number of craft slots** the skill offers.
+// `Job.getMaxSkillSlot()` takes its maximum, `Job.initialize` keeps a recipe
+// only while `craft.itemsCount <= skill.param1`, and `Craft.difficulty`
+// derives the row colour from it. Naming these `level` / `min_slots` /
+// `max_slots` was a reading of the field names, not of the client. See QA-131.
+// This server's use of the four:
+//   param1 — craft slots (1.29's own meaning, read by `Job.initialize`);
+//   param2 — the job level the skill needs, so the client can grey a
+//            resource it is too weak for instead of clicking into a
+//            server refusal. 1.29 leaves all three spare and its client
+//            ignores them, so this costs nothing on the wire.
 message JobSkillEntry {
   int32 skill_id = 1;
-  int32 level = 2;
-  int32 min_slots = 3;
-  int32 max_slots = 4;
-  string params = 5;
+  int32 param1 = 2;
+  int32 param2 = 3;
+  int32 param3 = 4;
+  int32 param4 = 5;
 }
 
 // JX - Job XP

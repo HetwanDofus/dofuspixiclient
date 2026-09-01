@@ -1,0 +1,413 @@
+{
+  "$comment": [
+    "Niveau minimum et experience des competences de recolte 1.29.",
+    "Ces deux valeurs n'existent nulle part dans les bundles de langue ni",
+    "dans game.sql. Transcrites depuis StarLoco-Game, branche master,",
+    "scripts/data/skills/job_{lumberjack,miner,farmer,alchemist,fisher}.lua",
+    "et scripts/data/skills/job_none.lua, releve du 2026-08-31.",
+    "Les rangees des cinq metiers de recolte sont appariees par objet",
+    "recolte et non par identifiant de competence: job_miner.lua attribue",
+    "des ids qui ne correspondent pas a SK[id].i du bundle 1.29, et c'est",
+    "le bundle qui fait foi pour le couple competence -> objet.",
+    "job_fisher.lua est appariee par competence: un spot rend un poisson",
+    "tire au sort dans une liste, l'objet n'identifie donc pas la ligne.",
+    "Les delais de reapparition des scripts Lua ({6000,10000}) sont des",
+    "bouchons declares comme tels; la reapparition vient de",
+    "interactive_objects_templates.respawn_ms, importee de game.sql."
+  ],
+  "source": {
+    "repository": "https://github.com/StarLoco/StarLoco-Game",
+    "files": [
+      "scripts/data/skills/job_lumberjack.lua",
+      "scripts/data/skills/job_miner.lua",
+      "scripts/data/skills/job_farmer.lua",
+      "scripts/data/skills/job_alchemist.lua",
+      "scripts/data/skills/job_fisher.lua",
+      "scripts/data/skills/job_none.lua"
+    ],
+    "retrieved": "2026-08-31"
+  },
+  "skills": [
+    {
+      "skillId": 102,
+      "jobId": 1,
+      "itemId": 311,
+      "minLevel": 1,
+      "xp": 0,
+      "fixedDurationMs": 1500,
+      "quantityMin": 1,
+      "quantityMax": 10
+    },
+    {
+      "skillId": 6,
+      "jobId": 2,
+      "itemId": 303,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 39,
+      "jobId": 2,
+      "itemId": 473,
+      "minLevel": 10,
+      "xp": 15
+    },
+    {
+      "skillId": 40,
+      "jobId": 2,
+      "itemId": 476,
+      "minLevel": 20,
+      "xp": 20
+    },
+    {
+      "skillId": 10,
+      "jobId": 2,
+      "itemId": 460,
+      "minLevel": 30,
+      "xp": 25
+    },
+    {
+      "skillId": 139,
+      "jobId": 2,
+      "itemId": 2358,
+      "minLevel": 35,
+      "xp": 30
+    },
+    {
+      "skillId": 141,
+      "jobId": 2,
+      "itemId": 2357,
+      "minLevel": 35,
+      "xp": 30
+    },
+    {
+      "skillId": 37,
+      "jobId": 2,
+      "itemId": 471,
+      "minLevel": 40,
+      "xp": 35
+    },
+    {
+      "skillId": 33,
+      "jobId": 2,
+      "itemId": 461,
+      "minLevel": 50,
+      "xp": 40
+    },
+    {
+      "skillId": 154,
+      "jobId": 2,
+      "itemId": 7013,
+      "minLevel": 50,
+      "xp": 40
+    },
+    {
+      "skillId": 41,
+      "jobId": 2,
+      "itemId": 474,
+      "minLevel": 60,
+      "xp": 45
+    },
+    {
+      "skillId": 34,
+      "jobId": 2,
+      "itemId": 449,
+      "minLevel": 70,
+      "xp": 50
+    },
+    {
+      "skillId": 174,
+      "jobId": 2,
+      "itemId": 7925,
+      "minLevel": 75,
+      "xp": 55
+    },
+    {
+      "skillId": 38,
+      "jobId": 2,
+      "itemId": 472,
+      "minLevel": 80,
+      "xp": 65
+    },
+    {
+      "skillId": 155,
+      "jobId": 2,
+      "itemId": 7016,
+      "minLevel": 80,
+      "xp": 65
+    },
+    {
+      "skillId": 35,
+      "jobId": 2,
+      "itemId": 470,
+      "minLevel": 90,
+      "xp": 70
+    },
+    {
+      "skillId": 158,
+      "jobId": 2,
+      "itemId": 7014,
+      "minLevel": 100,
+      "xp": 75
+    },
+    {
+      "skillId": 24,
+      "jobId": 24,
+      "itemId": 312,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 25,
+      "jobId": 24,
+      "itemId": 441,
+      "minLevel": 10,
+      "xp": 15
+    },
+    {
+      "skillId": 26,
+      "jobId": 24,
+      "itemId": 442,
+      "minLevel": 20,
+      "xp": 20
+    },
+    {
+      "skillId": 28,
+      "jobId": 24,
+      "itemId": 443,
+      "minLevel": 30,
+      "xp": 25
+    },
+    {
+      "skillId": 56,
+      "jobId": 24,
+      "itemId": 445,
+      "minLevel": 40,
+      "xp": 30
+    },
+    {
+      "skillId": 55,
+      "jobId": 24,
+      "itemId": 444,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 162,
+      "jobId": 24,
+      "itemId": 7032,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 29,
+      "jobId": 24,
+      "itemId": 350,
+      "minLevel": 60,
+      "xp": 40
+    },
+    {
+      "skillId": 31,
+      "jobId": 24,
+      "itemId": 446,
+      "minLevel": 70,
+      "xp": 45
+    },
+    {
+      "skillId": 30,
+      "jobId": 24,
+      "itemId": 313,
+      "minLevel": 80,
+      "xp": 50
+    },
+    {
+      "skillId": 161,
+      "jobId": 24,
+      "itemId": 7033,
+      "minLevel": 100,
+      "xp": 50
+    },
+    {
+      "skillId": 68,
+      "jobId": 26,
+      "itemId": 421,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 69,
+      "jobId": 26,
+      "itemId": 428,
+      "minLevel": 10,
+      "xp": 15
+    },
+    {
+      "skillId": 71,
+      "jobId": 26,
+      "itemId": 395,
+      "minLevel": 20,
+      "xp": 20
+    },
+    {
+      "skillId": 72,
+      "jobId": 26,
+      "itemId": 380,
+      "minLevel": 30,
+      "xp": 25
+    },
+    {
+      "skillId": 73,
+      "jobId": 26,
+      "itemId": 593,
+      "minLevel": 40,
+      "xp": 30
+    },
+    {
+      "skillId": 74,
+      "jobId": 26,
+      "itemId": 594,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 160,
+      "jobId": 26,
+      "itemId": 7059,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 45,
+      "jobId": 28,
+      "itemId": 289,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 53,
+      "jobId": 28,
+      "itemId": 400,
+      "minLevel": 10,
+      "xp": 15
+    },
+    {
+      "skillId": 57,
+      "jobId": 28,
+      "itemId": 533,
+      "minLevel": 20,
+      "xp": 20
+    },
+    {
+      "skillId": 46,
+      "jobId": 28,
+      "itemId": 401,
+      "minLevel": 30,
+      "xp": 25
+    },
+    {
+      "skillId": 50,
+      "jobId": 28,
+      "itemId": 423,
+      "minLevel": 40,
+      "xp": 30
+    },
+    {
+      "skillId": 52,
+      "jobId": 28,
+      "itemId": 532,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 54,
+      "jobId": 28,
+      "itemId": 425,
+      "minLevel": 50,
+      "xp": 45
+    },
+    {
+      "skillId": 58,
+      "jobId": 28,
+      "itemId": 405,
+      "minLevel": 50,
+      "xp": 40
+    },
+    {
+      "skillId": 159,
+      "jobId": 28,
+      "itemId": 7018,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 124,
+      "jobId": 36,
+      "itemId": 1782,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 128,
+      "jobId": 36,
+      "itemId": 598,
+      "minLevel": 1,
+      "xp": 10
+    },
+    {
+      "skillId": 136,
+      "jobId": 36,
+      "itemId": 2187,
+      "minLevel": 1,
+      "xp": 5
+    },
+    {
+      "skillId": 140,
+      "jobId": 36,
+      "itemId": 600,
+      "minLevel": 1,
+      "xp": 50
+    },
+    {
+      "skillId": 125,
+      "jobId": 36,
+      "itemId": 1844,
+      "minLevel": 10,
+      "xp": 15
+    },
+    {
+      "skillId": 129,
+      "jobId": 36,
+      "itemId": 1757,
+      "minLevel": 20,
+      "xp": 20
+    },
+    {
+      "skillId": 126,
+      "jobId": 36,
+      "itemId": 603,
+      "minLevel": 40,
+      "xp": 30
+    },
+    {
+      "skillId": 130,
+      "jobId": 36,
+      "itemId": 1750,
+      "minLevel": 50,
+      "xp": 35
+    },
+    {
+      "skillId": 127,
+      "jobId": 36,
+      "itemId": 1847,
+      "minLevel": 70,
+      "xp": 45
+    },
+    {
+      "skillId": 131,
+      "jobId": 36,
+      "itemId": 1805,
+      "minLevel": 75,
+      "xp": 50
+    }
+  ]
+}

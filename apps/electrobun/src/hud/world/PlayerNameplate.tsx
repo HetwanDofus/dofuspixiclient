@@ -12,7 +12,7 @@ import {
 export function PlayerNameplate() {
   const { entries } = useSyncExternalStore(
     playerNameplateStore.subscribe,
-    playerNameplateStore.getSnapshot,
+    playerNameplateStore.getSnapshot
   );
 
   if (entries.length === 0) {
@@ -45,7 +45,7 @@ function NameplateBox({ entry }: { entry: PlayerNameplateEntry }) {
         "tracking-wide",
         "[font-kerning:none]",
         "[font-feature-settings:'kern'_0]",
-        "[font-variant-ligatures:none]",
+        "[font-variant-ligatures:none]"
       )}
       style={{
         left: entry.anchorX,

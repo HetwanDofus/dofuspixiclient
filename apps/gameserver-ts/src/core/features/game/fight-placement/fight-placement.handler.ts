@@ -13,11 +13,11 @@ import {
   SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { fighterColors } from "@features/game/fight-start/fight-start.shared";
 import { PlacementState } from "@modules/fight/core/fight.states";
 import { FightLifecycleService } from "@modules/fight/engine/fight.lifecycle.service";
 import { FighterKind, StateName } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
-import { fighterColors } from "@features/game/fight-start/fight-start.shared";
 import { Injectable } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";

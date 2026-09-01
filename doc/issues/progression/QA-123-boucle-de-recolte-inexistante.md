@@ -4,12 +4,12 @@ title: La boucle de récolte n'existe pas de bout en bout
 severity: P1
 domain: progression
 type: gap
-status: confirmed
+status: fixed
 session: 5
 opened: 2026-08-28
 closed:
 fixed_in:
-related: [QA-085]
+related: [QA-085, QA-129, QA-130, QA-131, QA-132, QA-133, QA-134]
 files:
   - apps/gameserver-ts/migrations/0011_progression.ts
   - apps/gameserver-ts/src/core/modules/interactive-objects/interactive-objects.service.ts
@@ -100,6 +100,14 @@ processus serveur.
 Une réservation abandonnée doit expirer. Un redémarrage du serveur ne doit ni
 dupliquer une récompense ni rendre définitivement la ressource indisponible.
 
+> **Divergence assumée avec le §1.** L'état ne vit pas dans
+> `job_gatherable_cells` mais dans une table `gatherable_cell_states` séparée,
+> de même clé. `job_gatherable_cells` est un référentiel *importé* : le
+> confondre avec l'état vivant ferait qu'un ré-import effacerait les
+> réapparitions en cours. La prise de réservation est un seul
+> `UPDATE … RETURNING` filtrant sur `available_at <= now()`, ce qui est
+> l'atomicité demandée ici.
+
 ### 3. Implémenter l'action serveur
 
 Introduire un service de récolte appelé par
@@ -149,3 +157,52 @@ fixture de test explicite.
   la ressource disparaître puis revenir et ne peut pas la récolter entre-temps.
 
 La fiche ne passe à `closed` qu'après ce dernier parcours manette en main.
+
+## Trouvé en jeu, session 7 — la récolte était invisible
+
+Le premier essai manette en main a donné : le personnage marche jusqu'au
+frêne, s'arrête… et rien. La boucle tournait pourtant — `gatherable_cell_states`
+portait les réservations prises par le joueur — mais **rien à l'écran ne le
+disait**.
+
+Deux manques, tous deux dans cette fiche et tous deux corrigés :
+
+1. **Aucune jauge, aucune animation.** `GA;501` arrivait avec sa durée, le
+   store la retenait, et aucun composant ne la dessinait. Douze secondes
+   d'immobilité muette, puis du bois qui apparaît sans un mot. `HarvestGauge`
+   dessine désormais le décompte au-dessus du personnage, à partir de la durée
+   du serveur — jamais recalculée côté client.
+2. **Les refus étaient silencieux.** Le §3 de cette fiche l'exigeait
+   pourtant : « tout refus doit terminer l'action et produire une raison
+   exploitable par le client ; aucune branche ne doit rester silencieuse ».
+   Les onze refus partent maintenant en `Im` (`InfoMessage`, typé et sans
+   producteur jusqu'ici) et s'affichent dans le chat — « Vous devez équiper
+   l'outil du métier », « Vous êtes trop chargé », etc.
+
+**Ce qui n'était pas un défaut** : marcher *sur* la case du frêne plutôt qu'à
+côté est le comportement 1.29. `Pathfinding.as:154` n'ouvre une cellule
+`movement == 1` que si elle est la case d'arrivée, et une ressource est
+précisément une cellule `movement = 1` — voir QA-087, qui note déjà que « le
+trajet vers un élément se termine dessus ».
+
+## Trouvé en jeu, session 7 — les puits
+
+Les 41 puits du monde étaient **tous refusés**, chez tous les personnages.
+`SK[102]` « Puiser » appartient au métier **1, `-Base-`** — qui n'est pas un
+métier : il porte les actions que n'importe qui peut faire, et personne ne
+possède jamais de ligne `player_jobs` pour lui. Le service exigeait le métier,
+le niveau et l'outil comme pour une ressource ordinaire, et le client grisait
+l'entrée pour la même raison.
+
+Corrigé des deux côtés : une compétence de `-Base-` ne demande ni métier, ni
+niveau, ni outil — mais toujours de l'énergie et des pods. Côté client, le
+serveur envoie désormais les compétences de `-Base-` **à côté** de la liste des
+métiers dans `JS` ; c'est la seule façon pour un client de savoir qu'un puits
+est utilisable, et les trois compétences sans source (`42` Ramasser, `150`
+Jouer, `152` Pêcher KoinKoin) restent grises simplement en n'y figurant pas.
+`-Base-` ne rentre pas dans la liste des métiers du joueur : il apparaîtrait
+dans le panneau Métiers et compterait pour un emplacement.
+
+Aucune cellule placée n'offre les trois compétences sans source — l'import ne
+retient que les modèles dont une compétence est exécutable —, donc rien de
+visible dans le monde n'en dépend.

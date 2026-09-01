@@ -168,6 +168,13 @@ const ITEM_GRANTS: Array<{
     position: -1,
   },
   { templateId: 1182, name: "Potion de Mini Soin", quantity: 5, position: -1 },
+  // The three starter job tools, in the bag rather than equipped: the
+  // harvest loop refuses without one in the weapon slot (QA-123), and a
+  // character who cannot equip one cannot exercise it at all. They are the
+  // real `jobs_data.tools` entries for Bûcheron, Mineur and Paysan.
+  { templateId: 454, name: "Hache de Bûcheron", quantity: 1, position: -1 },
+  { templateId: 497, name: "Pioche du Mineur", quantity: 1, position: -1 },
+  { templateId: 577, name: "Faux du Paysan", quantity: 1, position: -1 },
   { templateId: 289, name: "Blé", quantity: 25, position: -1 },
   { templateId: 303, name: "Bois de Frêne", quantity: 8, position: -1 },
   { templateId: 312, name: "Fer", quantity: 3, position: -1 },

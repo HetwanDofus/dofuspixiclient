@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { DofusMessage } from "@dofus/proto/server_messages_pb";
 import type { BigStoreFlow } from "@modules/exchange/big-store.flow";
+import type { CraftFlow } from "@modules/exchange/craft.flow";
 import type { ExchangeSession } from "@modules/exchange/exchange.types";
+import type { SecureCraftFlow } from "@modules/exchange/secure-craft.flow";
 import type { StorageFlow } from "@modules/exchange/storage.flow";
 import type { TradeFlow } from "@modules/exchange/trade.flow";
 import type { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { ExchangeType } from "@dofus/proto/common_pb";
+import { CraftRegistryService } from "@modules/exchange/craft.registry";
 import { ExchangeFramesService } from "@modules/exchange/exchange.frames.service";
 import { ExchangeRegistryService } from "@modules/exchange/exchange.registry";
 import { ExchangeSerializer } from "@modules/exchange/exchange.serializer";
@@ -48,6 +51,26 @@ function noTrades(): TradeFlow {
 /** No auction house is open in any of these cases. */
 function noBigStore(): BigStoreFlow {
   return { forget: () => {} } as unknown as BigStoreFlow;
+}
+
+/**
+ * No workbench in these tests: they are about the session lock and the
+ * storage flow. A craft that reached the flow would be a routing bug, so the
+ * stub throws rather than answering.
+ */
+function noCraft(): CraftFlow {
+  return {
+    announceOpen: () => {
+      throw new Error("craft flow reached from a non-craft exchange");
+    },
+  } as unknown as CraftFlow;
+}
+
+/** Likewise: these tests never open a co-operative craft. */
+function noSecureCraft(): SecureCraftFlow {
+  return {
+    craftOf: () => undefined,
+  } as unknown as SecureCraftFlow;
 }
 
 describe("ExchangeFramesService.open", () => {
@@ -116,7 +139,10 @@ describe("ExchangeService", () => {
       noTrades(),
       noBigStore(),
       fights,
-      sessions
+      sessions,
+      noCraft(),
+      new CraftRegistryService(),
+      noSecureCraft()
     );
   });
 
@@ -249,7 +275,10 @@ describe("ExchangeService", () => {
         noTrades(),
         noBigStore(),
         { isInFight: () => false } as unknown as FightRegistryService,
-        sessions
+        sessions,
+        noCraft(),
+        new CraftRegistryService(),
+        noSecureCraft()
       );
 
       // This is the double-click: two frames dispatched without an
@@ -292,7 +321,10 @@ describe("ExchangeService", () => {
         noTrades(),
         noBigStore(),
         { isInFight: () => false } as unknown as FightRegistryService,
-        sessions
+        sessions,
+        noCraft(),
+        new CraftRegistryService(),
+        noSecureCraft()
       );
 
       await expect(service.moveItem(SESSION, true, "1", 1)).rejects.toThrow(

@@ -21,8 +21,18 @@ export const BASE_PODS = 1000;
 /** Pods granted per point of total strength. */
 export const PODS_PER_STRENGTH = 5;
 
-export function maxPods(totalStrength: number, podsBonus: number): number {
-  return BASE_PODS + PODS_PER_STRENGTH * totalStrength + podsBonus;
+/**
+ * `jobPods` is what the character's jobs are worth — 5 per level, plus 1 000
+ * once a job reaches 100. The term is computed by `modules/jobs/jobs.pods.ts`
+ * and passed in rather than looked up, so this file keeps no opinion about
+ * jobs and stays a pure sum. See QA-133.
+ */
+export function maxPods(
+  totalStrength: number,
+  podsBonus: number,
+  jobPods = 0
+): number {
+  return BASE_PODS + PODS_PER_STRENGTH * totalStrength + podsBonus + jobPods;
 }
 
 export interface WeighableItem {

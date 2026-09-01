@@ -27,6 +27,7 @@ export type Shortcut =
   | "FRIENDS"
   | "GUILD"
   | "MOUNT"
+  | "JOBS"
   // ── Hotbar ───────────────────────────────────────────────
   | "SWAP"
   | HotbarShortcut
@@ -87,6 +88,7 @@ const DEFAULT_BINDINGS: Record<Shortcut, ChordKey> = {
   FRIENDS: { key: "f" },
   GUILD: { key: "g" },
   MOUNT: { key: "u" },
+  JOBS: { key: "j" },
 
   // Read out of the retail lang bundle rather than guessed:
   // `assets/dist/langs/fr/shortcuts.json`, table `SSK`, default set 1

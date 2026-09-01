@@ -512,7 +512,10 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
             icon="pvp"
             onClick={() => togglePanel("conquest")}
           />
-          <MainBannerIconButton icon="job" />
+          <MainBannerIconButton
+            icon="job"
+            onClick={() => togglePanel("jobs")}
+          />
           <MainBannerIconButton icon="achievement" />
           <MainBannerIconButton icon="event" />
           <MainBannerIconButton icon="title" />

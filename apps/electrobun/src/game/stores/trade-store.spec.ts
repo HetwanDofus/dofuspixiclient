@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
+import { ExchangeType } from "@dofus/proto";
+
 import type { ItemData } from "@/game/network/protocol";
 
 import {
@@ -27,7 +29,7 @@ function item(unicId: number, quantity: number): ItemData {
 }
 
 function open() {
-  openTradeRequest(true, PARTNER, "Madani");
+  openTradeRequest(true, PARTNER, "Madani", ExchangeType.EXCHANGE_PLAYER);
   openTradeWindow();
 }
 
@@ -37,11 +39,11 @@ describe("tradeStore phases", () => {
   });
 
   test("the initiator waits, the target is asked — same frame", () => {
-    openTradeRequest(true, PARTNER, "Madani");
+    openTradeRequest(true, PARTNER, "Madani", ExchangeType.EXCHANGE_PLAYER);
     expect(tradeStore.getSnapshot().phase).toBe("awaiting-answer");
 
     closeTrade();
-    openTradeRequest(false, PARTNER, "Madani");
+    openTradeRequest(false, PARTNER, "Madani", ExchangeType.EXCHANGE_PLAYER);
     expect(tradeStore.getSnapshot().phase).toBe("asked");
   });
 
@@ -56,7 +58,7 @@ describe("tradeStore phases", () => {
   });
 
   test("an EC that arrives after the player walked away is ignored", () => {
-    openTradeRequest(true, PARTNER, "Madani");
+    openTradeRequest(true, PARTNER, "Madani", ExchangeType.EXCHANGE_PLAYER);
     closeTrade();
 
     openTradeWindow();

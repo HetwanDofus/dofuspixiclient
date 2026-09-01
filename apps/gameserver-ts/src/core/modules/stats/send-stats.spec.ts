@@ -8,6 +8,7 @@ import type { DofusMessage } from "@dofus/proto/server_messages_pb";
 import type { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
 import type { InventoryRepository } from "@modules/inventory/inventory.repository";
 import type { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
+import type { JobsService } from "@modules/jobs/jobs.service";
 import type { PlayersRepository } from "@modules/players/players.repository";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { REGEN_MS_PER_LIFE_STANDING } from "@modules/life-regen/life-regen";
@@ -132,13 +133,21 @@ beforeEach(() => {
     sendWeight: () => {},
   } as unknown as InventoryFramesService;
 
+  // Same reasoning as `inventoryFrames`: the job pods term reaches the
+  // `ItemWeight` frame, which nothing here asserts on. A character with no
+  // job is worth nothing, which is what these fixtures describe.
+  const jobs = {
+    podsBonus: async () => 0,
+  } as unknown as JobsService;
+
   service = new StatsService(
     templateCache,
     inventory,
     players,
     frames,
     lifeRegen,
-    inventoryFrames
+    inventoryFrames,
+    jobs
   );
 });
 

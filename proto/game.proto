@@ -376,6 +376,7 @@ message GameAction {
     ActionInvisibility       invisibility = 37;
     ActionGlyph              glyph = 38;
     ActionCinematic          cinematic = 39;
+    ActionHarvest            harvest = 40;
   }
 }
 
@@ -433,6 +434,12 @@ enum GameActionType {
   // this skill". Canonical 1.29: GameManager.useRessource walks the player to
   // the cell, then sends it. Covers doors, zaaps, storages and resources.
   ACTION_INTERACTIVE_USE = 500;
+  // GA;501;<cellId>,<durationMs>[,<animId>] — "this sprite is working on that
+  // cell for that long". Sent by the server to *everyone on the map*, not
+  // just the actor: canonical StarLoco calls `map:sendAction(p, 0, 501, …)`.
+  // Note the separator: 500's parameters are semicolon-separated and 501's
+  // are comma-separated, which is 1.29's inconsistency, not this schema's.
+  ACTION_HARVEST = 501;
   ACTION_MARRIAGE_ASK = 617;
   ACTION_MARRIAGE_ACCEPT = 618;
   ACTION_MARRIAGE_REFUSE = 619;
@@ -596,6 +603,16 @@ message ActionEffectApply {
 message ActionObjectFrameChange {
   int32 object_id = 1;
   int32 frame = 2;
+}
+
+// The payload of ACTION_HARVEST. `duration_ms` is what the client counts
+// down; it is the server's own figure and the client never recomputes it.
+// `anim_id` is 1.29's optional third parameter, absent for every harvest
+// skill the retail scripts define — zero means "use the default animation".
+message ActionHarvest {
+  int32 cell_id = 1;
+  int32 duration_ms = 2;
+  int32 anim_id = 3;
 }
 
 message ActionVisualEffect {

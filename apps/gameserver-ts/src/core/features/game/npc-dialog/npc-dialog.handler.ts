@@ -17,6 +17,7 @@ import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { ExchangeService } from "@modules/exchange/exchange.service";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import { bankOwner } from "@modules/items/item-owner";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { MapNpcService } from "@modules/npcs/map-npc.service";
 import { NpcDialogService } from "@modules/npcs/npc-dialog.service";
 import { NpcDialogSessionService } from "@modules/npcs/npc-dialog.session";
@@ -58,6 +59,7 @@ export class NpcDialogHandler {
     private readonly graph: NpcDialogService,
     private readonly open: NpcDialogSessionService,
     private readonly exchange: ExchangeService,
+    private readonly jobs: JobsService,
     private readonly frames: GatewayFrameService
   ) {}
 
@@ -183,6 +185,11 @@ export class NpcDialogHandler {
       return;
     }
 
+    if (outcome.kind === "learn-job") {
+      await this.learnJob(ctx.sessionId, outcome);
+      return;
+    }
+
     this.open.advance(ctx.sessionId, outcome.nextQuestion);
     await this.sendQuestion(ctx.sessionId, outcome.nextQuestion);
   }
@@ -230,6 +237,56 @@ export class NpcDialogHandler {
       bankOwner(session.accountId),
       ExchangeType.EXCHANGE_STORAGE
     );
+  }
+
+  /**
+   * "Apprendre le métier de …" — the master of a job teaching it.
+   *
+   * The refusal is not an error: three jobs already held, or one of them
+   * below level 30, is an ordinary answer in 1.29 and the NPC says so. That
+   * is what the fourth argument of the action row is for, and why a refusal
+   * branches rather than closing the window. Only a *missing* branch ends the
+   * conversation.
+   *
+   * No tool is required here. In 1.29 the tool is bought, and often from the
+   * same NPC, in a different answer.
+   */
+  private async learnJob(
+    sessionId: string,
+    outcome: {
+      jobId: number;
+      onSuccess: number | null;
+      onFailure: number | null;
+    }
+  ): Promise<void> {
+    const session = this.sessions.get(sessionId);
+
+    if (!session?.characterId) {
+      return;
+    }
+
+    const result = await this.jobs.learn(
+      sessionId,
+      session.characterId,
+      outcome.jobId
+    );
+
+    const next = result.ok ? outcome.onSuccess : outcome.onFailure;
+
+    if (!result.ok) {
+      this.logger.debug(
+        `dialog: job ${outcome.jobId} refused (${result.reason}) ` +
+          `session=${sessionId}`
+      );
+    }
+
+    if (next === null) {
+      this.leaveSession(sessionId);
+      return;
+    }
+
+    this.open.advance(sessionId, next);
+    await this.sendQuestion(sessionId, next);
   }
 
   private async sendQuestion(

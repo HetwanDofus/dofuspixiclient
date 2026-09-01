@@ -13,6 +13,7 @@ import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { SpellListSchema } from "@dofus/proto/spells_pb";
 import { AccessoriesService } from "@modules/inventory/accessories.service";
 import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
@@ -52,6 +53,7 @@ export class EnterGameHandler {
     private readonly spells: SpellsService,
     private readonly accessories: AccessoriesService,
     private readonly items: InventoryFramesService,
+    private readonly jobs: JobsService,
     private readonly shortcuts: ShortcutsFramesService
   ) {}
 
@@ -138,6 +140,12 @@ export class EnterGameHandler {
     // frame for them. Must follow the templates above: the client needs
     // the template to draw the icon the shortcut points at.
     await this.shortcuts.sendAll(ctx.sessionId, session.characterId);
+
+    // `JS` then `JX`, which is the order the 1.29 client needs: `onSkills`
+    // constructs the `Job` objects and `onXP` only updates ones it can find
+    // by id. Must follow the inventory, because the harvest actions the
+    // client will offer are gated on the tool it can see equipped.
+    await this.jobs.pushAll(ctx.sessionId, session.characterId);
 
     // Catch-up before the snapshot is built, so a character whose level
     // was raised outside a fight — by hand in SQL, which is how every

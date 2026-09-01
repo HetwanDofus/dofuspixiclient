@@ -17,6 +17,7 @@ import {
 import { NpcDialogHandler } from "@features/game/npc-dialog/npc-dialog.handler";
 import { ExchangeService } from "@modules/exchange/exchange.service";
 import { OwnerKind } from "@modules/items/item-owner";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { NpcDialogSessionService } from "@modules/npcs/npc-dialog.session";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
@@ -35,6 +36,16 @@ const ACCOUNT = "acc-1";
  */
 const BANK_QUESTION = 318;
 const BANK_RESPONSE = 259;
+
+/**
+ * A job master. `(280, 6, '2,898,335,1489')` is the dump's own
+ * "Apprendre le métier de Bûcheron": job 2, question 335 once granted,
+ * question 1489 when the slot rules refuse.
+ */
+const JOB_QUESTION = 897;
+const JOB_RESPONSE = 280;
+const JOB_ON_SUCCESS = 335;
+const JOB_ON_FAILURE = 1489;
 
 const NPC = {
   id: NPC_SPRITE_ID,
@@ -63,6 +74,9 @@ const QUESTIONS: Record<number, number[]> = {
   // The banker's own question, kept apart from Kana Petch's tree so the
   // reference assertions above stay about the reference tree.
   [BANK_QUESTION]: [BANK_RESPONSE, 329],
+  [JOB_QUESTION]: [JOB_RESPONSE],
+  [JOB_ON_SUCCESS]: [],
+  [JOB_ON_FAILURE]: [],
 };
 
 let sent: DofusMessage[];
@@ -70,6 +84,8 @@ let open: NpcDialogSessionService;
 let handler: NpcDialogHandler;
 let inFight: boolean;
 let banksOpened: { accountId: string; ownerKind: number; kind: number }[];
+let jobsLearned: { characterId: string; jobId: number }[];
+let learnSucceeds: boolean;
 
 const ctx = { sessionId: SESSION } as HandlerContext;
 
@@ -77,6 +93,8 @@ beforeEach(() => {
   sent = [];
   inFight = false;
   banksOpened = [];
+  jobsLearned = [];
+  learnSucceeds = true;
   open = new NpcDialogSessionService();
 
   const registry = new SessionRegistry(new EventEmitter2());
@@ -112,6 +130,14 @@ beforeEach(() => {
       if (responseId === BANK_RESPONSE) {
         return { kind: "open-bank" as const };
       }
+      if (responseId === JOB_RESPONSE) {
+        return {
+          kind: "learn-job" as const,
+          jobId: 2,
+          onSuccess: JOB_ON_SUCCESS,
+          onFailure: JOB_ON_FAILURE,
+        };
+      }
       return { kind: "end" as const };
     },
     unavailable: async (ids: readonly number[]) =>
@@ -139,6 +165,15 @@ beforeEach(() => {
     },
   } as unknown as ExchangeService;
 
+  const jobs = {
+    learn: async (_sessionId: string, characterId: string, jobId: number) => {
+      jobsLearned.push({ characterId, jobId });
+      return learnSucceeds
+        ? { ok: true as const, jobId }
+        : { ok: false as const, reason: "no-slot-left" as const };
+    },
+  } as unknown as JobsService;
+
   handler = new NpcDialogHandler(
     registry,
     presence,
@@ -147,6 +182,7 @@ beforeEach(() => {
     graph,
     open,
     exchange,
+    jobs,
     frames
   );
 });
@@ -259,6 +295,50 @@ describe("DR", () => {
     expect(banksOpened).toEqual([
       { accountId: ACCOUNT, ownerKind: OwnerKind.Bank, kind: 5 },
     ]);
+  });
+
+  test("teaches the job, then branches to the master's thanks", async () => {
+    open.open(SESSION, {
+      npcSpriteId: NPC_SPRITE_ID,
+      templateId: NPC.templateId,
+      mapId: MAP_ID,
+      questionId: JOB_QUESTION,
+    });
+
+    await handler.respond(
+      ctx,
+      create(DialogResponseRequestSchema, {
+        questionId: JOB_QUESTION,
+        responseId: JOB_RESPONSE,
+      })
+    );
+
+    expect(jobsLearned).toEqual([{ characterId: "char-1", jobId: 2 }]);
+    expect(cases()).toEqual(["dialogQuestion"]);
+    expect(open.get(SESSION)?.questionId).toBe(JOB_ON_SUCCESS);
+  });
+
+  test("a refusal branches too — three jobs already is an answer, not an error", async () => {
+    learnSucceeds = false;
+    open.open(SESSION, {
+      npcSpriteId: NPC_SPRITE_ID,
+      templateId: NPC.templateId,
+      mapId: MAP_ID,
+      questionId: JOB_QUESTION,
+    });
+
+    await handler.respond(
+      ctx,
+      create(DialogResponseRequestSchema, {
+        questionId: JOB_QUESTION,
+        responseId: JOB_RESPONSE,
+      })
+    );
+
+    // The dialog must stay open on the "you cannot" line rather than
+    // vanishing, which would read as the game having ignored the click.
+    expect(cases()).toEqual(["dialogQuestion"]);
+    expect(open.get(SESSION)?.questionId).toBe(JOB_ON_FAILURE);
   });
 
   test("closes on an answer whose action is DV", async () => {

@@ -72,14 +72,67 @@ describe("classify", () => {
   });
 
   it("an implemented effect alongside an unimplemented one stays blocked", () => {
-    // Following this would open the bank and silently skip the other
-    // effect. A greyed answer is the lesser wrong.
+    // Following this would open the bank and silently skip the quest.
+    // A greyed answer is the lesser wrong.
     expect(
       classify([
         { type: -1, args: "" },
-        { type: 6, args: "11,1066,335,336" },
+        { type: 40, args: "26" },
       ])
     ).toEqual({ kind: "blocked" });
+  });
+
+  it("teaches a job, and carries both branches of the outcome", () => {
+    // `(280, 6, '2,898,335,1489')` — "Apprendre le métier de Bûcheron".
+    expect(classify([{ type: 6, args: "2,898,335,1489" }])).toEqual({
+      kind: "learn-job",
+      jobId: 2,
+      onSuccess: 335,
+      onFailure: 1489,
+    });
+  });
+
+  it("a job answer wins over the navigate row it travels with", () => {
+    // `(2008, …)` carries both, and the twelve rows that do disagree about
+    // which of the two question ids the navigate points at — so neither is
+    // trusted and the pair in `args` decides.
+    expect(
+      classify([
+        { type: 1, args: "2387" },
+        { type: 6, args: "16,7544,335,336" },
+      ])
+    ).toEqual({
+      kind: "learn-job",
+      jobId: 16,
+      onSuccess: 335,
+      onFailure: 336,
+    });
+  });
+
+  it("an empty type-0 row is a placeholder, not an unimplemented effect", () => {
+    // `(1129, 0, '')` sits beside the Pêcheur's own job action; treating it
+    // as an effect would grey the only way to learn the job.
+    expect(
+      classify([
+        { type: 6, args: "36,7365,1487,1488" },
+        { type: 0, args: "" },
+      ])
+    ).toEqual({
+      kind: "learn-job",
+      jobId: 36,
+      onSuccess: 1487,
+      onFailure: 1488,
+    });
+  });
+
+  it("but a type-0 row with arguments is a teleport, and stays blocked", () => {
+    expect(classify([{ type: 0, args: "1669,384" }])).toEqual({
+      kind: "blocked",
+    });
+  });
+
+  it("a job action with an unusable job id is refused rather than guessed", () => {
+    expect(classify([{ type: 6, args: "" }])).toEqual({ kind: "blocked" });
   });
 
   it("two navigate rows are still refused", () => {

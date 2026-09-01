@@ -62,12 +62,14 @@ export function FightOverlay({ actions }: FightOverlayProps) {
   // coloring comes from `fighter.team` vs our own team, not from
   // sprite-id sign (which is only meaningful for monster groups).
   const mySpriteId = fight.mySpriteId;
-  const myTeam =
-    (mySpriteId && fight.fighters.get(mySpriteId)?.team) ?? 0;
+  const myTeam = (mySpriteId && fight.fighters.get(mySpriteId)?.team) ?? 0;
   const entries: TurnTimelineEntry[] = fight.timeline.map((spriteId) => {
     const f = fight.fighters.get(spriteId);
-    const team: "ally" | "enemy" =
-      f ? (f.team === myTeam ? "ally" : "enemy") : "ally";
+    const team: "ally" | "enemy" = f
+      ? f.team === myTeam
+        ? "ally"
+        : "enemy"
+      : "ally";
     const hp = f && f.maxHp > 0 ? f.hp / f.maxHp : undefined;
     return {
       id: spriteId,
@@ -134,10 +136,10 @@ export function FightOverlay({ actions }: FightOverlayProps) {
       </div>
 
       {/* Bottom-center: placement panel during prep. Spell selection
-        * during combat is handled by BannerReact's hotbar slots — they
-        * already render the player's positioned spells with proper
-        * Vello icons + tooltips, so we no longer overlay a separate
-        * FightSpellBar with a duplicated visual style. */}
+       * during combat is handled by BannerReact's hotbar slots — they
+       * already render the player's positioned spells with proper
+       * Vello icons + tooltips, so we no longer overlay a separate
+       * FightSpellBar with a duplicated visual style. */}
       {fight.isPlacement && <FightPlacementPanel onReady={actions.onReady} />}
     </div>
   );

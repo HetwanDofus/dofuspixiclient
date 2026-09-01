@@ -9,7 +9,10 @@ import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { FightStartService } from "@features/game/fight-start/fight-start.service";
 import { resolveMoveLanding } from "@features/game/move-ack/move-ack.landing";
 import { MapCacheService } from "@modules/maps/maps.cache.service";
-import { detectExitDirection, resolveLandingCell } from "@modules/maps/maps.edge";
+import {
+  detectExitDirection,
+  resolveLandingCell,
+} from "@modules/maps/maps.edge";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";

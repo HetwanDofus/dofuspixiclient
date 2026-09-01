@@ -1,7 +1,7 @@
 import {
-  type AnimationEvent as ReactAnimationEvent,
   type CSSProperties,
   memo,
+  type AnimationEvent as ReactAnimationEvent,
   useCallback,
   useEffect,
   useRef,
@@ -78,12 +78,15 @@ const DamagePointView = memo(function DamagePointView({
   useEffect(() => {
     if (point.finishFrame <= 0 || point.fps <= 0) return;
     const finishMs = ((point.finishFrame - 1) / point.fps) * 1000;
-    const timer = window.setTimeout(() => {
-      if (!finishFiredRef.current) {
-        finishFiredRef.current = true;
-        point.onFinishFrame();
-      }
-    }, Math.max(0, finishMs));
+    const timer = window.setTimeout(
+      () => {
+        if (!finishFiredRef.current) {
+          finishFiredRef.current = true;
+          point.onFinishFrame();
+        }
+      },
+      Math.max(0, finishMs)
+    );
     return () => window.clearTimeout(timer);
   }, [point]);
 

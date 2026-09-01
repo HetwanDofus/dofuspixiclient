@@ -133,7 +133,7 @@ function Star({ fill }: { fill: string | null }) {
 export function MonsterGroupTooltip() {
   const { group } = useSyncExternalStore(
     monsterGroupHoverStore.subscribe,
-    monsterGroupHoverStore.getSnapshot,
+    monsterGroupHoverStore.getSnapshot
   );
 
   if (!group || group.members.length === 0) {
@@ -220,7 +220,7 @@ export function MonsterGroupTooltip() {
         // so the AS Y-math (title.y + textHeight + gap = stars.top)
         // works without browser-leading drift. Multi-line body
         // overrides to 1.25 below to recover natural inter-line gap.
-        "text-[calc(10px*var(--resolution-factor,1))] font-bold text-center leading-none",
+        "text-[calc(10px*var(--resolution-factor,1))] font-bold text-center leading-none"
       )}
       style={{
         left: group.x,

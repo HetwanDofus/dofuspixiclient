@@ -29,6 +29,14 @@ export interface TradeSideState {
 
 export interface TradeState {
   phase: TradePhase;
+  /**
+   * The `ExchangeType` the proposal is for.
+   *
+   * A player-to-player trade and an offer to craft for somebody arrive on
+   * the same `ER` frame and put up the same yes/no box; only the type tells
+   * them apart, and the box has to say which it is or the answer is a guess.
+   */
+  kind: number;
   /** The other player's sprite id, and the name to put on their pane. */
   partnerId: string;
   partnerName: string;
@@ -54,6 +62,7 @@ function emptySide(): TradeSideState {
 
 const closed: TradeState = {
   phase: "idle",
+  kind: 0,
   partnerId: "",
   partnerName: "",
   mine: emptySide(),
@@ -76,13 +85,15 @@ function fresh(over: Partial<TradeState>): TradeState {
 export function openTradeRequest(
   amInitiator: boolean,
   partnerId: string,
-  partnerName: string
+  partnerName: string,
+  kind: number
 ): void {
   tradeStore.replaceState(
     fresh({
       phase: amInitiator ? "awaiting-answer" : "asked",
       partnerId,
       partnerName,
+      kind,
     })
   );
 }

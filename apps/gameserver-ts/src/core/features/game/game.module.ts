@@ -14,6 +14,7 @@ import { GetMapDataModule } from "@features/game/get-map-data/get-map-data.modul
 import { InteractiveUseModule } from "@features/game/interactive-use/interactive-use.module";
 import { ItemMoveModule } from "@features/game/item-move/item-move.module";
 import { ItemUseModule } from "@features/game/item-use/item-use.module";
+import { JobOptionsModule } from "@features/game/job-options/job-options.module";
 import { MoveModule } from "@features/game/move/move.module";
 import { MoveAckModule } from "@features/game/move-ack/move-ack.module";
 import { NpcDialogModule } from "@features/game/npc-dialog/npc-dialog.module";
@@ -42,6 +43,7 @@ import { Module } from "@nestjs/common";
     MoveAckModule,
     InteractiveUseModule,
     ItemMoveModule,
+    JobOptionsModule,
     ItemUseModule,
     StatBoostModule,
     ChatModule,

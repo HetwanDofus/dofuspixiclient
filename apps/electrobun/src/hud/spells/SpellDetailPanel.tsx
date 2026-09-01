@@ -445,9 +445,7 @@ function DetailFrame({
         from the panel's top edge), and *under* the tab — the header block
         starts level with the tab's lower half, exactly as in the original.
       */}
-      <div
-        style={{ position: "absolute", inset: 0, zIndex: 1, color: C.text }}
-      >
+      <div style={{ position: "absolute", inset: 0, zIndex: 1, color: C.text }}>
         {children}
       </div>
     </div>

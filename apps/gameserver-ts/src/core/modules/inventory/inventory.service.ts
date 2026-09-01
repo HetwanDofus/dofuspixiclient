@@ -18,6 +18,11 @@ import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemPresentationCacheService } from "@modules/inventory/item-presentation.cache";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { currentPods, maxPods } from "@modules/inventory/pods";
+import { JobsCatalogService } from "@modules/jobs/jobs.catalog.service";
+import { JobsFramesService } from "@modules/jobs/jobs.frames.service";
+import { jobPodsBonus } from "@modules/jobs/jobs.pods";
+import { JobsRepository } from "@modules/jobs/jobs.repository";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { maxLifePoints } from "@modules/stats/stats.constants";
@@ -40,6 +45,14 @@ const SHIELD_POSITION = 15;
  * item in the imported set actually carries.
  */
 const HEAL_EFFECT_ID = 110;
+
+/**
+ * `effects.json` 615, "Fait oublier le métier de #3", and 603, "Apprend le
+ * métier #3". Seventeen "Potion d'oubli de métier" templates carry the first
+ * and each names its job in `param3`, in hexadecimal.
+ */
+const FORGET_JOB_EFFECT_ID = 615;
+const LEARN_JOB_EFFECT_ID = 603;
 
 export type InventoryActionReason =
   | "not-found"
@@ -78,7 +91,11 @@ export class InventoryService {
     private readonly presentation: ItemPresentationCacheService,
     private readonly players: PlayersRepository,
     private readonly frames: InventoryFramesService,
-    private readonly lifeRegen: LifeRegenService
+    private readonly lifeRegen: LifeRegenService,
+    private readonly jobs: JobsRepository,
+    private readonly jobsCatalog: JobsCatalogService,
+    private readonly jobsFrames: JobsFramesService,
+    private readonly jobsService: JobsService
   ) {}
 
   /**
@@ -123,6 +140,9 @@ export class InventoryService {
       const weightByTemplate = await this.weightByTemplate(allItems);
 
       const baseStats = await this.players.findStats(playerId);
+      const jobPods = jobPodsBonus(
+        (await this.jobs.findPlayerJobs(playerId)).map((job) => job.level)
+      );
       const criteriaCtx: CriteriaContext = {
         strength: (baseStats?.strength ?? 0) + totals.strength,
         intelligence: (baseStats?.intelligence ?? 0) + totals.intelligence,
@@ -144,7 +164,7 @@ export class InventoryService {
         playerLevel: player.level,
         equipped: equippedSlots,
         currentPods: currentPods(allItems, weightByTemplate),
-        maxPods: maxPods(criteriaCtx.strength, totals.podsBonus),
+        maxPods: maxPods(criteriaCtx.strength, totals.podsBonus, jobPods),
       });
       if (!rules.ok) {
         return rules;
@@ -184,6 +204,8 @@ export class InventoryService {
       await this.inventory.moveItem(item.id, position);
       this.frames.sendMovement(sessionId, item.id, position);
 
+      await this.announceTool(sessionId, playerId);
+
       return { ok: true };
     });
   }
@@ -203,8 +225,46 @@ export class InventoryService {
       await this.inventory.moveItem(item.id, INVENTORY_POSITION);
       this.frames.sendMovement(sessionId, item.id, INVENTORY_POSITION);
 
+      await this.announceTool(sessionId, playerId);
+
       return { ok: true };
     });
+  }
+
+  /**
+   * `OT` — what is in the weapon slot, and whether it is a job tool.
+   *
+   * Emitted after *any* change to that slot, an unequip included: the 1.29
+   * client greys a harvest action out on this frame alone, so going quiet is
+   * not the same as saying "no tool". The slot is re-read rather than
+   * inferred from the move that just happened, because a two-handed weapon
+   * displaces a shield and an occupant goes back to the bag — several paths
+   * end with a different item in position 1 than the one that was asked for.
+   */
+  private async announceTool(
+    sessionId: string,
+    playerId: string
+  ): Promise<void> {
+    await this.jobsCatalog.load();
+
+    const equipped = await this.inventory.findEquipped(playerId);
+    const weapon = equipped.find((row) => row.position === WEAPON_POSITION);
+    const jobId =
+      weapon === undefined
+        ? null
+        : this.jobsCatalog.jobOfTool(weapon.templateId);
+
+    this.jobsFrames.sendTool(
+      sessionId,
+      jobId === null ? null : (weapon?.templateId ?? null),
+      jobId ?? 0
+    );
+
+    // 1.29 drops an artisan out of the craftsmen's book the moment the tool
+    // leaves the weapon slot: the book says who can work *now*. Unlisting
+    // every job but the one still held covers both the unequip and the
+    // swap from one job's tool to another's.
+    await this.jobsService.unlistExcept(playerId, jobId);
   }
 
   /**
@@ -232,6 +292,42 @@ export class InventoryService {
       if (effects.length === 0) {
         effects = parseItemEffects(template.effects);
       }
+      // A job potion is not a consumable in the healing sense: it changes
+      // what the character *is*. Both effects name their job in `param3`,
+      // and name it in **hexadecimal** — "1c" is Paysan (28), "18" is
+      // Mineur (24). That is the 1.29 encoding, verified against all
+      // seventeen "Potion d'oubli de métier" templates.
+      const jobEffect = effects.find(
+        (e) => e.id === FORGET_JOB_EFFECT_ID || e.id === LEARN_JOB_EFFECT_ID
+      );
+
+      if (jobEffect) {
+        const jobId = Number.parseInt(jobEffect.param3, 16);
+
+        if (!Number.isFinite(jobId) || jobId <= 0) {
+          this.logger.warn(
+            `template ${template.id} ("${template.name}") carries effect ` +
+              `${jobEffect.id} with an unreadable job "${jobEffect.param3}"`
+          );
+          return { ok: false, reason: "no-supported-effect" as const };
+        }
+
+        const applied =
+          jobEffect.id === FORGET_JOB_EFFECT_ID
+            ? await this.jobsService.forget(sessionId, playerId, jobId)
+            : (await this.jobsService.learn(sessionId, playerId, jobId)).ok;
+
+        // Forgetting a job the character does not have, or learning one the
+        // slot rules refuse, must not eat the potion.
+        if (!applied) {
+          return { ok: false, reason: "no-supported-effect" as const };
+        }
+
+        await this.consumeOne(sessionId, item);
+
+        return { ok: true };
+      }
+
       const heal = effects.find((e) => e.id === HEAL_EFFECT_ID);
       if (!heal) {
         return { ok: false, reason: "no-supported-effect" as const };
@@ -253,16 +349,21 @@ export class InventoryService {
       const newLife = Math.min(maxHp, currentLife + heal.param1);
       await this.players.setLife(playerId, newLife, new Date());
 
-      if (item.quantity > 1) {
-        await this.inventory.updateQuantity(item.id, item.quantity - 1);
-        this.frames.sendItemQuantity(sessionId, item.id, item.quantity - 1);
-      } else {
-        await this.inventory.deleteItem(item.id);
-        this.frames.sendItemRemove(sessionId, item.id);
-      }
+      await this.consumeOne(sessionId, item);
 
       return { ok: true };
     });
+  }
+
+  /** One unit off the stack, and the frame that says so. */
+  private async consumeOne(sessionId: string, item: ItemRow): Promise<void> {
+    if (item.quantity > 1) {
+      await this.inventory.updateQuantity(item.id, item.quantity - 1);
+      this.frames.sendItemQuantity(sessionId, item.id, item.quantity - 1);
+    } else {
+      await this.inventory.deleteItem(item.id);
+      this.frames.sendItemRemove(sessionId, item.id);
+    }
   }
 
   /**

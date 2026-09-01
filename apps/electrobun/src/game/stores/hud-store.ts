@@ -4,6 +4,7 @@ export type PanelName =
   | "stats"
   | "spells"
   | "inventory"
+  | "jobs"
   | "quests"
   | "friends"
   | "guild"

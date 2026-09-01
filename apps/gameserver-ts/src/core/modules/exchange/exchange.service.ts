@@ -1,4 +1,5 @@
 import type { BigStoreResult } from "@modules/exchange/big-store.flow";
+import type { CraftResult } from "@modules/exchange/craft.flow";
 import type {
   CloseReason,
   ExchangeKind,
@@ -6,24 +7,41 @@ import type {
   OpenDenialReason,
 } from "@modules/exchange/exchange.types";
 import type { Hall } from "@modules/exchange/hdv.service";
+import type { SecureCraftResult } from "@modules/exchange/secure-craft.flow";
 import type { StorageMoveResult } from "@modules/exchange/storage.flow";
 import type { TradeResult } from "@modules/exchange/trade.flow";
 import type { ItemOwner } from "@modules/items/item-owner";
 import { ExchangeType } from "@dofus/proto/common_pb";
 import { BigStoreFlow } from "@modules/exchange/big-store.flow";
+import { CraftFlow } from "@modules/exchange/craft.flow";
+import { CraftRegistryService } from "@modules/exchange/craft.registry";
 import { ExchangeFramesService } from "@modules/exchange/exchange.frames.service";
 import { ExchangeRegistryService } from "@modules/exchange/exchange.registry";
 import { ExchangeSerializer } from "@modules/exchange/exchange.serializer";
+import { SecureCraftFlow } from "@modules/exchange/secure-craft.flow";
 import { StorageFlow } from "@modules/exchange/storage.flow";
 import { TradeFlow } from "@modules/exchange/trade.flow";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
-import { OwnerKind } from "@modules/items/item-owner";
+import { OwnerKind, playerOwner } from "@modules/items/item-owner";
 import { Injectable, Logger } from "@nestjs/common";
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 
 export type OpenResult = { ok: true } | { ok: false; reason: OpenDenialReason };
 
-export type MoveResult = StorageMoveResult | TradeResult | BigStoreResult;
+/** The two ends of one co-operative craft. */
+function isSecureCraft(kind: number): boolean {
+  return (
+    kind === ExchangeType.EXCHANGE_SECURE_CRAFT_CLIENT ||
+    kind === ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN
+  );
+}
+
+export type MoveResult =
+  | StorageMoveResult
+  | TradeResult
+  | BigStoreResult
+  | CraftResult
+  | SecureCraftResult;
 
 /**
  * The way in and out of an exchange.
@@ -52,7 +70,10 @@ export class ExchangeService {
     private readonly trade: TradeFlow,
     private readonly bigStore: BigStoreFlow,
     private readonly fights: FightRegistryService,
-    private readonly sessions: SessionRegistry
+    private readonly sessions: SessionRegistry,
+    private readonly craft: CraftFlow,
+    private readonly crafts: CraftRegistryService,
+    private readonly secureCraft: SecureCraftFlow
   ) {}
 
   /**
@@ -100,6 +121,194 @@ export class ExchangeService {
     );
 
     return { ok: true };
+  }
+
+  /**
+   * Open a workbench.
+   *
+   * Pushed by the server for the same reason a storage is: 1.29's craft
+   * window is reached by clicking the bench, and `GA;500` is what arrives —
+   * no `startExchange` call site in the client sends an `ER` for type 3.
+   *
+   * `remote` is the player's own bag, deliberately. A bench is not a
+   * container: nothing is ever *stored* on it, and the ingredients stay in
+   * the inventory until the craft commits (`CraftRegistryService`). Naming a
+   * fictitious container here would give `ItemTransferService` somewhere to
+   * move rows to, which is exactly what must not happen.
+   *
+   * The grid's size and the success rate are frozen now, from the level the
+   * character has at this instant — 1.29 does not apply a level gained at
+   * the bench until it is closed and reopened.
+   */
+  async openCraft(
+    sessionId: string,
+    accountId: string,
+    characterId: string,
+    skillId: number,
+    jobId: number,
+    jobLevel: number,
+    maxSlots: number
+  ): Promise<OpenResult> {
+    const denial = this.claim(sessionId);
+
+    if (denial) {
+      this.frames.refuse(sessionId, denial);
+      return { ok: false, reason: denial };
+    }
+
+    const session: ExchangeSession = {
+      sessionId,
+      characterId,
+      accountId,
+      kind: ExchangeType.EXCHANGE_CRAFT,
+      remote: playerOwner(characterId),
+      phase: "open",
+      lockKey: sessionId,
+      openedAt: Date.now(),
+    };
+
+    this.registry.open(session);
+    this.crafts.open({
+      sessionId,
+      characterId,
+      skillId,
+      jobId,
+      jobLevel,
+      maxSlots,
+      slots: {},
+      lastResultItemId: null,
+      remaining: 0,
+      crafted: 0,
+    });
+
+    await this.serializer.runExclusive(session.lockKey, () =>
+      Promise.resolve(this.craft.announceOpen(session))
+    );
+
+    this.logger.log(
+      `exchange: opened workbench skill=${skillId} session=${sessionId} ` +
+        `character=${characterId} slots=${maxSlots}`
+    );
+
+    return { ok: true };
+  }
+
+  /**
+   * The craftsmen's book — exchange type 14.
+   *
+   * The window is a directory, not a container: it holds no items and moves
+   * nothing. It opens empty and fills on the `EJF<jobId>` the client sends
+   * once the reader picks a job, which is why nothing follows the `EC` here.
+   */
+  async openCrafterList(
+    sessionId: string,
+    accountId: string,
+    characterId: string
+  ): Promise<OpenResult> {
+    const denial = this.claim(sessionId);
+
+    if (denial) {
+      this.frames.refuse(sessionId, denial);
+      return { ok: false, reason: denial };
+    }
+
+    const session: ExchangeSession = {
+      sessionId,
+      characterId,
+      accountId,
+      kind: ExchangeType.EXCHANGE_CRAFTER_LIST,
+      remote: playerOwner(characterId),
+      phase: "open",
+      lockKey: sessionId,
+      openedAt: Date.now(),
+    };
+
+    this.registry.open(session);
+    this.frames.openCraft(sessionId, session.kind);
+
+    return { ok: true };
+  }
+
+  /**
+   * `ER12` / `ER13` — ask somebody to craft for you, or offer to craft for
+   * them.
+   *
+   * `skillId` is not in the retail frame: `ER` carries a type and a target,
+   * and 1.29's menu entry ("Inviter à Bûcheron") already names the job on
+   * the client. Ours passes it because the menu is the only place that
+   * knows which of the artisan's skills was picked.
+   */
+  async requestSecureCraft(
+    sessionId: string,
+    targetCharacterId: string,
+    skillId: number,
+    asArtisan: boolean
+  ): Promise<MoveResult> {
+    const session = this.sessions.get(sessionId);
+
+    if (!session?.characterId) {
+      return { ok: false, reason: "not-in-world" };
+    }
+
+    const denial = this.claim(sessionId);
+
+    if (denial) {
+      this.frames.refuseRequest(sessionId, denial);
+      return { ok: false, reason: denial };
+    }
+
+    const result = await this.secureCraft.request(
+      {
+        sessionId,
+        accountId: session.accountId,
+        characterId: session.characterId,
+      },
+      targetCharacterId,
+      skillId,
+      asArtisan
+    );
+
+    if (!result.ok) {
+      // The claim is released by the flow's own failure paths only when it
+      // got as far as opening sessions; a refusal before that leaves the
+      // registry untouched, so nothing has to be undone here.
+      this.frames.refuseRequest(sessionId, result.reason);
+    }
+
+    return result;
+  }
+
+  /** `EK` at a workbench is the "Créer" button, not a validation. */
+  craftOnce(sessionId: string): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      session.kind === ExchangeType.EXCHANGE_CRAFT
+        ? this.craft.craft(session)
+        : Promise.resolve({ ok: false as const, reason: "no-bench" as const })
+    );
+  }
+
+  /** `EMR<n>` — craft the same recipe up to `n` times. */
+  craftSeries(sessionId: string, count: number): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      session.kind === ExchangeType.EXCHANGE_CRAFT
+        ? this.craft.repeat(session, count)
+        : Promise.resolve({ ok: false as const, reason: "no-bench" as const })
+    );
+  }
+
+  /**
+   * `EMr` — stop a series.
+   *
+   * Deliberately **not** serialised through the lock: the series it stops is
+   * holding that lock for its whole run, so queueing behind it would mean
+   * the stop only landed once the series had finished.
+   */
+  stopCraftSeries(sessionId: string): void {
+    const session = this.registry.get(sessionId);
+
+    if (session?.kind === ExchangeType.EXCHANGE_CRAFT) {
+      this.craft.stopRepeat(session);
+    }
   }
 
   /**
@@ -252,15 +461,59 @@ export class ExchangeService {
   }
 
   /** `EA` — accept a proposal. Only the target may. */
-  accept(sessionId: string): Promise<TradeResult> {
+  accept(sessionId: string): Promise<MoveResult> {
     return this.onSession(sessionId, (session) =>
-      Promise.resolve(this.trade.accept(session))
+      Promise.resolve(
+        isSecureCraft(session.kind)
+          ? this.secureCraft.accept(session)
+          : this.trade.accept(session)
+      )
     );
   }
 
-  /** `EK` — validate. The second one commits. */
-  setReady(sessionId: string): Promise<TradeResult> {
-    return this.onSession(sessionId, (session) => this.trade.setReady(session));
+  /** `EPO` — the customer's payment for a co-operative craft. */
+  movePayItem(
+    sessionId: string,
+    add: boolean,
+    itemId: string,
+    quantity: number
+  ): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      isSecureCraft(session.kind)
+        ? this.secureCraft.movePayItem(session, add, itemId, quantity)
+        : Promise.resolve({ ok: false as const, reason: "no-session" as const })
+    );
+  }
+
+  /** `EPG` — the same, in kamas. */
+  movePayKamas(sessionId: string, amount: bigint): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) =>
+      isSecureCraft(session.kind)
+        ? this.secureCraft.movePayKamas(session, amount)
+        : Promise.resolve({ ok: false as const, reason: "no-session" as const })
+    );
+  }
+
+  /**
+   * `EK`.
+   *
+   * Two very different things share this frame. In a trade it is "I
+   * validate", and the second one commits. At a workbench it is the "Créer"
+   * button — `Craft.as:379` sends `ready()` when the bench is not empty —
+   * and there is nothing to validate.
+   */
+  setReady(sessionId: string): Promise<MoveResult> {
+    return this.onSession(sessionId, (session) => {
+      if (session.kind === ExchangeType.EXCHANGE_CRAFT) {
+        return this.craft.craft(session);
+      }
+
+      if (isSecureCraft(session.kind)) {
+        return this.secureCraft.craft(session);
+      }
+
+      return this.trade.setReady(session);
+    });
   }
 
   /**
@@ -290,6 +543,14 @@ export class ExchangeService {
         return add
           ? this.bigStore.list(session, itemId, quantity, price)
           : this.bigStore.withdraw(session, itemId);
+      }
+
+      if (session.kind === ExchangeType.EXCHANGE_CRAFT) {
+        return this.craft.moveItem(session, add, itemId, quantity);
+      }
+
+      if (isSecureCraft(session.kind)) {
+        return this.secureCraft.moveItem(session, add, itemId, quantity);
       }
 
       return this.storage.moveItem(session, add, itemId, quantity);
@@ -334,6 +595,19 @@ export class ExchangeService {
       return;
     }
 
+    const secure = this.secureCraft.craftOf(session);
+
+    if (secure) {
+      // Both windows go, like a trade's: there is no such thing as half an
+      // open arrangement, and nothing has moved that needs undoing.
+      this.secureCraft.close(secure, false);
+      this.serializer.forget(session.lockKey);
+      this.logger.log(
+        `exchange: closed secure craft=${secure.craftId} reason=${reason}`
+      );
+      return;
+    }
+
     const trade = session.tradeId ? this.trade.tradeOf(session) : undefined;
 
     if (trade) {
@@ -350,6 +624,9 @@ export class ExchangeService {
     this.registry.close(sessionId);
     this.serializer.forget(session.lockKey);
     this.bigStore.forget(sessionId);
+    // Dropping the bench is the whole undo: nothing on it ever left the
+    // inventory, so there is no row to put back.
+    this.crafts.close(sessionId);
 
     if (reason !== "disconnected") {
       this.frames.leave(sessionId);

@@ -59,10 +59,26 @@
    (canonical SWF: non-uniform — frame 1 of damage critical is
    3.01 × 1.59). All inherited so the spans inside the wrapper
    read the same values for their `transform`. */
-@property --pt-tx { syntax: "<number>"; inherits: true; initial-value: 0; }
-@property --pt-ty { syntax: "<number>"; inherits: true; initial-value: 0; }
-@property --pt-sx { syntax: "<number>"; inherits: true; initial-value: 1; }
-@property --pt-sy { syntax: "<number>"; inherits: true; initial-value: 1; }
+@property --pt-tx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --pt-ty {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --pt-sx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+@property --pt-sy {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
 @property --pt-opacity {
   syntax: "<number>";
   inherits: true;
@@ -132,8 +148,7 @@
        Per-frame `--pt-tx / --pt-ty` come from the @keyframes; the
        multiplication by `var(--cs)` happens at render time so the
        float follows zoom while the curve interpolates correctly. */
-    transform:
-      translate(
+    transform: translate(
         calc(var(--pt-tx) * var(--cs) * 1px),
         calc(var(--pt-ty) * var(--cs) * 1px)
       )

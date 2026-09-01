@@ -5,12 +5,37 @@ import { closeBigStore, openBigStore } from "@/game/stores/bigstore-store";
 import { characterStore } from "@/game/stores/character-store";
 import { appendInfoMessage } from "@/game/stores/chat-store";
 import {
+  applyBenchItem,
+  applyCraftLoop,
+  applyCraftLoopEnd,
+  applyCraftResult,
+  closeCraft,
+  craftStore,
+  lastRequestedSkill,
+  openCraft,
+} from "@/game/stores/craft-store";
+import {
+  closeCrafterList,
+  openCrafterList,
+  setCrafters,
+} from "@/game/stores/crafter-store";
+import {
   applyExchangeItem,
   applyExchangeKamas,
   closeExchange,
   openExchange,
   setExchangeContents,
 } from "@/game/stores/exchange-store";
+import { craftSlotsOf } from "@/game/stores/jobs-store";
+import {
+  applyCoopItem,
+  applyPayItem,
+  applyPayKamas,
+  applySecureCraftResult,
+  closeSecureCraft,
+  openSecureCraft,
+  secureCraftStore,
+} from "@/game/stores/secure-craft-store";
 import {
   applyTradeItem,
   applyTradeKamas,
@@ -58,7 +83,8 @@ export class ExchangeHandler {
       openTradeRequest(
         amInitiator,
         amInitiator ? payload.targetId : payload.initiatorId,
-        amInitiator ? payload.targetName : payload.initiatorName
+        amInitiator ? payload.targetName : payload.initiatorName,
+        payload.exchangeType
       );
     });
 
@@ -71,6 +97,18 @@ export class ExchangeHandler {
     });
 
     this.messageHandler.on("exchangeLocalMovement", (payload) => {
+      // The bench and a trade offer share `EM`: one is one-sided and the
+      // other is not, and only one of the two windows is ever open.
+      if (craftStore.getSnapshot().open) {
+        applyBenchItem(
+          payload.movement.case === "item" ? payload.movement.value.add : false,
+          payload.movement.case === "item"
+            ? payload.movement.value.item
+            : undefined
+        );
+        return;
+      }
+
       applyOffer("mine", payload.movement);
     });
 
@@ -106,6 +144,32 @@ export class ExchangeHandler {
         return;
       }
 
+      if (payload.exchangeType === ExchangeType.EXCHANGE_SECURE_CRAFT_CLIENT) {
+        openSecureCraft("customer");
+        return;
+      }
+
+      if (payload.exchangeType === ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN) {
+        openSecureCraft("artisan");
+        return;
+      }
+
+      if (payload.exchangeType === ExchangeType.EXCHANGE_CRAFTER_LIST) {
+        openCrafterList();
+        return;
+      }
+
+      if (payload.exchangeType === ExchangeType.EXCHANGE_CRAFT) {
+        // Which bench this is comes from the click that opened it, not
+        // from the frame: `EC` carries only a type. The grid's size comes
+        // from `JS`'s `param1` for that skill, which the server computed
+        // from the same level it froze into the session — the two cannot
+        // disagree.
+        const skillId = lastRequestedSkill();
+        openCraft(skillId, craftSlotsOf(skillId));
+        return;
+      }
+
       openExchange(payload.exchangeType);
     });
 
@@ -126,6 +190,50 @@ export class ExchangeHandler {
       }
     });
 
+    // --- The workbench ------------------------------------------------
+
+    this.messageHandler.on("exchangeCoopMovement", (payload) => {
+      applyCoopItem(
+        payload.movement.case === "item" ? payload.movement.value.add : false,
+        payload.movement.case === "item"
+          ? payload.movement.value.item
+          : undefined
+      );
+    });
+
+    this.messageHandler.on("exchangePayMovement", (payload) => {
+      if (payload.movement.case === "kama") {
+        applyPayKamas(Number(payload.movement.value.quantity));
+        return;
+      }
+
+      if (payload.movement.case === "item") {
+        applyPayItem(payload.movement.value.add, payload.movement.value.item);
+      }
+    });
+
+    this.messageHandler.on("exchangeCrafterList", (payload) => {
+      setCrafters(payload.jobId, payload.crafters);
+    });
+
+    this.messageHandler.on("exchangeCraft", (payload) => {
+      // `Ec` serves both benches; only one of the two is ever open.
+      if (secureCraftStore.getSnapshot().open) {
+        applySecureCraftResult(payload.resultCode);
+        return;
+      }
+
+      applyCraftResult(payload.resultCode);
+    });
+
+    this.messageHandler.on("exchangeCraftLoop", (payload) => {
+      applyCraftLoop(payload.remaining);
+    });
+
+    this.messageHandler.on("exchangeCraftLoopEnd", (payload) => {
+      applyCraftLoopEnd(payload.totalCrafted);
+    });
+
     this.messageHandler.on("exchangeLeave", (payload) => {
       // Canonical `onLeave` prints one of two lines depending on the
       // flag, and it is the only confirmation a player gets that the
@@ -138,6 +246,9 @@ export class ExchangeHandler {
       }
 
       closeExchange();
+      closeCraft();
+      closeCrafterList();
+      closeSecureCraft();
       closeTrade();
       closeBigStore();
     });

@@ -170,7 +170,7 @@ export function TurnChangeBanner() {
         setPhase("idle");
         setActiveId(null);
       },
-      SLIDE_IN_MS + HOLD_MS + SLIDE_OUT_MS,
+      SLIDE_IN_MS + HOLD_MS + SLIDE_OUT_MS
     );
 
     return () => {

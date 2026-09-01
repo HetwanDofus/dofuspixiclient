@@ -142,6 +142,10 @@ export class Battlefield {
     exchangeType: number
   ) => void;
   private onPlayerExchangeCallback?: (targetSpriteId: number) => void;
+  private onCraftInviteCallback?: (
+    targetSpriteId: number,
+    skillId: number
+  ) => void;
   private onCellHoverCallback?: (cellId: number | null) => void;
   private lastHoveredCellId: number | null = null;
   private onResizeStartCallback?: () => void;
@@ -164,6 +168,8 @@ export class Battlefield {
     localCharacterId: () => characterStore.getSnapshot().id || null,
     onPlayerExchange: (targetSpriteId) =>
       this.onPlayerExchangeCallback?.(targetSpriteId),
+    onCraftInvite: (targetSpriteId, skillId) =>
+      this.onCraftInviteCallback?.(targetSpriteId, skillId),
   });
 
   private readonly worldActors = new BattlefieldWorldActors({
@@ -670,6 +676,23 @@ export class Battlefield {
     // Reserved for future use
   }
 
+  /**
+   * `GDF` — an interactive element on this map changed state.
+   *
+   * Forwarded straight to the picking layer, which owns both the sprite and
+   * the clickability. Nothing here decides *why* an element is spent: the
+   * server said so, and a client that guessed would be the thing that lets
+   * two players harvest one tree.
+   */
+  setCellInteractive(cellId: number, interactive: boolean): void {
+    this.picking.setCellInteractive(cellId, interactive);
+  }
+
+  /** Where a HUD overlay for this sprite belongs — see `getSpriteAnchor`. */
+  getSpriteAnchor(spriteId: number): { x: number; y: number } | null {
+    return this.worldActors.getRenderer()?.getSpriteAnchor(spriteId) ?? null;
+  }
+
   setPathfinding(pathfinding: DofusPathfinding | null): void {
     this.pathfinding = pathfinding;
   }
@@ -816,6 +839,13 @@ export class Battlefield {
 
   setOnPlayerExchange(callback: (targetSpriteId: number) => void): void {
     this.onPlayerExchangeCallback = callback;
+  }
+
+  /** "Inviter à <métier>" on another player. */
+  setOnCraftInvite(
+    callback: (targetSpriteId: number, skillId: number) => void
+  ): void {
+    this.onCraftInviteCallback = callback;
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {

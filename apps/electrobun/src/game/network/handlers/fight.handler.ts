@@ -305,9 +305,7 @@ export class FightHandler {
               color1: c1,
               color2: c2,
               color3: c3,
-              ...(entry.isSummoned
-                ? { summonedBy: entry.spriteId }
-                : {}),
+              ...(entry.isSummoned ? { summonedBy: entry.spriteId } : {}),
             },
           });
         }
@@ -479,10 +477,7 @@ export class FightHandler {
    * Compute a HP patch from a current fighter snapshot: the wire delta
    * is applied to the latest known HP, floored at 0 and capped at maxHp.
    */
-  private hpPatch(
-    spriteId: string,
-    delta: number
-  ): { hp: number } {
+  private hpPatch(spriteId: string, delta: number): { hp: number } {
     const existing = fightActor.getSnapshot().context.fighters.get(spriteId);
     const current = existing?.hp ?? 0;
     const max = existing?.maxHp ?? Number.POSITIVE_INFINITY;

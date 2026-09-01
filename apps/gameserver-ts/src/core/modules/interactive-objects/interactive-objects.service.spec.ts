@@ -8,6 +8,10 @@ import { type ItemOwner, OwnerKind } from "@modules/items/item-owner";
 const HOUSE_DOOR_GFX = 6749;
 const ZAAP_GFX = 7000;
 const CHEST_GFX = 7350;
+/** Frêne — `IO.g[7500] = 1`, whose only skill is 6 "Couper". */
+const ASH_GFX = 7500;
+/** Scie — `IO.g[7003] = 2`, type 2 (workbench), skill 101 "Scier". */
+const SAW_GFX = 7003;
 
 function cell(overrides: Partial<DecodedCell> = {}): DecodedCell {
   return {
@@ -40,6 +44,13 @@ interface Recorded {
   zaapMenus: number;
   storage: { totalSlots: number; usedSlots: number }[];
   exchanges: { kind: number; ownerKind: number; ownerId: string }[];
+  harvests: { cellId: number; skillId: number }[];
+  benches: {
+    skillId: number;
+    jobId: number;
+    jobLevel: number;
+    maxSlots: number;
+  }[];
 }
 
 interface HarnessOptions {
@@ -53,6 +64,12 @@ interface HarnessOptions {
   houseByInteriorMap?: { id: string } | null;
   houseStorageCount?: number;
   bankCount?: number;
+  /** Skill ids the referential would report as runnable harvests. */
+  harvestSkills?: number[];
+  /** Skill ids the referential would report as craft skills. */
+  craftSkills?: number[];
+  /** The level the character has in the job; absent means "no job". */
+  jobLevel?: number;
 }
 
 function harness(options: HarnessOptions) {
@@ -61,7 +78,12 @@ function harness(options: HarnessOptions) {
     zaapMenus: 0,
     storage: [],
     exchanges: [],
+    harvests: [],
+    benches: [],
   };
+  const harvestSkills = new Map(
+    (options.harvestSkills ?? []).map((id) => [id, { id }])
+  );
   const templates = options.templates ?? {
     [HOUSE_DOOR_GFX]: { type: 5, skills: "97,100,84,108,98,81" },
     [ZAAP_GFX]: { type: 3, skills: "114" },
@@ -134,6 +156,18 @@ function harness(options: HarnessOptions) {
   };
 
   const exchange = {
+    openCraft: async (
+      _sessionId: string,
+      _accountId: string,
+      _characterId: string,
+      skillId: number,
+      jobId: number,
+      jobLevel: number,
+      maxSlots: number
+    ) => {
+      recorded.benches.push({ skillId, jobId, jobLevel, maxSlots });
+      return { ok: true as const };
+    },
     openStorage: async (
       _sessionId: string,
       _accountId: string,
@@ -150,6 +184,38 @@ function harness(options: HarnessOptions) {
     },
   };
 
+  // The referential is not loaded in these tests: every skill they exercise
+  // is one of the three the service handles itself. `runnableHarvestSkill`
+  // answering "no" is what routes anything else to the log, which is the
+  // branch the "not implemented" cases below assert on.
+  const catalog = {
+    load: async () => {},
+    runnableHarvestSkill: (id: number) => harvestSkills.get(id),
+    skill: (id: number) =>
+      (options.craftSkills ?? []).includes(id)
+        ? { id, jobId: 2, kind: 2, minLevel: 1 }
+        : harvestSkills.get(id),
+  };
+
+  const jobs = {
+    findPlayerJob: async () =>
+      options.jobLevel === undefined
+        ? undefined
+        : { jobId: 2, level: options.jobLevel, experience: "0" },
+  };
+
+  const harvest = {
+    start: async (
+      _sessionId: string,
+      _characterId: string,
+      cellId: number,
+      skillId: number
+    ) => {
+      recorded.harvests.push({ cellId, skillId });
+      return { ok: true as const, durationMs: 12_000 };
+    },
+  };
+
   const service = new InteractiveObjectsService(
     repo as never,
     mapCache as never,
@@ -157,6 +223,9 @@ function harness(options: HarnessOptions) {
     transition as never,
     waypoints as never,
     exchange as never,
+    catalog as never,
+    jobs as never,
+    harvest as never,
     frames as never
   );
 
@@ -289,5 +358,111 @@ describe("InteractiveObjectsService.use", () => {
 
     expect(recorded.teleports).toEqual([]);
     expect(recorded.storage).toEqual([]);
+    expect(recorded.harvests).toEqual([]);
+  });
+
+  test("hands a harvest skill to the harvest service", async () => {
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, ASH_GFX, true),
+      templates: { [ASH_GFX]: { type: 1, skills: "6" } },
+      harvestSkills: [6],
+    });
+
+    await service.use("s1", "acc1", "char1", 170, 6);
+
+    expect(recorded.harvests).toEqual([{ cellId: 170, skillId: 6 }]);
+  });
+
+  test("a harvest skill the referential cannot run is logged, not run", async () => {
+    // The three jobless gathers (`Ramasser`, `Jouer`, `Pêcher KoinKoin`)
+    // import without a level or an experience value, and this is where that
+    // shows: the element offers the skill and nothing happens.
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, ASH_GFX, true),
+      templates: { [ASH_GFX]: { type: 1, skills: "42" } },
+      harvestSkills: [],
+    });
+
+    await service.use("s1", "acc1", "char1", 170, 42);
+
+    expect(recorded.harvests).toEqual([]);
+  });
+
+  test("a workbench opens a craft window sized to the job level", async () => {
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, SAW_GFX, true),
+      templates: { [SAW_GFX]: { type: 2, skills: "101" } },
+      craftSkills: [101],
+      jobLevel: 40,
+    });
+
+    await service.use("s1", "acc1", "char1", 170, 101);
+
+    expect(recorded.benches).toEqual([
+      { skillId: 101, jobId: 2, jobLevel: 40, maxSlots: 5 },
+    ]);
+  });
+
+  test("a workbench stays shut for a character without the job", async () => {
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, SAW_GFX, true),
+      templates: { [SAW_GFX]: { type: 2, skills: "101" } },
+      craftSkills: [101],
+    });
+
+    await service.use("s1", "acc1", "char1", 170, 101);
+
+    expect(recorded.benches).toEqual([]);
+  });
+
+  test("a craft skill on something that is not a workbench does nothing", async () => {
+    // The same skill list on a resource: the type is what separates a bench
+    // from a tree, and neither branch may claim the other's element.
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, ASH_GFX, true),
+      templates: { [ASH_GFX]: { type: 1, skills: "101" } },
+      craftSkills: [101],
+      jobLevel: 40,
+    });
+
+    await service.use("s1", "acc1", "char1", 170, 101);
+
+    expect(recorded.benches).toEqual([]);
+    expect(recorded.harvests).toEqual([]);
+  });
+
+  test("stone polishing stays shut below level 40", async () => {
+    const shut = harness({
+      cells: mapWithElement(170, SAW_GFX, true),
+      templates: { [SAW_GFX]: { type: 2, skills: "48" } },
+      craftSkills: [48],
+      jobLevel: 39,
+    });
+
+    await shut.service.use("s1", "acc1", "char1", 170, 48);
+    expect(shut.recorded.benches).toEqual([]);
+
+    const open = harness({
+      cells: mapWithElement(170, SAW_GFX, true),
+      templates: { [SAW_GFX]: { type: 2, skills: "48" } },
+      craftSkills: [48],
+      jobLevel: 40,
+    });
+
+    await open.service.use("s1", "acc1", "char1", 170, 48);
+    expect(open.recorded.benches).toHaveLength(1);
+  });
+
+  test("a harvest skill the element does not offer never reaches the service", async () => {
+    const { service, recorded } = harness({
+      cells: mapWithElement(170, ASH_GFX, true),
+      templates: { [ASH_GFX]: { type: 1, skills: "6" } },
+      harvestSkills: [6, 10],
+    });
+
+    // 10 = "Couper" on an oak. Runnable, and not what stands on this cell.
+    await service.use("s1", "acc1", "char1", 170, 10);
+
+    expect(recorded.harvests).toEqual([]);
   });
 });

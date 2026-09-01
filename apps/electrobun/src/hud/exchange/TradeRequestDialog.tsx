@@ -1,3 +1,4 @@
+import { ExchangeType } from "@dofus/proto";
 import { useSyncExternalStore } from "react";
 
 import type { GameClient } from "@/game/game-client";
@@ -53,7 +54,17 @@ export function TradeRequestDialog({
         pointerEvents: "auto",
       }}
     >
-      <Panel title="Echange" width={BOX.width} height={BOX.height} zoom={zoom}>
+      <Panel
+        title={
+          trade.kind === ExchangeType.EXCHANGE_SECURE_CRAFT_CLIENT ||
+          trade.kind === ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN
+            ? "Fabrication"
+            : "Echange"
+        }
+        width={BOX.width}
+        height={BOX.height}
+        zoom={zoom}
+      >
         {/* A plain child of `.dofus-panel__content` — the flex:1 area
             `Panel` leaves below its title bar. Positioning this absolutely
             at `inset: 0` instead resolved against `.dofus-panel` itself,

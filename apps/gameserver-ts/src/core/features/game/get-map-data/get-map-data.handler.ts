@@ -5,6 +5,7 @@ import {
   GameGetMapDataSchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { HarvestService } from "@modules/harvest/harvest.service";
 import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { PlayersRepository } from "@modules/players/players.repository";
@@ -20,6 +21,7 @@ export class GetMapDataHandler {
   constructor(
     private readonly players: PlayersRepository,
     private readonly maps: MapsRepository,
+    private readonly harvest: HarvestService,
     private readonly sessions: SessionRegistry,
     private readonly frames: GatewayFrameService
   ) {}
@@ -46,6 +48,11 @@ export class GetMapDataHandler {
         payload: { case: "gameMapData", value: buildMapData(map) },
       })
     );
+
+    // Cells carry no state — the map payload is immutable and identical for
+    // everyone. Without this a player walking onto a map someone has been
+    // working sees every stump as a standing tree, and can click one.
+    await this.harvest.framesForMap(ctx.sessionId, mapId);
   }
 
   private async resolveMapId(

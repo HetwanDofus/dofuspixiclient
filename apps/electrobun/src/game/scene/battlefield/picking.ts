@@ -4,12 +4,15 @@ import type { Application, Sprite } from "pixi.js";
 import type { NpcLangData } from "@/game/lang/npc-lang";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
+import type { ContextMenuOption } from "@/game/stores/context-menu-store";
 import type { InteractiveObjectData, PickResult } from "@/game/types";
+import { jobOfSkill, jobsLangSnapshot } from "@/game/lang/jobs-lang";
 import {
   hideContextMenu,
   showContextMenu,
 } from "@/game/stores/context-menu-store";
-import { IMPLEMENTED_INTERACTIVE_SKILLS } from "@/game/types";
+import { canUseJobSkill, getJobs, jobsStore } from "@/game/stores/jobs-store";
+import { UNCONDITIONAL_INTERACTIVE_SKILLS } from "@/game/types";
 import {
   clearMonsterGroupHover,
   setMonsterGroupHover,
@@ -25,6 +28,9 @@ const log = createLogger("BattlefieldPicking");
  * 5 and 6 are the two halves of an auction house, and the 56 NPCs that
  * carry them always carry both.
  */
+/** How much a spent element is dimmed, for want of a stump frame. */
+const DEPLETED_TILE_ALPHA = 0.45;
+
 const NPC_ACTION_TALK = 3;
 const NPC_ACTION_BIGSTORE_SELL = 5;
 const NPC_ACTION_BIGSTORE_BUY = 6;
@@ -70,6 +76,8 @@ export interface BattlefieldPickingDeps {
   localCharacterId?: () => number | null;
   /** Fired when the player picks "Echange" on another player. */
   onPlayerExchange?: (targetSpriteId: number) => void;
+  /** "Inviter à <métier>" — offer to craft for that player. */
+  onCraftInvite?: (targetSpriteId: number, skillId: number) => void;
 }
 
 interface InteractiveCallbacks {
@@ -119,6 +127,10 @@ export class BattlefieldPicking {
   // sibling would only tint that one sprite while the rest stayed
   // dark — exactly the bug the user reported.
   private readonly pickableIdToGroupSpriteIds = new Map<number, number[]>();
+  /** cellId → the layer-2 sprite standing on it, for `GDF`. */
+  private readonly cellIdToTileSprite = new Map<number, Sprite>();
+  /** Cells whose element is spent; a click on one falls through to a walk. */
+  private readonly depletedCells = new Set<number>();
   // pickableId → NPC *template* id, for SPRITE_TYPE_NPC actors. Keys the
   // `npc` lang bundle the click menu is built from, and — just as
   // important — marks the actor as an NPC: NPC sprite ids are negative,
@@ -241,8 +253,40 @@ export class BattlefieldPicking {
     pickingSystem.registerObject({ id: pickableId, sprite });
     this.pickableIdToGfxId.set(pickableId, gfxId);
     this.pickableIdToCellId.set(pickableId, cellId);
+    this.cellIdToTileSprite.set(cellId, sprite);
     this.tilePickableIds.add(pickableId);
+
+    // The map payload is the same for everyone and carries no state, so a
+    // cell that was already depleted when this map loaded is dressed here
+    // rather than waiting for a `GDF` that will not come again.
+    if (this.depletedCells.has(cellId)) {
+      sprite.alpha = DEPLETED_TILE_ALPHA;
+    }
+
     return pickableId;
+  }
+
+  /**
+   * `GDF` — an element changed state.
+   *
+   * 1.29 swaps the sprite to another frame of the same clip (the stump, the
+   * empty vein). Our tiles come from a flat atlas and have no second frame,
+   * so a depleted element is dimmed instead — and, far more importantly,
+   * stops being clickable at all. That flag, not the picture, is what keeps
+   * two players from harvesting the same tree.
+   */
+  setCellInteractive(cellId: number, interactive: boolean): void {
+    if (interactive) {
+      this.depletedCells.delete(cellId);
+    } else {
+      this.depletedCells.add(cellId);
+    }
+
+    const sprite = this.cellIdToTileSprite.get(cellId);
+
+    if (sprite) {
+      sprite.alpha = interactive ? 1 : DEPLETED_TILE_ALPHA;
+    }
   }
 
   /** Register a world actor's sprite so clicks/hovers route to it. */
@@ -488,6 +532,9 @@ export class BattlefieldPicking {
     this.tilePickableIds.clear();
     this.pickableIdToGfxId.clear();
     this.pickableIdToCellId.clear();
+    this.cellIdToTileSprite.clear();
+    // `depletedCells` deliberately survives: the server re-sends the state of
+    // the map being entered, and clearing it here would race that frame.
   }
 
   /**
@@ -549,6 +596,14 @@ export class BattlefieldPicking {
     const cellId = this.pickableIdToCellId.get(result.object.id);
 
     if (gfxId === undefined || cellId === undefined) {
+      return;
+    }
+
+    // A spent element is not an element. 1.29 says the same thing with
+    // `GDF`'s third field, and its client walks through the stump rather
+    // than offering a menu over it.
+    if (this.depletedCells.has(cellId)) {
+      this.deps.onCellPickThrough?.(cellId);
       return;
     }
 
@@ -643,7 +698,7 @@ export class BattlefieldPicking {
     const { x, y } = this.pixiToPageCoords(screenX, screenY);
     const options = objData.skills.map((skill) => ({
       label: skill.label,
-      disabled: !IMPLEMENTED_INTERACTIVE_SKILLS.has(skill.id),
+      disabled: !this.canUseSkill(skill.id),
       onClick: () => this.deps.onInteractiveUse?.(cellId, skill.id),
     }));
 
@@ -652,6 +707,23 @@ export class BattlefieldPicking {
     }
 
     showContextMenu(objData.name, options, x, y);
+  }
+
+  /**
+   * Whether this menu entry is live.
+   *
+   * A door, a chest and a zaap ask nothing of the character. Everything else
+   * is a job skill, and the answer is entirely the server's: the job, its
+   * level and the equipped tool all arrived on the `J` channel. The server
+   * re-checks every one of them, so a wrong answer here greys or offers an
+   * entry — it never lets anything through.
+   */
+  private canUseSkill(skillId: number): boolean {
+    if (UNCONDITIONAL_INTERACTIVE_SKILLS.has(skillId)) {
+      return true;
+    }
+
+    return canUseJobSkill(skillId, jobOfSkill(skillId));
   }
 
   onObjectHover(result: PickResult | null): void {
@@ -744,9 +816,52 @@ export class BattlefieldPicking {
             disabled: false,
             onClick: () => this.deps.onPlayerExchange?.(playerId),
           },
+          ...this.craftOffers(playerId),
           soon("Défier"),
         ];
 
     showContextMenu(name, options, x, y);
+  }
+
+  /**
+   * "Inviter à …" — one entry per craft job the local character holds, with
+   * the tool for it worn.
+   *
+   * 1.29 offers the mirror entry, "Demander à …", from the customer's side.
+   * Ours does not, and deliberately: the customer cannot see which jobs the
+   * other player has, so the entry would be a list of guesses that the
+   * server refuses one at a time. The artisan knows their own trade, so the
+   * invitation is the half that can be offered honestly.
+   */
+  private craftOffers(targetPlayerId: number): ContextMenuOption[] {
+    void targetPlayerId;
+
+    const jobs = jobsStore.getSnapshot();
+    const lang = jobsLangSnapshot();
+    const out: ContextMenuOption[] = [];
+
+    for (const job of getJobs(jobs)) {
+      // The tool has to be the one worn: an artisan cannot work with a job
+      // whose tool is in the bag, and the server checks it again anyway.
+      if (jobs.toolJobId !== job.id) {
+        continue;
+      }
+
+      for (const skill of job.skills) {
+        if (skill.slots <= 0) {
+          continue;
+        }
+
+        const label = lang?.skills.get(skill.id)?.label ?? `Métier ${job.id}`;
+
+        out.push({
+          label: `Inviter à ${label}`,
+          disabled: false,
+          onClick: () => this.deps.onCraftInvite?.(targetPlayerId, skill.id),
+        });
+      }
+    }
+
+    return out;
   }
 }

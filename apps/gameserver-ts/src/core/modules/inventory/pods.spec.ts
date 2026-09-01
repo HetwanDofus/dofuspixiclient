@@ -15,6 +15,11 @@ describe("maxPods", () => {
     expect(maxPods(0, 50)).toBe(1050);
     expect(maxPods(0, -50)).toBe(950);
   });
+
+  test("jobs add their own term, and default to none", () => {
+    expect(maxPods(20, 50, 1500)).toBe(1100 + 50 + 1500);
+    expect(maxPods(20, 50)).toBe(maxPods(20, 50, 0));
+  });
 });
 
 describe("currentPods", () => {

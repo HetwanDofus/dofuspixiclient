@@ -8,6 +8,7 @@ import { InventoryRepository } from "@modules/inventory/inventory.repository";
 import { parseItemEffects } from "@modules/inventory/item-effects";
 import { ItemTemplateCacheService } from "@modules/inventory/item-template.cache";
 import { currentPods, maxPods } from "@modules/inventory/pods";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { REGEN_MS_PER_LIFE_STANDING } from "@modules/life-regen/life-regen";
 import { LifeRegenService } from "@modules/life-regen/life-regen.service";
 import { PlayersRepository } from "@modules/players/players.repository";
@@ -143,7 +144,8 @@ export class StatsService {
     private readonly players: PlayersRepository,
     private readonly frames: GatewayFrameService,
     private readonly lifeRegen: LifeRegenService,
-    private readonly inventoryFrames: InventoryFramesService
+    private readonly inventoryFrames: InventoryFramesService,
+    private readonly jobs: JobsService
   ) {}
 
   async computeEquipmentStats(playerId: string): Promise<ComputedStats> {
@@ -348,6 +350,10 @@ export class StatsService {
     totalStrength: number,
     podsBonus: number
   ): Promise<void> {
+    // Jobs are worth 5 pods a level and 1 000 more at 100 (QA-133). This is
+    // the only frame that carries capacity to a client, so resolving the
+    // term here means a job level-up shows up wherever stats are refreshed.
+    const jobPods = await this.jobs.podsBonus(characterId);
     const items = await this.inventory.findByPlayer(characterId);
     const templateIds = [...new Set(items.map((item) => item.templateId))];
     const templates = await Promise.all(
@@ -365,7 +371,7 @@ export class StatsService {
     this.inventoryFrames.sendWeight(
       sessionId,
       currentPods(items, weightByTemplate),
-      maxPods(totalStrength, podsBonus)
+      maxPods(totalStrength, podsBonus, jobPods)
     );
   }
 }

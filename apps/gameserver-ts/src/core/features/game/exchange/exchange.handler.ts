@@ -11,6 +11,8 @@ import {
   ExchangeBigStoreSearchRequestSchema,
   type ExchangeBigStoreTypeRequest,
   ExchangeBigStoreTypeRequestSchema,
+  type ExchangeGetCrafterRequest,
+  ExchangeGetCrafterRequestSchema,
   type ExchangeGetMiddlePrice,
   ExchangeGetMiddlePriceSchema,
   type ExchangeLeaveRequest,
@@ -19,13 +21,24 @@ import {
   ExchangeMoveItemSchema,
   type ExchangeMoveKama,
   ExchangeMoveKamaSchema,
+  type ExchangeMovePayItem,
+  ExchangeMovePayItemSchema,
+  type ExchangeMovePayKama,
+  ExchangeMovePayKamaSchema,
+  type ExchangeRepeatCraft,
+  ExchangeRepeatCraftSchema,
+  type ExchangeReplayCraft,
+  ExchangeReplayCraftSchema,
   type ExchangeRequestSend,
   ExchangeRequestSendSchema,
   type ExchangeSetReady,
   ExchangeSetReadySchema,
+  type ExchangeStopRepeatCraft,
+  ExchangeStopRepeatCraftSchema,
 } from "@dofus/proto/exchange_pb";
 import { ExchangeService } from "@modules/exchange/exchange.service";
 import { HdvService } from "@modules/exchange/hdv.service";
+import { JobsService } from "@modules/jobs/jobs.service";
 import { MapNpcService } from "@modules/npcs/map-npc.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { Injectable, Logger } from "@nestjs/common";
@@ -58,7 +71,8 @@ export class ExchangeHandler {
     private readonly presence: PlayerPresenceService,
     private readonly npcs: MapNpcService,
     private readonly halls: HdvService,
-    private readonly exchange: ExchangeService
+    private readonly exchange: ExchangeService,
+    private readonly jobs: JobsService
   ) {}
 
   /**
@@ -80,6 +94,32 @@ export class ExchangeHandler {
       msg.exchangeType === ExchangeType.EXCHANGE_BIGSTORE_BUY
     ) {
       await this.openBigStore(ctx, msg);
+      return;
+    }
+
+    if (
+      msg.exchangeType === ExchangeType.EXCHANGE_SECURE_CRAFT_CLIENT ||
+      msg.exchangeType === ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN
+    ) {
+      // `cell_num` carries the craft skill. 1.29 describes it as an
+      // optional cell number and no secure-craft request has ever needed
+      // one, while the menu entry that sends this ("Inviter à Bûcheron")
+      // does have to name a skill — reusing the spare field is cheaper
+      // than a nineteenth exchange message.
+      const result = await this.exchange.requestSecureCraft(
+        ctx.sessionId,
+        msg.targetId,
+        msg.cellNum,
+        msg.exchangeType === ExchangeType.EXCHANGE_SECURE_CRAFT_ARTISAN
+      );
+
+      if (!result.ok) {
+        this.logger.debug(
+          `ER${msg.exchangeType} refused (${result.reason}) ` +
+            `session=${ctx.sessionId}`
+        );
+      }
+
       return;
     }
 
@@ -278,6 +318,117 @@ export class ExchangeHandler {
         `EMG refused (${result.reason}) session=${ctx.sessionId}`
       );
     }
+  }
+
+  /**
+   * `EMR<n>` — craft the same recipe up to `n` times.
+   *
+   * The whole series runs inside the session's own queue, so a stop arriving
+   * mid-run is handled by `stopCraftSeries` outside it rather than queueing
+   * behind the thing it is meant to interrupt.
+   */
+  @MessageHandler(ExchangeRepeatCraftSchema)
+  async repeatCraft(
+    ctx: HandlerContext,
+    msg: ExchangeRepeatCraft
+  ): Promise<void> {
+    if (!this.inWorld(ctx.sessionId)) {
+      return;
+    }
+
+    const result = await this.exchange.craftSeries(ctx.sessionId, msg.count);
+
+    if (!result.ok) {
+      this.logger.debug(
+        `EMR refused (${result.reason}) session=${ctx.sessionId}`
+      );
+    }
+  }
+
+  /** `EMr` — stop the running series. */
+  @MessageHandler(ExchangeStopRepeatCraftSchema)
+  stopRepeatCraft(ctx: HandlerContext, _msg: ExchangeStopRepeatCraft): void {
+    this.exchange.stopCraftSeries(ctx.sessionId);
+  }
+
+  /** `EL` — "Créer" again with the same recipe. One more attempt. */
+  @MessageHandler(ExchangeReplayCraftSchema)
+  async replayCraft(
+    ctx: HandlerContext,
+    _msg: ExchangeReplayCraft
+  ): Promise<void> {
+    if (!this.inWorld(ctx.sessionId)) {
+      return;
+    }
+
+    const result = await this.exchange.craftOnce(ctx.sessionId);
+
+    if (!result.ok) {
+      this.logger.debug(
+        `EL refused (${result.reason}) session=${ctx.sessionId}`
+      );
+    }
+  }
+
+  /** `EPO` — the customer offers an item in payment. */
+  @MessageHandler(ExchangeMovePayItemSchema)
+  async movePayItem(
+    ctx: HandlerContext,
+    msg: ExchangeMovePayItem
+  ): Promise<void> {
+    if (!this.inWorld(ctx.sessionId)) {
+      return;
+    }
+
+    const result = await this.exchange.movePayItem(
+      ctx.sessionId,
+      msg.add,
+      String(msg.itemId),
+      msg.quantity
+    );
+
+    if (!result.ok) {
+      this.logger.debug(
+        `EPO refused (${result.reason}) session=${ctx.sessionId}`
+      );
+    }
+  }
+
+  /** `EPG` — the same, in kamas. */
+  @MessageHandler(ExchangeMovePayKamaSchema)
+  async movePayKamas(
+    ctx: HandlerContext,
+    msg: ExchangeMovePayKama
+  ): Promise<void> {
+    if (!this.inWorld(ctx.sessionId)) {
+      return;
+    }
+
+    const result = await this.exchange.movePayKamas(
+      ctx.sessionId,
+      msg.quantity
+    );
+
+    if (!result.ok) {
+      this.logger.debug(
+        `EPG refused (${result.reason}) session=${ctx.sessionId}`
+      );
+    }
+  }
+
+  /** `EJF<jobId>` — the craftsmen's book, for one job. */
+  @MessageHandler(ExchangeGetCrafterRequestSchema)
+  async crafterList(
+    ctx: HandlerContext,
+    msg: ExchangeGetCrafterRequest
+  ): Promise<void> {
+    const session = this.sessions.get(ctx.sessionId);
+
+    if (!session?.characterId) {
+      return;
+    }
+
+    await this.jobs.sendCrafterList(ctx.sessionId, msg.jobId);
   }
 
   @MessageHandler(ExchangeLeaveRequestSchema)

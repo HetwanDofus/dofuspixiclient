@@ -3,19 +3,26 @@ import { ExchangeType } from "@dofus/proto/common_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { StorageInformationsSchema } from "@dofus/proto/world_pb";
 import { ExchangeService } from "@modules/exchange/exchange.service";
+import { HarvestService } from "@modules/harvest/harvest.service";
 import {
   BANK_SLOTS,
   DEFAULT_LANDING_DIRECTION,
   HOUSE_STORAGE_SLOTS,
+  InteractiveObjectType,
   InteractiveSkill,
 } from "@modules/interactive-objects/interactive-objects.constants";
 import { InteractiveObjectsRepository } from "@modules/interactive-objects/interactive-objects.repository";
 import { bankOwner, houseOwner } from "@modules/items/item-owner";
+import { isSkillUnlocked } from "@modules/jobs/craft.rules";
+import { JobsCatalogService } from "@modules/jobs/jobs.catalog.service";
+import { craftSlotsAtLevel } from "@modules/jobs/jobs.craft-slots";
+import { JobsRepository } from "@modules/jobs/jobs.repository";
 import { MapCacheService } from "@modules/maps/maps.cache.service";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { WaypointsService } from "@modules/waypoints/waypoints.service";
 import { Injectable, Logger } from "@nestjs/common";
+import { JobSkillKind } from "@shared/db/schema";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 
 /**
@@ -41,6 +48,9 @@ export class InteractiveObjectsService {
     private readonly transition: MapTransitionService,
     private readonly waypoints: WaypointsService,
     private readonly exchange: ExchangeService,
+    private readonly catalog: JobsCatalogService,
+    private readonly jobs: JobsRepository,
+    private readonly harvest: HarvestService,
     private readonly frames: GatewayFrameService
   ) {}
 
@@ -98,10 +108,112 @@ export class InteractiveObjectsService {
         await this.openStorage(sessionId, accountId, characterId, placed.mapId);
         return;
       default:
-        this.logger.log(
-          `interactive-use: skill=${skillId} on "${template.name}" not implemented`
+        await this.useJobSkill(
+          sessionId,
+          accountId,
+          characterId,
+          cellId,
+          skillId,
+          template
         );
     }
+  }
+
+  /**
+   * Everything that is not a door, a zaap or a chest is a job skill — which
+   * in practice means a harvest, since the workshop is QA-135.
+   *
+   * The dispatch is by *what the skill is* rather than by a growing list of
+   * ids: the referential says whether a skill harvests (`kind = 1`), and 54
+   * of them do. A skill that resolves to nothing still logs, because a
+   * silent branch here is exactly what QA-123 was filed about.
+   */
+  private async useJobSkill(
+    sessionId: string,
+    accountId: string,
+    characterId: string,
+    cellId: number,
+    skillId: number,
+    template: { name: string; type: number }
+  ): Promise<void> {
+    await this.catalog.load();
+
+    if (this.catalog.runnableHarvestSkill(skillId)) {
+      await this.harvest.start(sessionId, characterId, cellId, skillId);
+      return;
+    }
+
+    // "Consulter" on a craftsmen's board. It is job 1's skill 170 — the
+    // board is not a job's own object — so it is matched by the element's
+    // type rather than by the skill's job.
+    if (template.type === InteractiveObjectType.CraftsmenList) {
+      await this.exchange.openCrafterList(sessionId, accountId, characterId);
+      return;
+    }
+
+    const skill = this.catalog.skill(skillId);
+
+    if (
+      skill?.kind === JobSkillKind.Craft &&
+      template.type === InteractiveObjectType.Workbench
+    ) {
+      await this.openWorkbench(
+        sessionId,
+        accountId,
+        characterId,
+        skill.jobId,
+        skillId
+      );
+      return;
+    }
+
+    this.logger.log(
+      `interactive-use: skill=${skillId} on "${template.name}" not implemented`
+    );
+  }
+
+  /**
+   * A workbench — exchange type 3.
+   *
+   * The job is checked here rather than in the flow because a bench the
+   * character has no job for should not open at all; everything after the
+   * window exists is the flow's business. The grid's size is resolved once,
+   * now, and travels with the session: 1.29 does not widen it on a level
+   * gained at the bench until it is closed and reopened.
+   */
+  private async openWorkbench(
+    sessionId: string,
+    accountId: string,
+    characterId: string,
+    jobId: number,
+    skillId: number
+  ): Promise<void> {
+    const held = await this.jobs.findPlayerJob(characterId, jobId);
+
+    if (!held) {
+      this.logger.debug(
+        `interactive-use: workbench skill=${skillId} needs job ${jobId}, ` +
+          `character=${characterId} does not have it`
+      );
+      return;
+    }
+
+    if (!isSkillUnlocked(skillId, held.level)) {
+      this.logger.debug(
+        `interactive-use: skill=${skillId} locked at job level ${held.level}`
+      );
+      return;
+    }
+
+    await this.exchange.openCraft(
+      sessionId,
+      accountId,
+      characterId,
+      skillId,
+      jobId,
+      held.level,
+      craftSlotsAtLevel(held.level)
+    );
   }
 
   private async enterHouse(

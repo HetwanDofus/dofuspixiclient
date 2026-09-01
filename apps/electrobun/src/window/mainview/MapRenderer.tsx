@@ -180,6 +180,10 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
           togglePanel("mount");
         });
 
+        keybindings.on("JOBS", () => {
+          togglePanel("jobs");
+        });
+
         keybindings.on("MAP", () => {
           toggleWorldMap();
         });
