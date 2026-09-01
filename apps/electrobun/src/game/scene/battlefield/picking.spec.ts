@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import type { Sprite } from "pixi.js";
+import { AnimatedSprite, type Sprite, Texture } from "pixi.js";
 
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
@@ -117,5 +117,90 @@ describe("BattlefieldPicking — map reload", () => {
       y: 0,
     });
     expect(contextMenuStore.getSnapshot().title).toBe("Dev");
+  });
+});
+
+describe("BattlefieldPicking — resource frames", () => {
+  test("GDF frame 3 stops on the stable stump instead of the empty tail", () => {
+    const picking = new BattlefieldPicking({
+      pickingSystem: () => makePickingSystem(),
+      interactiveObjects: () => new Map(),
+      npcLang: () => new Map(),
+      worldActorRenderer: () => null,
+      app: () => null,
+    });
+    const resource = new AnimatedSprite({
+      textures: Array.from({ length: 8 }, () => Texture.EMPTY),
+      autoUpdate: false,
+    });
+    resource.loop = false;
+    resource.stop();
+    picking.registerTile(resource, 7500, 154);
+
+    picking.setCellInteractive(154, 3, false);
+
+    expect(resource.currentFrame).toBe(4);
+    expect(resource.playing).toBe(false);
+  });
+
+  test("the ready frame restores the standing resource", () => {
+    const picking = new BattlefieldPicking({
+      pickingSystem: () => makePickingSystem(),
+      interactiveObjects: () => new Map(),
+      npcLang: () => new Map(),
+      worldActorRenderer: () => null,
+      app: () => null,
+    });
+    const resource = new AnimatedSprite({
+      textures: [Texture.EMPTY, Texture.EMPTY, Texture.EMPTY],
+      autoUpdate: false,
+    });
+    resource.gotoAndStop(2);
+    picking.registerTile(resource, 7500, 154);
+
+    picking.setCellInteractive(154, 0, true);
+
+    expect(resource.currentFrame).toBe(0);
+    expect(resource.playing).toBe(false);
+  });
+
+  test("a depletion received during map loading registers directly as a stump", () => {
+    const picking = new BattlefieldPicking({
+      pickingSystem: () => makePickingSystem(),
+      interactiveObjects: () => new Map(),
+      npcLang: () => new Map(),
+      worldActorRenderer: () => null,
+      app: () => null,
+    });
+    picking.setCellInteractive(154, 3, false);
+    const resource = new AnimatedSprite({
+      textures: Array.from({ length: 8 }, () => Texture.EMPTY),
+      autoUpdate: false,
+    });
+
+    picking.registerTile(resource, 7500, 154);
+
+    expect(resource.currentFrame).toBe(4);
+    expect(resource.playing).toBe(false);
+  });
+
+  test("a map change does not carry a stump to the same cell on another map", () => {
+    const picking = new BattlefieldPicking({
+      pickingSystem: () => makePickingSystem(),
+      interactiveObjects: () => new Map(),
+      npcLang: () => new Map(),
+      worldActorRenderer: () => null,
+      app: () => null,
+    });
+    picking.setCellInteractive(154, 3, false);
+    picking.clearCellStates();
+    const resource = new AnimatedSprite({
+      textures: [Texture.EMPTY, Texture.EMPTY, Texture.EMPTY, Texture.EMPTY],
+      autoUpdate: false,
+    });
+
+    picking.registerTile(resource, 7500, 154);
+
+    expect(resource.currentFrame).toBe(0);
   });
 });

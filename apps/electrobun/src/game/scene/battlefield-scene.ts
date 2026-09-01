@@ -1,4 +1,4 @@
-import type { DofusPathfinding } from "@dofus/grid";
+import { type DofusPathfinding, getDirection } from "@dofus/grid";
 import { LayoutSystem } from "@pixi/layout";
 import {
   type Application,
@@ -559,6 +559,10 @@ export class Battlefield {
     this.mapContainer.x = 0;
     this.mapContainer.y = 0;
 
+    // Cell ids are map-local. Clear the previous map synchronously before
+    // renderMap's first await; GDFs received during the async render then
+    // remain available for tile registration below.
+    this.picking.clearCellStates();
     this.picking.clearTiles();
     this.debugOverlay?.clear();
     this.gridOverlay?.clear();
@@ -684,8 +688,32 @@ export class Battlefield {
    * server said so, and a client that guessed would be the thing that lets
    * two players harvest one tree.
    */
-  setCellInteractive(cellId: number, interactive: boolean): void {
-    this.picking.setCellInteractive(cellId, interactive);
+  setCellInteractive(
+    cellId: number,
+    frame: number,
+    interactive: boolean
+  ): void {
+    this.picking.setCellInteractive(cellId, frame, interactive);
+  }
+
+  /** Face the resource and loop the equipped tool's authored animation. */
+  playHarvest(
+    spriteId: number,
+    cellId: number,
+    animation: string,
+    durationMs: number
+  ): void {
+    const renderer = this.worldActors.getRenderer();
+    if (!renderer) {
+      return;
+    }
+
+    const fromCell = renderer.getPlayerCell(spriteId);
+    const width = this.currentMapData?.width;
+    if (fromCell !== undefined && width) {
+      renderer.setDirection(spriteId, getDirection(fromCell, cellId, width));
+    }
+    renderer.setTimedLoopAnimation(spriteId, animation, durationMs);
   }
 
   /** Where a HUD overlay for this sprite belongs — see `getSpriteAnchor`. */

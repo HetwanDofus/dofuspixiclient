@@ -99,9 +99,15 @@ export class TileLayerBuilder {
     layer: 0 | 1 | 2
   ): TileLayerOverride | undefined {
     const override = this.tilePrefixOverride?.get(cellId);
-    if (!override) return undefined;
-    if (layer === 0) return override.ground;
-    if (layer === 1) return override.layer1;
+    if (!override) {
+      return undefined;
+    }
+    if (layer === 0) {
+      return override.ground;
+    }
+    if (layer === 1) {
+      return override.layer1;
+    }
     return override.layer2;
   }
 
@@ -270,7 +276,9 @@ export class TileLayerBuilder {
   ): void {
     const tile = this.atlasLoader.getTileManifestSync(tileKey);
     const sprite = this.sprites.createStatic(tileKey, 0);
-    if (!sprite) return;
+    if (!sprite) {
+      return;
+    }
 
     const frame = tile?.frames[0];
     const trimX = frame?.ox ?? 0;
@@ -432,11 +440,19 @@ export class TileLayerBuilder {
         !isInteractive &&
         tile?.behavior === "animated" &&
         (tile?.frameCount ?? 0) > 1;
+      const isResource =
+        isInteractive &&
+        tile?.behavior === "resource" &&
+        (tile?.frameCount ?? 0) > 1;
 
-      if (isAnimated && tile) {
+      if ((isAnimated || isResource) && tile) {
         const animSprite = this.sprites.createAnimated(tileKey, tile);
 
         if (animSprite) {
+          if (isResource) {
+            animSprite.loop = false;
+            animSprite.gotoAndStop(0);
+          }
           this.sprites.position(
             animSprite,
             tile,

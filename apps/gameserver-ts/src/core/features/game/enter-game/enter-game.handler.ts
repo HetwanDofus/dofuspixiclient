@@ -11,8 +11,10 @@ import {
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { SpellListSchema } from "@dofus/proto/spells_pb";
+import { HarvestService } from "@modules/harvest/harvest.service";
 import { AccessoriesService } from "@modules/inventory/accessories.service";
 import { InventoryFramesService } from "@modules/inventory/inventory.frames.service";
+import { InventoryService } from "@modules/inventory/inventory.service";
 import { JobsService } from "@modules/jobs/jobs.service";
 import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
@@ -54,6 +56,8 @@ export class EnterGameHandler {
     private readonly accessories: AccessoriesService,
     private readonly items: InventoryFramesService,
     private readonly jobs: JobsService,
+    private readonly inventory: InventoryService,
+    private readonly harvest: HarvestService,
     private readonly shortcuts: ShortcutsFramesService
   ) {}
 
@@ -123,6 +127,9 @@ export class EnterGameHandler {
         payload: { case: "gameMapData", value: buildMapData(map) },
       })
     );
+    // Initial entry bypasses GetMapDataHandler, so it must replay GDF here as
+    // well. The client retains these frames while its map render is async.
+    await this.harvest.framesForMap(ctx.sessionId, player.mapId);
 
     await this.stats.sendStats(ctx.sessionId, session.characterId);
     const tStats = performance.now();
@@ -146,6 +153,10 @@ export class EnterGameHandler {
     // by id. Must follow the inventory, because the harvest actions the
     // client will offer are gated on the tool it can see equipped.
     await this.jobs.pushAll(ctx.sessionId, session.characterId);
+    // OT is session state, not inventory state: an already-equipped tool has
+    // not moved during this connection, so no equip handler will announce it.
+    // Replaying it here keeps every job action usable after a fresh login.
+    await this.inventory.pushToolState(ctx.sessionId, session.characterId);
 
     // Catch-up before the snapshot is built, so a character whose level
     // was raised outside a fight — by hand in SQL, which is how every

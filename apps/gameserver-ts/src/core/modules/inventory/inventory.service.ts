@@ -204,7 +204,7 @@ export class InventoryService {
       await this.inventory.moveItem(item.id, position);
       this.frames.sendMovement(sessionId, item.id, position);
 
-      await this.announceTool(sessionId, playerId);
+      await this.pushToolState(sessionId, playerId);
 
       return { ok: true };
     });
@@ -225,7 +225,7 @@ export class InventoryService {
       await this.inventory.moveItem(item.id, INVENTORY_POSITION);
       this.frames.sendMovement(sessionId, item.id, INVENTORY_POSITION);
 
-      await this.announceTool(sessionId, playerId);
+      await this.pushToolState(sessionId, playerId);
 
       return { ok: true };
     });
@@ -241,10 +241,7 @@ export class InventoryService {
    * displaces a shield and an occupant goes back to the bag — several paths
    * end with a different item in position 1 than the one that was asked for.
    */
-  private async announceTool(
-    sessionId: string,
-    playerId: string
-  ): Promise<void> {
+  async pushToolState(sessionId: string, playerId: string): Promise<void> {
     await this.jobsCatalog.load();
 
     const equipped = await this.inventory.findEquipped(playerId);

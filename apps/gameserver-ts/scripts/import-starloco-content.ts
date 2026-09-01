@@ -265,6 +265,8 @@ interface LangItem {
   ut?: boolean;
   /** Item set id, absent when the item belongs to none. */
   s?: number;
+  /** Character animation suffix (`anim<an>`) used by this weapon/tool. */
+  an?: number;
 }
 
 /** One entry of `items.json`'s `I.t` — an item *type* (Amulette, Epée, …). */
@@ -737,6 +739,7 @@ const itemTemplates = Object.entries(langItems).map(([id, item]) => ({
   // `Item.superType` reads it off `getItemTypeText(type).t`.
   superType: langItemTypes[String(item.t)]?.t ?? 0,
   description: item.d ?? "",
+  animationId: item.an ?? 3,
 }));
 
 await upsert("itemTemplates", ["id"], itemTemplates);

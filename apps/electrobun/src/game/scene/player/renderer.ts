@@ -126,6 +126,10 @@ const BUBBLE_OFFSET_Y = -50;
  * the React component renders them.
  */
 export class PlayerRenderer {
+  private readonly timedAnimationTimers = new Map<
+    number,
+    ReturnType<typeof setTimeout>
+  >();
   private container: Container;
   private players: Map<number, ActivePlayer> = new Map();
   private playerActors: Map<number, PlayerActor> = new Map();
@@ -433,6 +437,37 @@ export class PlayerRenderer {
       player.animDataAtRequest = player.currentAnimData;
     }
     this.sprites.switch(player, baseAnim, player.direction);
+  }
+
+  /** Play an arbitrary tool animation in a loop, then restore idle exactly. */
+  setTimedLoopAnimation(
+    id: number,
+    baseAnim: string,
+    durationMs: number
+  ): void {
+    const player = this.players.get(id);
+    if (!player) {
+      return;
+    }
+
+    const previous = this.timedAnimationTimers.get(id);
+    if (previous) {
+      clearTimeout(previous);
+    }
+
+    player.animation = PlayerAnimation.HARVEST;
+    player.frameIndex = 0;
+    player.frameTimer = 0;
+    player.revertTo = null;
+    player.onAnimComplete = null;
+    player.onAnimLastFrame = null;
+    this.sprites.switch(player, baseAnim, player.direction);
+
+    const timer = setTimeout(() => {
+      this.timedAnimationTimers.delete(id);
+      this.setAnimation(id, PlayerAnimation.IDLE);
+    }, durationMs);
+    this.timedAnimationTimers.set(id, timer);
   }
 
   /**
@@ -1017,7 +1052,9 @@ export class PlayerRenderer {
    */
   setHpBarVisible(id: number, visible: boolean): void {
     const player = this.players.get(id);
-    if (!player) return;
+    if (!player) {
+      return;
+    }
     if (visible) {
       player.overhead.setHp(player.hp, player.maxHp);
     }
@@ -1183,6 +1220,12 @@ export class PlayerRenderer {
 
     if (!player) {
       return;
+    }
+
+    const timedAnimation = this.timedAnimationTimers.get(id);
+    if (timedAnimation) {
+      clearTimeout(timedAnimation);
+      this.timedAnimationTimers.delete(id);
     }
 
     for (const childId of player.linkedChildren) {

@@ -71,12 +71,12 @@ export class MoveHandler {
       return;
     }
 
-    // Walking away abandons a harvest. It does not *block* the move — 1.29
-    // lets a player leave — so the resource is handed straight back rather
-    // than staying locked for the rest of the action's duration. The other
-    // three interruptions (map change, fight, disconnection) are caught at
-    // the action's own deadline, where the state is re-checked anyway.
-    await this.harvest.interrupt(session.characterId, "moved");
+    // Harvest owns the character until the server's deadline. The client
+    // suppresses the click too, but this is the authority: a modified or
+    // lagging client still cannot move or cancel the action.
+    if (this.harvest.isRunning(session.characterId)) {
+      return;
+    }
 
     const placed = this.presence.getByCharacter(session.characterId);
 

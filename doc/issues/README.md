@@ -91,14 +91,14 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**142 entrées**, dont **138 encore ouvertes**.
+**143 entrées**, dont **139 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 58 | 58 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 59 | 59 |
 | P2 — comportement divergent du 1.29 canonique, contournable | 54 | 54 |
 | P3 — finition, confort, cosmétique | 22 | 23 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 45 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 63 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 64 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -129,7 +129,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
 | [`network/`](network/) | 9 | 9 |
-| [`progression/`](progression/) | 10 | 10 |
+| [`progression/`](progression/) | 11 | 11 |
 | [`server-runtime/`](server-runtime/) | 8 | 8 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 11 | 11 |
@@ -207,6 +207,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-135](exchange/QA-135-aucun-atelier.md) | P1 | exchange | feature | fixed | Aucun atelier — l'échange de type 3 est refusé |
 | [QA-136](progression/QA-136-cases-taux-et-xp-d-artisanat.md) | P1 | progression | gap | fixed | Cases de craft, taux de réussite et expérience d'artisanat n'existent pas |
 | [QA-137](hud-panels/QA-137-pas-de-fenetre-d-atelier.md) | P1 | hud-panels | gap | fixed | Pas de fenêtre d'atelier |
+| [QA-143](progression/QA-143-recolte-sans-animation-adjacence-ni-souche.md) | P1 | progression | bug | fixed | La récolte se joue sur la ressource, sans animation ni souche, et reste annulable |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 

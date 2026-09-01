@@ -339,6 +339,8 @@ export interface ItemTemplatesTable {
   sellPrice: number;
   maxPerTarget: number;
   description: string;
+  /** `items.json`'s `an`; roleplay default is `anim3`. */
+  animationId: number;
 }
 
 export type ItemTemplateRow = Selectable<ItemTemplatesTable>;

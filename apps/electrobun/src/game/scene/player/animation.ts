@@ -16,6 +16,7 @@ export const PlayerAnimation = {
   DEATH: "death",
   CAST: "cast",
   SIT: "sit",
+  HARVEST: "harvest",
 } as const;
 
 export type PlayerAnimationValue =
@@ -33,6 +34,7 @@ export const ANIM_TO_SPRITE_BASE: Record<string, string> = {
   [PlayerAnimation.DEATH]: "die",
   [PlayerAnimation.CAST]: "anim1",
   [PlayerAnimation.SIT]: "emoteStatic1",
+  [PlayerAnimation.HARVEST]: "anim3",
 };
 
 /**

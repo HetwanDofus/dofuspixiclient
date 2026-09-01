@@ -245,6 +245,35 @@ export function endHarvest(): void {
   }
 }
 
+/** Whether the server currently owns the character for a harvest action. */
+export function isHarvesting(
+  state: JobsState = jobsStore.getSnapshot()
+): boolean {
+  return state.harvesting !== null;
+}
+
+/**
+ * Whether a skill sent in `JS` is a gather rather than a craft.
+ * Harvest skills expose zero recipe slots; craft skills expose at least one.
+ */
+export function isHarvestSkill(
+  skillId: number,
+  state: JobsState = jobsStore.getSnapshot()
+): boolean {
+  if (state.baseSkills.some((skill) => skill.id === skillId)) {
+    return true;
+  }
+
+  for (const job of state.jobs.values()) {
+    const skill = job.skills.find((entry) => entry.id === skillId);
+    if (skill) {
+      return skill.slots === 0;
+    }
+  }
+
+  return false;
+}
+
 export function clearJobs(): void {
   jobsStore.replaceState({
     jobs: new Map(),

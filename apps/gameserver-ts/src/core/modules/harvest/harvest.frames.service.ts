@@ -1,5 +1,6 @@
 import type { InteractiveFrameValue } from "@modules/harvest/harvest.constants";
 import { create } from "@bufbuild/protobuf";
+import { InfoMessageSchema } from "@dofus/proto/chat_pb";
 import {
   ActionHarvestSchema,
   FrameObjectEntrySchema,
@@ -7,7 +8,6 @@ import {
   GameActionType,
   GameFrameObject2Schema,
 } from "@dofus/proto/game_pb";
-import { InfoMessageSchema } from "@dofus/proto/chat_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import {
   HARVEST_DENIAL_MESSAGES,
@@ -39,7 +39,8 @@ export class HarvestFramesService {
     sessionIds: readonly string[],
     spriteId: string,
     cellId: number,
-    durationMs: number
+    durationMs: number,
+    animationId: number
   ): void {
     if (sessionIds.length === 0) {
       return;
@@ -54,13 +55,13 @@ export class HarvestFramesService {
             sequenceId: 0,
             actionType: GameActionType.ACTION_HARVEST,
             spriteId,
-            rawParams: `${cellId},${durationMs}`,
+            rawParams: `${cellId},${durationMs},${animationId}`,
             actionData: {
               case: "harvest",
               value: create(ActionHarvestSchema, {
                 cellId,
                 durationMs,
-                animId: 0,
+                animId: animationId,
               }),
             },
           }),

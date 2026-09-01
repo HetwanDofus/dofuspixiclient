@@ -249,7 +249,11 @@ export class MapHandler {
       const battlefield = this.getBattlefield();
 
       for (const entry of payload.entries) {
-        battlefield?.setCellInteractive(entry.cellId, entry.interactive);
+        battlefield?.setCellInteractive(
+          entry.cellId,
+          entry.frame,
+          entry.interactive
+        );
       }
     });
 
@@ -265,7 +269,8 @@ export class MapHandler {
         this.handleHarvestAction(
           payload.spriteId,
           payload.actionData.value.cellId,
-          payload.actionData.value.durationMs
+          payload.actionData.value.durationMs,
+          payload.actionData.value.animId
         );
       } else if (payload.actionType === 2) {
         // ACTION_MAP_CHANGE — server moved us to a new map (edge transition,
@@ -287,16 +292,24 @@ export class MapHandler {
   /**
    * `GA;501` — somebody on this map started harvesting.
    *
-   * Only the local character's action drives the progress bar; the rest is
-   * for the animation, which the renderer does not have yet. The duration is
+   * Only the local character's action drives the progress bar; every visible
+   * character plays the tool animation. The duration is
    * the server's own and is not recomputed here — a client that shortened it
    * would only be lying to its own player.
    */
   private handleHarvestAction(
     spriteId: string,
     cellId: number,
-    durationMs: number
+    durationMs: number,
+    animId: number
   ): void {
+    this.getBattlefield()?.playHarvest(
+      numericId(spriteId),
+      cellId,
+      `anim${animId > 0 ? animId : 3}`,
+      durationMs
+    );
+
     const self = this.characterHandler.getCurrentCharacter();
 
     if (!self || String(self.id) !== spriteId) {
@@ -339,8 +352,8 @@ export class MapHandler {
 
     try {
       const mapData = mapDataFromPayload(payload);
-      this.buildPathfinding(mapData);
-      battlefield.setPathfinding(this.pathfinding!);
+      const pathfinding = this.buildPathfinding(mapData);
+      battlefield.setPathfinding(pathfinding);
 
       // A map change ends any move the old map still owed an ack for —
       // the server teleported us, so nothing is in flight any more.
@@ -377,7 +390,7 @@ export class MapHandler {
     }
   }
 
-  private buildPathfinding(mapData: MapData): void {
+  private buildPathfinding(mapData: MapData): DofusPathfinding {
     const walkableIds = mapData.cells
       .filter((c) => c.walkable)
       .map((c) => c.id);
@@ -387,6 +400,7 @@ export class MapHandler {
       walkableIds
     );
     log.debug(`Pathfinding built: ${walkableIds.length} walkable cells`);
+    return this.pathfinding;
   }
 
   private async handleMovement(entries: SpriteMovementEntry[]): Promise<void> {

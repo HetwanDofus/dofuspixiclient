@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import type { JobSkills } from "@/game/network/protocol";
 import {
   BASE_JOB_ID,
+  beginHarvest,
   canUseJobSkill,
   clearJobs,
+  endHarvest,
   getJobs,
   handleItemTool,
   handleJobSkills,
+  isHarvesting,
+  isHarvestSkill,
   jobsStore,
 } from "@/game/stores/jobs-store";
 
@@ -19,11 +23,14 @@ const CUT_ELM = 35;
 const DRAW_WATER = 102;
 const LUMBERJACK = 2;
 const AXE = 454;
+const CARVE = 1;
 
-function skills(payload: {
-  jobId: number;
-  skills: { skillId: number; param1?: number; param2?: number }[];
-}[]): JobSkills {
+function skills(
+  payload: {
+    jobId: number;
+    skills: { skillId: number; param1?: number; param2?: number }[];
+  }[]
+): JobSkills {
   return {
     success: true,
     jobs: payload.map((job) => ({
@@ -125,5 +132,33 @@ describe("a real job's skills", () => {
     handleItemTool({ toolItemId: 0, hasTool: false, jobId: 0 } as never);
 
     expect(canUseJobSkill(CUT_ASH, LUMBERJACK)).toBe(false);
+  });
+});
+
+describe("harvest ownership", () => {
+  test("classifies gathers by their zero recipe slots", () => {
+    handleJobSkills(
+      skills([
+        { jobId: BASE_JOB_ID, skills: [{ skillId: DRAW_WATER }] },
+        {
+          jobId: LUMBERJACK,
+          skills: [{ skillId: CUT_ASH }, { skillId: CARVE, param1: 2 }],
+        },
+      ])
+    );
+
+    expect(isHarvestSkill(DRAW_WATER)).toBe(true);
+    expect(isHarvestSkill(CUT_ASH)).toBe(true);
+    expect(isHarvestSkill(CARVE)).toBe(false);
+  });
+
+  test("owns the character from GA;501 until the deadline clears it", () => {
+    expect(isHarvesting()).toBe(false);
+
+    beginHarvest(154, 12_000, { x: 10, y: 20 });
+    expect(isHarvesting()).toBe(true);
+
+    endHarvest();
+    expect(isHarvesting()).toBe(false);
   });
 });

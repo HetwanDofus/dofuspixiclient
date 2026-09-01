@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import type { DofusMessage } from "@dofus/proto/server_messages_pb";
 import type {
@@ -161,7 +161,12 @@ function harness(options: HarnessOptions = {}) {
     findByPlayer: async () => [
       { templateId: 1, quantity: options.carriedPods ?? 0 },
     ],
-    findTemplate: async () => ({ id: 303, weight: 1, effects: [] }),
+    findTemplate: async (templateId: number) => ({
+      id: templateId,
+      weight: 1,
+      effects: [],
+      animationId: templateId === AXE ? 17 : 0,
+    }),
     insertItem: async (grant: {
       playerId: string;
       templateId: number;
@@ -289,7 +294,7 @@ describe("HarvestService.start — the refusals", () => {
 
     const action = recorded.sent.find((m) => m.payload.case === "gameAction");
     expect((action?.payload.value as { rawParams: string }).rawParams).toBe(
-      `${CELL_ID},10000`
+      `${CELL_ID},10000,17`
     );
   });
 
@@ -371,12 +376,11 @@ describe("HarvestService — the jobless gathers", () => {
   test("but it still needs energy and a free bag", async () => {
     expect(
       reasonOf(
-        await harness({ skill: WELL, playerJob: null, energy: 0 }).service.start(
-          SESSION,
-          CHARACTER,
-          CELL_ID,
-          WELL.id
-        )
+        await harness({
+          skill: WELL,
+          playerJob: null,
+          energy: 0,
+        }).service.start(SESSION, CHARACTER, CELL_ID, WELL.id)
       )
     ).toBe("no-energy");
 
@@ -398,7 +402,7 @@ describe("HarvestService — the jobless gathers", () => {
 
     const action = recorded.sent.find((m) => m.payload.case === "gameAction");
     expect((action?.payload.value as { rawParams: string }).rawParams).toBe(
-      `${CELL_ID},1500`
+      `${CELL_ID},1500,3`
     );
   });
 });
@@ -425,7 +429,11 @@ describe("HarvestService.start — the action", () => {
     };
 
     expect(value.actionType).toBe(GameActionType.ACTION_HARVEST);
-    expect(value.rawParams).toBe(`${CELL_ID},12000`);
+    expect(value.rawParams).toBe(`${CELL_ID},12000,17`);
+    expect(
+      (action?.payload.value as { actionData: { value: { animId: number } } })
+        .actionData.value.animId
+    ).toBe(17);
     expect(result.ok && result.durationMs).toBe(12_000);
   });
 
@@ -548,24 +556,27 @@ describe("HarvestService — completion", () => {
     expect(recorded.released).toEqual([{ mapId: MAP_ID, cellId: CELL_ID }]);
   });
 
-  test("an interrupted action never reaches its deadline", async () => {
+  test("a movement attempt cannot cancel an active harvest", async () => {
     const { service, recorded } = harness({ skill: INSTANT });
 
     await service.start(SESSION, CHARACTER, CELL_ID, SKILL.id);
     await service.interrupt(CHARACTER, "moved");
     await settle();
 
-    expect(recorded.given).toEqual([]);
-    expect(recorded.depleted).toEqual([]);
+    expect(recorded.released).toEqual([]);
+    expect(recorded.given).toHaveLength(1);
+    expect(recorded.depleted).toEqual([
+      { mapId: MAP_ID, cellId: CELL_ID, respawnSeconds: 300 },
+    ]);
   });
 });
 
 describe("HarvestService.interrupt", () => {
-  test("hands the resource straight back, with no reward", async () => {
+  test("a disconnection hands the resource straight back, with no reward", async () => {
     const { service, recorded } = harness();
 
     await service.start(SESSION, CHARACTER, CELL_ID, SKILL.id);
-    await service.interrupt(CHARACTER, "moved");
+    await service.interrupt(CHARACTER, "disconnected");
 
     expect(recorded.released).toEqual([{ mapId: MAP_ID, cellId: CELL_ID }]);
     expect(recorded.given).toEqual([]);
@@ -577,11 +588,11 @@ describe("HarvestService.interrupt", () => {
     });
   });
 
-  test("frees the character to start again", async () => {
+  test("a disconnection frees the character to start again", async () => {
     const { service } = harness();
 
     await service.start(SESSION, CHARACTER, CELL_ID, SKILL.id);
-    await service.interrupt(CHARACTER, "moved");
+    await service.interrupt(CHARACTER, "disconnected");
 
     expect(
       reasonOf(await service.start(SESSION, CHARACTER, CELL_ID, SKILL.id))

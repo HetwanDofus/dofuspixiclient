@@ -200,6 +200,8 @@ export class HarvestService implements OnModuleInit {
       ? null
       : await this.jobsRepo.findPlayerJob(characterId, skill.jobId);
 
+    let toolTemplateId: number | null = null;
+
     if (!jobless) {
       if (!playerJob) {
         return this.refuse(sessionId, characterId, "job-not-learned");
@@ -209,7 +211,8 @@ export class HarvestService implements OnModuleInit {
         return this.refuse(sessionId, characterId, "job-level-too-low");
       }
 
-      if (!(await this.hasToolFor(characterId, skill.jobId))) {
+      toolTemplateId = await this.toolFor(characterId, skill.jobId);
+      if (toolTemplateId === null) {
         return this.refuse(sessionId, characterId, "no-tool-equipped");
       }
     }
@@ -225,6 +228,15 @@ export class HarvestService implements OnModuleInit {
     if (await this.isOverloaded(characterId)) {
       return this.refuse(sessionId, characterId, "too-heavy");
     }
+
+    // Resolve presentation before taking the resource. No awaited lookup may
+    // sit between a successful reservation and registering the in-flight
+    // action, or a database error would leave a ghost lock behind.
+    const toolTemplate =
+      toolTemplateId === null
+        ? null
+        : await this.inventory.findTemplate(toolTemplateId);
+    const animationId = toolTemplate?.animationId ?? 3;
 
     const durationMs = skill.fixedDurationMs
       ? skill.fixedDurationMs
@@ -243,7 +255,13 @@ export class HarvestService implements OnModuleInit {
 
     const witnesses = this.presence.sessionsOnMap(placed.mapId);
 
-    this.frames.sendAction(witnesses, characterId, cellId, durationMs);
+    this.frames.sendAction(
+      witnesses,
+      characterId,
+      cellId,
+      durationMs,
+      animationId
+    );
     this.frames.sendFrame(witnesses, cellId, InteractiveFrame.Locked);
 
     this.running.set(characterId, {
@@ -270,6 +288,13 @@ export class HarvestService implements OnModuleInit {
    * for a minute.
    */
   async interrupt(characterId: string, why: string): Promise<void> {
+    // A harvest is intentionally uncancellable by gameplay input. Movement
+    // is rejected by MoveHandler too; keeping this guard makes the invariant
+    // hold even if another caller accidentally reports a move here later.
+    if (why === "moved") {
+      return;
+    }
+
     const running = this.running.get(characterId);
 
     if (!running) {
@@ -290,6 +315,11 @@ export class HarvestService implements OnModuleInit {
     this.logger.debug(
       `harvest: ${characterId} interrupted on ${running.mapId}:${running.cellId} (${why})`
     );
+  }
+
+  /** Movement and other character-owning actions consult this synchronously. */
+  isRunning(characterId: string): boolean {
+    return this.running.has(characterId);
   }
 
   @OnEvent("session.closed")
@@ -443,16 +473,17 @@ export class HarvestService implements OnModuleInit {
   }
 
   /** The weapon slot holds a tool this job accepts — nothing else counts. */
-  private async hasToolFor(
+  private async toolFor(
     characterId: string,
     jobId: number
-  ): Promise<boolean> {
+  ): Promise<number | null> {
     const equipped = await this.inventory.findEquipped(characterId);
     const weapon = equipped.find((row) => row.position === WEAPON_POSITION);
 
-    return (
-      weapon !== undefined && this.catalog.isToolOf(weapon.templateId, jobId)
-    );
+    return weapon !== undefined &&
+      this.catalog.isToolOf(weapon.templateId, jobId)
+      ? weapon.templateId
+      : null;
   }
 
   /**

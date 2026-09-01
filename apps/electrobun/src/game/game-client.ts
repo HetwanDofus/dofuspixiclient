@@ -54,9 +54,9 @@ import {
   ExchangeGetMiddlePriceSchema,
   ExchangeLeaveRequestSchema,
   ExchangeMoveItemSchema,
+  ExchangeMoveKamaSchema,
   ExchangeMovePayItemSchema,
   ExchangeMovePayKamaSchema,
-  ExchangeMoveKamaSchema,
   ExchangeRepeatCraftSchema,
   ExchangeRequestSendSchema,
   ExchangeSetReadySchema,
@@ -88,6 +88,7 @@ import {
 } from "@/game/stores/connection-store";
 import { noteRequestedSkill } from "@/game/stores/craft-store";
 import { fightActor, fightStore } from "@/game/stores/fight-store";
+import { isHarvesting, isHarvestSkill } from "@/game/stores/jobs-store";
 import {
   markSpellDetailsPending,
   spellDetailsStore,
@@ -145,6 +146,7 @@ export class GameClient {
   private pendingInteraction: {
     mapId: number | null;
     cellId: number;
+    approachCellId: number;
     skillId: number;
   } | null = null;
 
@@ -866,7 +868,9 @@ export class GameClient {
         const highlighter = this.battlefield
           ?.getFightUI()
           ?.getCellHighlighter();
-        if (!highlighter) return;
+        if (!highlighter) {
+          return;
+        }
         // Remove the matching zone instance — the highlighter keeps
         // the cell footprint per (centerCell, type) so we don't need
         // to recompute it from areaKind/size here. Try both types
@@ -1216,6 +1220,11 @@ export class GameClient {
   // when the server's request side migrates away from GA-style strings.
 
   move(path: number[]): void {
+    if (isHarvesting()) {
+      log.debug("move ignored: harvest owns the character until its deadline");
+      return;
+    }
+
     const params = path.join(",");
     // Declared before it goes out: from here until the ack, this move
     // owns the character, and a click in that window interrupts it
@@ -1239,6 +1248,10 @@ export class GameClient {
    * let `flushPendingInteraction` fire it when the walk lands.
    */
   useInteractive(cellId: number, skillId: number): void {
+    if (isHarvesting()) {
+      return;
+    }
+
     // Same rule as a cell click: an element chosen mid-walk stops the
     // walk first, then the approach is computed from where we stopped.
     if (this.mapHandler.isSelfMoveInFlight()) {
@@ -1249,31 +1262,34 @@ export class GameClient {
     this.approachInteractive(cellId, skillId);
   }
 
-  /** Walk onto the element's cell if we are not on it, then act on it. */
+  /** Walk beside a resource (onto other elements), then act on it. */
   private approachInteractive(cellId: number, skillId: number): void {
     const currentCellId = this.mapHandler.getCurrentCellId();
-
-    if (currentCellId === cellId) {
-      this.sendInteractiveUse(cellId, skillId);
-      return;
-    }
-
     const pathfinding = this.mapHandler.getPathfinding();
 
     if (currentCellId === null || !pathfinding) {
       return;
     }
 
-    const path = pathfinding.findPath(currentCellId, cellId);
+    const harvest = isHarvestSkill(skillId);
+    const path = harvest
+      ? pathfinding.findAdjacentPath(currentCellId, cellId)
+      : pathfinding.findPath(currentCellId, cellId);
 
-    if (!path || path.length < 2) {
+    if (!path) {
       log.debug(`interactive: no path from ${currentCellId} → ${cellId}`);
+      return;
+    }
+
+    if (path.length < 2) {
+      this.sendInteractiveUse(cellId, skillId);
       return;
     }
 
     this.pendingInteraction = {
       mapId: this.mapHandler.getCurrentMapId(),
       cellId,
+      approachCellId: path[path.length - 1] as number,
       skillId,
     };
     this.move(path);
@@ -1294,7 +1310,7 @@ export class GameClient {
     // player off the map. Either way the element is no longer under us.
     if (
       this.mapHandler.getCurrentMapId() !== pending.mapId ||
-      this.mapHandler.getCurrentCellId() !== pending.cellId
+      this.mapHandler.getCurrentCellId() !== pending.approachCellId
     ) {
       log.debug(`interactive: dropped, walk ended off cell ${pending.cellId}`);
       return;
@@ -1832,6 +1848,11 @@ export class GameClient {
   }
 
   private handleCellClick(targetCellId: number): void {
+    if (isHarvesting()) {
+      log.debug("cell-click ignored: harvest owns the character");
+      return;
+    }
+
     const fightMode = fightStore.getSnapshot().mode;
     log.debug(`cell-click cell=${targetCellId} fightMode=${fightMode}`);
 

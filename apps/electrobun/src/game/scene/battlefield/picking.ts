@@ -1,5 +1,5 @@
 import type { MonsterGroupMember } from "@dofus/proto";
-import type { Application, Sprite } from "pixi.js";
+import { AnimatedSprite, type Application, type Sprite } from "pixi.js";
 
 import type { NpcLangData } from "@/game/lang/npc-lang";
 import type { PickingSystem } from "@/game/render/picking-system";
@@ -131,6 +131,8 @@ export class BattlefieldPicking {
   private readonly cellIdToTileSprite = new Map<number, Sprite>();
   /** Cells whose element is spent; a click on one falls through to a walk. */
   private readonly depletedCells = new Set<number>();
+  /** Last `GDF` frame per cell, retained across an async map/zoom rebuild. */
+  private readonly cellFrames = new Map<number, number>();
   // pickableId → NPC *template* id, for SPRITE_TYPE_NPC actors. Keys the
   // `npc` lang bundle the click menu is built from, and — just as
   // important — marks the actor as an NPC: NPC sprite ids are negative,
@@ -259,8 +261,11 @@ export class BattlefieldPicking {
     // The map payload is the same for everyone and carries no state, so a
     // cell that was already depleted when this map loaded is dressed here
     // rather than waiting for a `GDF` that will not come again.
-    if (this.depletedCells.has(cellId)) {
-      sprite.alpha = DEPLETED_TILE_ALPHA;
+    const frame = this.cellFrames.get(cellId);
+    if (frame !== undefined) {
+      this.applyCellFrame(sprite, frame, !this.depletedCells.has(cellId));
+    } else if (this.depletedCells.has(cellId)) {
+      this.applyCellFrame(sprite, 3, false);
     }
 
     return pickableId;
@@ -269,13 +274,20 @@ export class BattlefieldPicking {
   /**
    * `GDF` — an element changed state.
    *
-   * 1.29 swaps the sprite to another frame of the same clip (the stump, the
-   * empty vein). Our tiles come from a flat atlas and have no second frame,
-   * so a depleted element is dimmed instead — and, far more importantly,
-   * stops being clickable at all. That flag, not the picture, is what keeps
-   * two players from harvesting the same tree.
+   * 1.29 swaps the sprite to another frame of the same clip. Resource assets
+   * retain their authored timeline in the atlas: frame 2 is the visually
+   * locked standing resource and frame 3 contains the depletion clip. The
+   * flattened atlas continues past its stable stump/empty-vein image into
+   * child-particle frames, so we stop on that stable image explicitly. Old
+   * single-frame objects keep the dimmed fallback.
    */
-  setCellInteractive(cellId: number, interactive: boolean): void {
+  setCellInteractive(
+    cellId: number,
+    frame: number,
+    interactive: boolean
+  ): void {
+    this.cellFrames.set(cellId, frame);
+
     if (interactive) {
       this.depletedCells.delete(cellId);
     } else {
@@ -285,7 +297,33 @@ export class BattlefieldPicking {
     const sprite = this.cellIdToTileSprite.get(cellId);
 
     if (sprite) {
+      this.applyCellFrame(sprite, frame, interactive);
+    }
+  }
+
+  private applyCellFrame(
+    sprite: Sprite,
+    frame: number,
+    interactive: boolean
+  ): void {
+    if (!(sprite instanceof AnimatedSprite)) {
       sprite.alpha = interactive ? 1 : DEPLETED_TILE_ALPHA;
+      return;
+    }
+
+    sprite.alpha = 1;
+    sprite.loop = false;
+    const lastFrame = Math.max(0, sprite.totalFrames - 1);
+
+    if (interactive || frame <= 1) {
+      sprite.gotoAndStop(0);
+    } else if (frame === 2) {
+      sprite.gotoAndStop(Math.min(1, lastFrame));
+    } else {
+      // Original frame 3 is a stopped parent MovieClip whose nested clip
+      // settles on flattened frame 4. Letting AnimatedSprite run to its last
+      // child-particle frame makes trees disappear instead of leaving a stump.
+      sprite.gotoAndStop(Math.min(frame + 1, lastFrame));
     }
   }
 
@@ -533,8 +571,14 @@ export class BattlefieldPicking {
     this.pickableIdToGfxId.clear();
     this.pickableIdToCellId.clear();
     this.cellIdToTileSprite.clear();
-    // `depletedCells` deliberately survives: the server re-sends the state of
-    // the map being entered, and clearing it here would race that frame.
+    // `depletedCells` and `cellFrames` deliberately survive: the server may
+    // send GDF while the async map/zoom rebuild has no tile sprite yet.
+  }
+
+  /** Drop resource state from the previous map before accepting new GDFs. */
+  clearCellStates(): void {
+    this.depletedCells.clear();
+    this.cellFrames.clear();
   }
 
   /**
