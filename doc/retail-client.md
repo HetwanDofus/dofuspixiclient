@@ -18,7 +18,7 @@ One is present on this machine:
 | Path | Size | Contents | Used by |
 |---|---|---|---|
 | `data/maps/<id>_<date>X.swf` | 37 MB, 9 209 files | Per-map `backgroundNum`, `bOutdoor`, `ambianceId`, `musicId`, `capabilities`, and the authentic 1.29 `mapData` | `just import-map-swf` (background, outdoor, music, ambiance — `capabilities` and `mapData` still unused) |
-| `clips/gfx/g*.swf`, `o*.swf` | 41 MB | Ground and object tiles | asset-pipeline `tiles.ground`, `tiles.objects` |
+| `clips/gfx/g*.swf`, `o*.swf` | 41 MB | Ground and object tiles | asset-pipeline `tiles.ground`, `tiles.objects`. Copy them into `assets/sources/clips/gfx/` — object tiles cannot be re-extracted correctly without them, see QA-144 |
 | `clips/sprites/<id>.swf` | 51 MB, 905 files | Character, monster and NPC sprites | asset-pipeline `sprites` |
 | `clips/spells/*.swf` | 3.6 MB, 263 files | Spell animations | asset-pipeline `spells` |
 | `clips/items/*.swf` | 21 MB, 111 files | Item icons | asset-pipeline `items` |

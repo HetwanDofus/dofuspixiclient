@@ -15,6 +15,8 @@ use Arakne\Swf\Error\Errors;
 use Arakne\Swf\Extractor\Shape\ShapeDefinition;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
 use Arakne\Swf\Parser\Structure\Action\Opcode;
+use App\Swf\VariantFrameModifier;
+use App\Swf\VariantFrameResolver;
 
 use function sprintf;
 
@@ -365,6 +367,18 @@ class ExtractTileCommand extends Command
                 }
 
                 $isSprite = $character instanceof SpriteDefinition;
+
+                if ($isSprite) {
+                    // A family of resources (the nine tree essences, the nine
+                    // ores, the cereals…) is one piece of art plus a variant
+                    // number the wrapper assigns. Replay that selection, or
+                    // every member publishes as the default variant — QA-144.
+                    $variantFrames = VariantFrameResolver::resolve($extractor, $character);
+
+                    if ($variantFrames !== []) {
+                        $character = $character->modify(new VariantFrameModifier($variantFrames));
+                    }
+                }
 
                 try {
                     // Get frame count and drawable

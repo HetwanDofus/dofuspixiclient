@@ -4,7 +4,7 @@
 
 | Path | What | In git? |
 |---|---|---|
-| `assets/sources/` | Inputs the pipeline reads | Yes, via **git-lfs** |
+| `assets/sources/` | Inputs the pipeline reads | Partly — see below |
 | `assets/cache/`, `assets/dist/` | Pipeline intermediates and outputs | No (gitignored) |
 | `apps/electrobun/public/assets/` | **Published** outputs the client serves | Yes — ~5.8 GB, 103 k files |
 
@@ -20,16 +20,23 @@ SWF), `atlas`, `compile` (to `.dofasset`), `publish` (copy into
 `apps/electrobun/public/assets`). `just pipeline-list` prints the registry.
 
 Every category's `source` points at retail Dofus 1.29 SWFs under
-`assets/sources/` — `clips/sprites/*.swf`, `clips/spells/*.swf`,
-`langs/spells_fr_1254.swf`, and so on. **Those SWFs are not in the
-repository.** `assets/sources/` currently holds only decompiled ActionScript
+`assets/sources/` — `clips/sprites/*.swf`, `clips/gfx/{g,o}*.swf`,
+`clips/spells/*.swf`, `langs/spells_fr_1254.swf`, and so on. **None of those
+SWFs are tracked.** Until 2026-09-01 that was not even deliberate: the
+`*.sw?` line in `.gitignore` — boilerplate meant for vim swap files —
+swallowed `*.swf` along with them, silently, so `git add` did nothing and
+`git status` stayed clean. The pattern is now `*.swp` / `*.swo`; whether to
+actually commit ~100 MB of SWF through git-lfs is still an open call.
+
+What a fresh clone gets from `assets/sources/` is the decompiled ActionScript
 (`client-code/`), an FLA library (`fla/`), the sprite manifest
 (`clips/sprites/sprites.xml`), and one StarLoco table dump
 (`starloco/sorts.sql`).
 
 So: `just sprites-build`, `just tiles-build`, `just pipeline-langs` and
-friends cannot run on a fresh clone. Supply the SWFs from a retail 1.29
-client to use them. The extract stages also shell out to PHP
+friends cannot run on a fresh clone. Copy the SWFs from a retail 1.29 client
+into `assets/sources/clips/` to use them — see
+[retail-client.md](retail-client.md). The extract stages also shell out to PHP
 (`tools/assets-exporter`, `tools/combat-exporter`), which is a further
 prerequisite.
 

@@ -216,12 +216,16 @@ export function HudOverlay({
           <StorageWindow zoom={baseZoom} gameClient={gameClient} />
         </div>
 
-        {/* The workbench, on the same terms as the bank: server-driven,
-            outside the panel rotation, and side by side with the bag the
-            player is picking ingredients out of. */}
-        <div style={panelWrapStyle}>
-          <CraftWindow zoom={baseZoom} gameClient={gameClient} />
-        </div>
+        {/* The workbench, on the same terms as the bank: server-driven and
+            outside the panel rotation. Outside `panelWrapStyle` too, like
+            the trade: retail spreads it across the whole play area — the
+            bench strip along the bottom, the result box facing it from the
+            far left — so it places its own pieces. */}
+        <CraftWindow
+          zoom={baseZoom}
+          gameClient={gameClient}
+          playArea={{ width: canvasRect.w, height: bannerTopPx }}
+        />
 
         {/* And a craft done for somebody else: both ends see the same
             three piles, so one window serves types 12 and 13. */}

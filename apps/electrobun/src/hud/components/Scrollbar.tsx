@@ -15,6 +15,16 @@ interface ScrollbarProps {
   trackColor: string;
   /** Thumb and arrow-glyph color. Caller supplies its own theme's color. */
   thumbColor: string;
+  /**
+   * Draw the thumb.
+   *
+   * `false` keeps the two arrow buttons and drops the block between them,
+   * which is how 1.29 draws a grid whose content already fits: the craft
+   * window's reference capture has the triangles at both ends of an empty
+   * track. Without this the thumb clamps to the full track height and
+   * reads as a solid bar down the side of the window.
+   */
+  thumbVisible?: boolean;
 }
 
 /**
@@ -38,6 +48,7 @@ export function Scrollbar({
   onScroll,
   trackColor,
   thumbColor,
+  thumbVisible = true,
 }: ScrollbarProps) {
   const p = (n: number) => n * zoom;
   const trackRef = useRef<HTMLDivElement>(null);
@@ -127,32 +138,34 @@ export function Scrollbar({
           );
         }}
       >
-        <button
-          type="button"
-          aria-label="Faire défiler la liste"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") {
-              onScroll(clamp(scrollTop + step));
-            } else if (e.key === "ArrowUp") {
-              onScroll(clamp(scrollTop - step));
-            }
-          }}
-          style={{
-            position: "absolute",
-            left: p(1),
-            right: p(1),
-            top: p(thumbTop),
-            height: p(thumbHeight),
-            background: thumbColor,
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        />
+        {thumbVisible && (
+          <button
+            type="button"
+            aria-label="Faire défiler la liste"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                onScroll(clamp(scrollTop + step));
+              } else if (e.key === "ArrowUp") {
+                onScroll(clamp(scrollTop - step));
+              }
+            }}
+            style={{
+              position: "absolute",
+              left: p(1),
+              right: p(1),
+              top: p(thumbTop),
+              height: p(thumbHeight),
+              background: thumbColor,
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          />
+        )}
       </div>
       <ArrowButton
         zoom={zoom}

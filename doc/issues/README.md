@@ -91,7 +91,7 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**143 entrées**, dont **139 encore ouvertes**.
+**144 entrées**, dont **140 encore ouvertes**.
 
 ## Par gravité
 
@@ -99,7 +99,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
 | P1 — fonctionnalité cassée ou absente sur un flux principal | 59 | 59 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 54 | 54 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 55 | 55 |
 | P3 — finition, confort, cosmétique | 22 | 23 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 45 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 64 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 65 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -133,7 +133,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`server-runtime/`](server-runtime/) | 8 | 8 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 11 | 11 |
-| [`world-render/`](world-render/) | 10 | 10 |
+| [`world-render/`](world-render/) | 11 | 11 |
 | [`worldmap/`](worldmap/) | 8 | 9 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -267,6 +267,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-138](exchange/QA-138-craft-cooperatif-et-securise.md) | P2 | exchange | feature | fixed | Ni craft coopératif ni craft sécurisé |
 | [QA-140](progression/QA-140-on-ne-peut-pas-oublier-un-metier.md) | P2 | progression | feature | fixed | On ne peut pas oublier un métier |
 | [QA-142](world-content/QA-142-branches-de-dialogue-non-affichables.md) | P2 | world-content | data | fixed | Des branches de dialogue mènent à des questions que le client 1.29 ne sait pas afficher |
+| [QA-144](world-render/QA-144-ressources-de-recolte-toutes-le-meme-sprite.md) | P2 | world-render | bug | fixed | Les ressources de récolte partagent un même sprite — la variante n'est jamais résolue à l'extraction |
 
 ## P3 — finition, confort, cosmétique
 
