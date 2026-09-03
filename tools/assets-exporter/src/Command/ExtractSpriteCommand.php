@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Swf\BodyPartVariantModifier;
 use Arakne\Swf\Extractor\DrawableInterface;
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
 use Symfony\Component\Console\Command\Command;
@@ -392,6 +393,14 @@ class ExtractSpriteCommand extends Command
                 if (!($character instanceof SpriteDefinition)) {
                     continue;
                 }
+
+                // A body part that carries several frames is a set of
+                // alternatives, not an animation — the head's hair-worn /
+                // hair-under-a-hat pair is the only one. Nothing here plays
+                // the ActionScript that chooses between them, so the clip has
+                // to be held on its first frame or it drifts forward with the
+                // pose. See {@see BodyPartVariantModifier} and QA-149.
+                $character = $character->modify(new BodyPartVariantModifier());
 
                 $spriteId = (int) $source;
                 $timeline = $character->timeline();

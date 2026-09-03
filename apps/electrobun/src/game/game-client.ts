@@ -88,7 +88,11 @@ import {
 } from "@/game/stores/connection-store";
 import { noteRequestedSkill } from "@/game/stores/craft-store";
 import { fightActor, fightStore } from "@/game/stores/fight-store";
-import { isHarvesting, isHarvestSkill } from "@/game/stores/jobs-store";
+import {
+  isHarvesting,
+  isHarvestSkill,
+  jobsStore,
+} from "@/game/stores/jobs-store";
 import {
   markSpellDetailsPending,
   spellDetailsStore,
@@ -161,6 +165,24 @@ export class GameClient {
    * and anything added later all queue the same way.
    */
   private queuedAfterInterrupt: (() => void) | null = null;
+
+  /**
+   * The element the player chose while a harvest was still running.
+   *
+   * A harvest owns the character until the server's own deadline and
+   * nothing may cut it short (QA-143) — but *dropping* the click is what
+   * made "Faucher" do nothing at all every time the player lined up the
+   * next resource before the current one gave, which is how a gathering
+   * job is actually played. The request waits here instead and is replayed
+   * the moment the action ends. Only the last one survives, like every
+   * other click, and it is abandoned if the map changed underneath it.
+   * See QA-150.
+   */
+  private queuedAfterHarvest: {
+    mapId: number | null;
+    cellId: number;
+    skillId: number;
+  } | null = null;
 
   /**
    * Sequencer chain for in-fight visual events. Mirrors the canonical
@@ -880,6 +902,21 @@ export class GameClient {
       },
     });
 
+    // The harvest lock lifting is the only signal an element action queued
+    // during a harvest waits on. The store owns it, and it is dropped
+    // either by the server's own `GDF` or by the duration the server
+    // announced — see `queuedAfterHarvest`.
+    let wasHarvesting = isHarvesting();
+    jobsStore.subscribe(() => {
+      const harvesting = isHarvesting();
+      const ended = wasHarvesting && !harvesting;
+      wasHarvesting = harvesting;
+
+      if (ended) {
+        this.flushQueuedAfterHarvest();
+      }
+    });
+
     // Tint the MP-bound reachable cells whenever it becomes the
     // player's turn (and clear them on every other transition). Lives
     // here — not in Battlefield — because the network MapHandler holds
@@ -1249,9 +1286,22 @@ export class GameClient {
    */
   useInteractive(cellId: number, skillId: number): void {
     if (isHarvesting()) {
+      // Not a refusal — the click is honoured as soon as the running
+      // action ends. See `queuedAfterHarvest`.
+      log.debug(`interactive queued behind the harvest: cell ${cellId}`);
+      this.queuedAfterHarvest = {
+        mapId: this.mapHandler.getCurrentMapId(),
+        cellId,
+        skillId,
+      };
       return;
     }
 
+    this.startInteractive(cellId, skillId);
+  }
+
+  /** `useInteractive` past the harvest gate — also where a queued one lands. */
+  private startInteractive(cellId: number, skillId: number): void {
     // Same rule as a cell click: an element chosen mid-walk stops the
     // walk first, then the approach is computed from where we stopped.
     if (this.mapHandler.isSelfMoveInFlight()) {
@@ -2002,6 +2052,30 @@ export class GameClient {
 
     this.queuedAfterInterrupt = null;
     queued();
+  }
+
+  /**
+   * Run the element action the player lined up during a harvest.
+   *
+   * A change of map in between abandons it: the cell it names belongs to
+   * the map it was clicked on, and every other one would resolve it to a
+   * different element.
+   */
+  private flushQueuedAfterHarvest(): void {
+    const queued = this.queuedAfterHarvest;
+
+    if (!queued) {
+      return;
+    }
+
+    this.queuedAfterHarvest = null;
+
+    if (queued.mapId !== this.mapHandler.getCurrentMapId()) {
+      log.debug("queued interactive dropped: the map changed underneath it");
+      return;
+    }
+
+    this.startInteractive(queued.cellId, queued.skillId);
   }
 
   // ── Fight actions (called by FightOverlay) ───────────────────────

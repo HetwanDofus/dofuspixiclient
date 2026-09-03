@@ -91,15 +91,15 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**147 entrées**, dont **143 encore ouvertes**.
+**151 entrées**, dont **147 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 61 | 61 |
-| P2 — comportement divergent du 1.29 canonique, contournable | 55 | 55 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 62 | 62 |
+| P2 — comportement divergent du 1.29 canonique, contournable | 58 | 58 |
 | P3 — finition, confort, cosmétique | 23 | 24 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 45 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 68 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 72 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -129,11 +129,11 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
 | [`network/`](network/) | 9 | 9 |
-| [`progression/`](progression/) | 12 | 12 |
+| [`progression/`](progression/) | 13 | 13 |
 | [`server-runtime/`](server-runtime/) | 8 | 8 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 11 | 11 |
-| [`world-render/`](world-render/) | 12 | 12 |
+| [`world-render/`](world-render/) | 15 | 15 |
 | [`worldmap/`](worldmap/) | 8 | 9 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -210,6 +210,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-143](progression/QA-143-recolte-sans-animation-adjacence-ni-souche.md) | P1 | progression | bug | fixed | La récolte se joue sur la ressource, sans animation ni souche, et reste annulable |
 | [QA-145](world-render/QA-145-etats-des-objets-interactifs-non-extraits.md) | P1 | world-render | bug | fixed | L'arbre coupé reste figé à mi-chute et ne laisse aucune souche |
 | [QA-146](progression/QA-146-approche-d-une-ressource-par-une-cellule-de-bord.md) | P1 | progression | bug | fixed | L'approche d'une ressource peut se faire par une cellule qui change de carte |
+| [QA-151](world-render/QA-151-sprites-recompiles-trois-fois-trop-vite.md) | P1 | world-render | bug | fixed | Un sprite recompilé joue toutes ses animations trois fois trop vite |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -270,6 +271,9 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-140](progression/QA-140-on-ne-peut-pas-oublier-un-metier.md) | P2 | progression | feature | fixed | On ne peut pas oublier un métier |
 | [QA-142](world-content/QA-142-branches-de-dialogue-non-affichables.md) | P2 | world-content | data | fixed | Des branches de dialogue mènent à des questions que le client 1.29 ne sait pas afficher |
 | [QA-144](world-render/QA-144-ressources-de-recolte-toutes-le-meme-sprite.md) | P2 | world-render | bug | fixed | Les ressources de récolte partagent un même sprite — la variante n'est jamais résolue à l'extraction |
+| [QA-148](world-render/QA-148-outil-jamais-visible-dans-la-main.md) | P2 | world-render | bug | fixed | L'outil équipé n'apparaît jamais dans la main du personnage |
+| [QA-149](world-render/QA-149-cheveux-perdus-des-la-deuxieme-frame.md) | P2 | world-render | bug | fixed | Les cheveux du Iop disparaissent dès la deuxième frame d'animation |
+| [QA-150](progression/QA-150-clic-de-recolte-perdu-pendant-une-recolte.md) | P2 | progression | bug | fixed | Un clic sur « Faucher » pendant une récolte est perdu sans un mot |
 
 ## P3 — finition, confort, cosmétique
 

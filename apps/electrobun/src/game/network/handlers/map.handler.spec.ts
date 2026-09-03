@@ -11,12 +11,13 @@ import {
   GameActionSchema,
   GameFrameObject2Schema,
 } from "@/game/network/protocol";
+import { endHarvest, harvestingCellId } from "@/game/stores/jobs-store";
 
 /** Cell 154 carries a tree, cell 200 carries nothing a job harvests. */
 const LUMBERJACK_CELL = 154;
 const LUMBERJACK_JOB = 2;
 
-function harness(options: { harvestJob?: number } = {}) {
+function harness(options: { harvestJob?: number; harvester?: string } = {}) {
   const messages = new MessageHandler();
   const played: unknown[][] = [];
   const sounds: string[] = [];
@@ -30,10 +31,13 @@ function harness(options: { harvestJob?: number } = {}) {
       ({
         playHarvest: (...args: unknown[]) => played.push(args),
         setCellInteractive: () => {},
+        getSpriteAnchor: () => ({ x: 0, y: 0 }),
         getCellHarvestJob: (cellId: number) =>
           cellId === LUMBERJACK_CELL ? (options.harvestJob ?? 0) : 0,
       }) as never
   );
+
+  const harvester = options.harvester ?? "42";
 
   const harvest = (cellId: number) =>
     messages.handle(
@@ -42,7 +46,7 @@ function harness(options: { harvestJob?: number } = {}) {
           case: "gameAction",
           value: create(GameActionSchema, {
             actionType: 501,
-            spriteId: "42",
+            spriteId: harvester,
             actionData: {
               case: "harvest",
               value: create(ActionHarvestSchema, {
@@ -144,5 +148,39 @@ describe("MapHandler — harvest actions", () => {
     frame(LUMBERJACK_CELL, 3);
 
     expect(sounds).toEqual([]);
+  });
+});
+
+describe("MapHandler — the harvest lock on the local character", () => {
+  test("the reservation frame keeps the character locked", () => {
+    const { harvest, frame } = harness({ harvester: "1" });
+
+    harvest(LUMBERJACK_CELL);
+    // `Locked` is what the action opens with, not what ends it.
+    frame(LUMBERJACK_CELL, 2);
+
+    expect(harvestingCellId()).toBe(LUMBERJACK_CELL);
+
+    endHarvest();
+  });
+
+  test("the completion frame releases it, ahead of the local countdown", () => {
+    const { harvest, frame } = harness({ harvester: "1" });
+
+    harvest(LUMBERJACK_CELL);
+    frame(LUMBERJACK_CELL, 3);
+
+    expect(harvestingCellId()).toBeNull();
+  });
+
+  test("another cell's frame leaves the running action alone", () => {
+    const { harvest, frame } = harness({ harvester: "1" });
+
+    harvest(LUMBERJACK_CELL);
+    frame(LUMBERJACK_CELL + 1, 3);
+
+    expect(harvestingCellId()).toBe(LUMBERJACK_CELL);
+
+    endHarvest();
   });
 });

@@ -45,6 +45,32 @@ mp3s named after their SWF export symbol, which is also how the lang bundle
 addresses them, so no compile step stands between the source and the runtime
 file. See [audio.md](audio.md).
 
+## Reading a breed sprite: two rules that are not in the frames
+
+A character SWF does not carry a finished pose. Two things about it are
+decided by ActionScript that nothing replays at extraction, and both went
+wrong silently — the art came out plausible and simply missing a piece.
+
+**`ActionPush` is typed, so a slot number is not always an integer.**
+`GAC.applyAccessory(mc, slot, side)` is read back out of the AS2 bytecode by
+`ExtractSpriteMetadataCommand`, and Flash publishes the same literal as an
+Integer (type 7) or a Double (type 6) depending on how it compiled the frame.
+The weapon — slot `0` — is a Double in all 24 breed SWFs. Match on `is_int`
+and you skip it, land on the next integer (the call's own argument count) and
+publish every weapon anchor as slot 3. See QA-148; the five slots are
+`0 arme, 1 chapeau, 2 cape, 3 familier, 4 bouclier`.
+
+**A body part with several frames is a variant, not an animation.** The pose
+lives on the animation's inner timeline; each part is placed there with a
+matrix and holds one frame. The head is the exception — frame 1 is the hair
+as worn, frame 2 the hair cut short so a hat sits on it, and
+`applyAccessory(this, 1, "R_tete", _parent)` is what jumps it. Since the
+converter renders a nested clip at the *parent's* frame index, the head
+drifted onto its hat variant from the second frame of every animation.
+`BodyPartVariantModifier` pins such a clip to frame 1, recognising it by the
+`GAC.applyColor` call that makes it a tinted, drawn part — the accessory
+anchors and the genuinely animated sub-clips do not carry one. See QA-149.
+
 ## Lang bundles: `assets/dist/langs`
 
 Both migration 0039 and the running gameserver read

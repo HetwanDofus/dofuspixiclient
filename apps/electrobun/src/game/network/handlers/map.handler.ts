@@ -20,7 +20,11 @@ import {
 } from "@/game/network/protocol";
 import { numericId } from "@/game/network/sprite-id";
 import { closeNpcDialog, hudStore } from "@/game/stores";
-import { beginHarvest, endHarvest } from "@/game/stores/jobs-store";
+import {
+  beginHarvest,
+  endHarvest,
+  harvestingCellId,
+} from "@/game/stores/jobs-store";
 import { createLogger } from "@/utils/logger";
 
 import type { CharacterHandler, CharacterInfo } from "./character.handler";
@@ -291,6 +295,7 @@ export class MapHandler {
           entry.interactive
         );
         this.playHarvestOutcome(entry.cellId, entry.frame);
+        this.endHarvestOn(entry.cellId, entry.frame);
       }
     });
 
@@ -371,6 +376,23 @@ export class MapHandler {
       this.getBattlefield()?.getSpriteAnchor(Number(self.id)) ?? null
     );
     globalThis.setTimeout(endHarvest, durationMs);
+  }
+
+  /**
+   * Release the character the moment the server says the action is over.
+   *
+   * The countdown armed in `handleHarvestAction` starts when `GA;501`
+   * arrives, so it always outlives the server's own deadline by a round
+   * trip; every input is refused in that window, and a player chaining
+   * resources clicks straight into it. `GDF` is the authoritative end —
+   * `InUse` when the resource gave, `Ready` when it was handed back — and
+   * only `Locked`, the reservation the action opens with, is not one.
+   * The timer stays as the fallback for a frame that never arrives.
+   */
+  private endHarvestOn(cellId: number, frame: number): void {
+    if (frame !== INTERACTIVE_FRAME_LOCKED && harvestingCellId() === cellId) {
+      endHarvest();
+    }
   }
 
   /**

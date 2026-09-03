@@ -42,9 +42,14 @@ export interface SpriteCompileOptions {
    */
   cleanupRaw?: boolean;
   /**
-   * fps to stamp on every animation; defaults to 60 to match the legacy
-   * svg-spritesheet output. Dofus's runtime reads this as a playback hint
-   * and gates it against the client framerate.
+   * fps to stamp on every animation. Defaults to the SWF's own frame rate,
+   * which the PHP extractor records per sprite in its manifest.
+   *
+   * There is exactly one frame per `ShowFrame` here, so the rate has to be
+   * the film's. The retired atlas stage resampled 20 fps to 60 by writing
+   * each frame three times, and the 60 that used to be hardcoded here was
+   * copied from *its* output — stamped on the un-resampled frame list it
+   * played every animation three times too fast (QA-151).
    */
   fps?: number;
 }
@@ -126,12 +131,21 @@ export async function compileSprites(
     }
 
     const bounds = boundsManifest.get(gfxId);
+    const fps = opts.fps ?? bounds?.fps;
+
+    if (fps === undefined) {
+      logger.warn(
+        { gfxId, manifest: resolve(svgRoot, "manifest.json") },
+        "compile:sprites — no frame rate in the extract manifest; " +
+          "falling back to 60, which is right only for a resampled frame list"
+      );
+    }
 
     try {
       const result = compileSpriteFromFrames(svgDir, {
         assetId: gfxId,
         metadata,
-        fps: opts.fps ?? 60,
+        fps: fps ?? 60,
         filterFrames: buildFrameFilter(spriteConfig, gfxId),
         // Stamp Flash `(xmin, ymin, width, height)` into every frame's
         // clipRect so Vello's anchor math runs on authoritative bounds

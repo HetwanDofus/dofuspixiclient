@@ -245,6 +245,21 @@ export function endHarvest(): void {
   }
 }
 
+/**
+ * The cell the local character is working on, or `null`.
+ *
+ * `GDF` is the server's own "that action is over" — the frame it sends when
+ * the resource gives, and when it hands one back after an interruption. The
+ * countdown started here begins when `GA;501` *arrives*, so it always runs a
+ * little past the server's deadline; reading the frame back against this is
+ * what closes that window. See QA-150.
+ */
+export function harvestingCellId(
+  state: JobsState = jobsStore.getSnapshot()
+): number | null {
+  return state.harvesting?.cellId ?? null;
+}
+
 /** Whether the server currently owns the character for a harvest action. */
 export function isHarvesting(
   state: JobsState = jobsStore.getSnapshot()

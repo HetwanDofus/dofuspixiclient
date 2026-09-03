@@ -436,13 +436,32 @@ class ExtractSpriteMetadataCommand extends Command
                         // applyColor(clipRef, zone) → stack: [zone, clipRef, 2, "GAC", "applyColor"]
                         // applyAccessory(mc, slot, side, ...) → stack: [side, slot, mc, argCount, "GAC", "applyAccessory"]
                         if (in_array('applyAccessory', $pushStack)) {
-                            // Find slot: first integer 0-10 in stack
+                            // Find slot: first number 0-10 in stack.
+                            //
+                            // ActionPush is typed, and Flash publishes the
+                            // same literal as an Integer (type 7) or a Double
+                            // (type 6) depending on how it compiled the
+                            // frame. The weapon slot — 0 — happens to be
+                            // pushed as a Double in every breed sprite, so an
+                            // `is_int` test skipped it and fell through to
+                            // the NEXT integer on the stack, which is the
+                            // call's own argument count. Every weapon anchor
+                            // was therefore published as slot 3 (the pet) and
+                            // no sprite ever carried a slot 0 at all — the
+                            // tool stayed invisible for the whole harvest.
+                            // See QA-148.
                             $slot = null;
                             foreach ($pushStack as $v) {
-                                if (is_int($v) && $v >= 0 && $v <= 10) {
-                                    $slot = $v;
-                                    break;
+                                if (!is_int($v) && !is_float($v)) {
+                                    continue;
                                 }
+
+                                if ($v < 0 || $v > 10 || (float) $v !== floor((float) $v)) {
+                                    continue;
+                                }
+
+                                $slot = (int) $v;
+                                break;
                             }
                             // Find side: first short non-empty string in stack that
                             // isn't a GAC/method identifier. Dofus calls always pass

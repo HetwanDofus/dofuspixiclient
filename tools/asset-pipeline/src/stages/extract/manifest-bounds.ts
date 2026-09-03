@@ -14,6 +14,12 @@ export interface FlashBoundsEntry {
   /** Present for tile/sprite manifests; 0 when absent. */
   frameCount: number;
   /**
+   * The SWF's own frame rate, as `ExtractSpriteCommand` read it off the file
+   * header. `undefined` when the manifest predates it — the compile stage
+   * has to decide what to do rather than silently assume a rate.
+   */
+  fps?: number;
+  /**
    * Where each state of an interactive element sits in the exported frames —
    * `frame` is the 1-based number the server names in `GDF`. Present only for
    * tiles the extractor recognised as state machines (trees, veins, crops).
@@ -62,12 +68,15 @@ export async function loadFlashBoundsManifest(
         }))
       : undefined;
 
+    const fps = Number(entry.fps);
+
     out.set(id, {
       width: Number(entry.width) || 0,
       height: Number(entry.height) || 0,
       offsetX: Number(entry.offsetX) || 0,
       offsetY: Number(entry.offsetY) || 0,
       frameCount: Number(entry.frameCount) || 0,
+      ...(Number.isFinite(fps) && fps > 0 ? { fps } : {}),
       ...(states ? { states } : {}),
     });
   }
