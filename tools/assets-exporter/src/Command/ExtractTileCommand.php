@@ -13,8 +13,10 @@ use Arakne\Swf\SwfFile;
 use Arakne\Swf\Extractor\SwfExtractor;
 use Arakne\Swf\Error\Errors;
 use Arakne\Swf\Extractor\Shape\ShapeDefinition;
+use Arakne\Swf\Extractor\Timeline\Timeline;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
 use Arakne\Swf\Parser\Structure\Action\Opcode;
+use App\Swf\InteractiveStateResolver;
 use App\Swf\VariantFrameModifier;
 use App\Swf\VariantFrameResolver;
 
@@ -27,6 +29,8 @@ class ExtractTileCommand extends Command
 
     private string $outputBase;
     private array $manifest = [];
+    /** @var list<int>|null Tile ids to extract; null extracts everything. */
+    private ?array $only = null;
 
     protected function configure(): void
     {
@@ -34,7 +38,8 @@ class ExtractTileCommand extends Command
             ->setName('tiles:extract')
             ->setDescription('Extract tiles from SWF files as SVG')
             ->addOption('output', 'o', InputOption::VALUE_REQUIRED, 'Output directory', __DIR__ . '/../../../../assets/rasters/tiles')
-            ->addOption('clean', null, InputOption::VALUE_NONE, 'Clean output directory before extraction');
+            ->addOption('clean', null, InputOption::VALUE_NONE, 'Clean output directory before extraction')
+            ->addOption('only', null, InputOption::VALUE_REQUIRED, 'Comma-separated tile ids to extract; the rest are left as they are');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -42,7 +47,16 @@ class ExtractTileCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $this->outputBase = $input->getOption('output');
 
+        $only = $input->getOption('only');
+        $this->only = $only === null || $only === ''
+            ? null
+            : array_map('intval', array_filter(explode(',', (string) $only), 'strlen'));
+
         $io->title('Tile Extractor (SVG)');
+
+        if ($this->only !== null) {
+            $io->text(sprintf('Restricted to %d tile id(s)', count($this->only)));
+        }
 
         $totalStats = [
             'ground' => ['processed' => 0, 'skipped' => 0, 'animated' => 0, 'random' => 0],
@@ -357,6 +371,11 @@ class ExtractTileCommand extends Command
             foreach ($exported as $name => $characterId) {
                 $tileId = (int) $name;
 
+                if ($this->only !== null && !in_array($tileId, $this->only, true)) {
+                    $stats['skipped']++;
+                    continue;
+                }
+
                 $character = $extractor->character($characterId);
 
                 if (
@@ -380,6 +399,12 @@ class ExtractTileCommand extends Command
                     }
                 }
 
+                // An interactive element is a state machine, not an
+                // animation: its root frames are the states the server names
+                // in `GDF` and the art is in the clip each one places. Export
+                // it state by state — see InteractiveStateResolver.
+                $states = $isSprite ? InteractiveStateResolver::resolve($character) : null;
+
                 try {
                     // Get frame count and drawable
                     if ($isSprite) {
@@ -398,7 +423,10 @@ class ExtractTileCommand extends Command
                 // Analyze behavior
                 $behavior = ['type' => 'static', 'autoplay' => false, 'loop' => false];
 
-                if ($character instanceof SpriteDefinition && $frameCount > 1) {
+                if ($states !== null) {
+                    $behavior = ['type' => 'resource', 'autoplay' => false, 'loop' => false];
+                    $frameCount = array_sum(array_column($states, 'count'));
+                } elseif ($character instanceof SpriteDefinition && $frameCount > 1) {
                     $behavior = $this->determineTileBehavior($character, $frameCount);
                 }
 
@@ -416,7 +444,8 @@ class ExtractTileCommand extends Command
                     $frameCount,
                     $behavior,
                     $frameRate,
-                    $source
+                    $source,
+                    $states
                 );
 
                 if ($result) {
@@ -456,7 +485,8 @@ class ExtractTileCommand extends Command
         int $frameCount,
         array $behavior,
         float $frameRate,
-        string $source
+        string $source,
+        ?array $states = null
     ): ?array {
         $bounds = $this->calculateBounds($character);
 
@@ -480,7 +510,9 @@ class ExtractTileCommand extends Command
         }
 
         try {
-            $frames = $this->exportSvgFrames($type, $tileId, $drawable, $frameCount);
+            $frames = $states !== null && $drawable instanceof Timeline
+                ? $this->exportStateFrames($type, $tileId, $drawable, $states, $tileData)
+                : $this->exportSvgFrames($type, $tileId, $drawable, $frameCount);
 
             if (empty($frames)) {
                 return null;
@@ -491,6 +523,82 @@ class ExtractTileCommand extends Command
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Export an interactive element state by state.
+     *
+     * The frames of every state are written end to end — the still of one
+     * state is a single frame, a transition is all of its clip's — and
+     * `$tileData['states']` records where each state's run starts and how
+     * long it is, keyed by the frame number the server sends in `GDF`.
+     * Without those ranges the flat frame list means nothing: state 3 of a
+     * tree is 23 frames of it falling and state 4 is the stump it leaves.
+     *
+     * @param list<array{frame:int, nested:int, count:int}> $states
+     */
+    private function exportStateFrames(
+        string $type,
+        int $tileId,
+        Timeline $timeline,
+        array $states,
+        array &$tileData
+    ): array {
+        $tileDir = sprintf('%s/svg/%s/%d', $this->outputBase, $type, $tileId);
+        @mkdir($tileDir, 0755, true);
+
+        $frames = [];
+        $ranges = [];
+        $index = 0;
+
+        foreach ($states as $state) {
+            $start = $index;
+
+            for ($i = 0; $i < $state['count']; $i++) {
+                $frameFilename = sprintf('tile_%d.svg', $index);
+                $outputPath = sprintf('%s/%s', $tileDir, $frameFilename);
+
+                // The root frame *is* the state; the nested tick is where
+                // its clip stands. Drawing the Timeline itself would clamp
+                // the root to `min(tick, lastFrame)` and mix the two.
+                $rootFrame = $timeline->frames[$state['frame'] - 1] ?? null;
+
+                if ($rootFrame === null) {
+                    continue;
+                }
+
+                try {
+                    $converter = new Converter(subpixelStrokeWidth: false);
+                    $svgContent = $converter->toSvg($rootFrame, $state['nested'] + $i);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                if (empty($svgContent)) {
+                    continue;
+                }
+
+                file_put_contents($outputPath, $svgContent);
+
+                $frames[] = [
+                    'index' => $index,
+                    'file' => sprintf('%s/%d/%s', $type, $tileId, $frameFilename),
+                ];
+
+                $index++;
+            }
+
+            $ranges[] = [
+                'frame' => $state['frame'],
+                'start' => $start,
+                'count' => $index - $start,
+            ];
+        }
+
+        $tileData['frameCount'] = $index;
+        $tileData['states'] = $ranges;
+
+        return $frames;
     }
 
     /**
@@ -573,6 +681,9 @@ class ExtractTileCommand extends Command
             if (isset($tile['loop'])) {
                 $tileEntry['loop'] = $tile['loop'];
             }
+            if (isset($tile['states'])) {
+                $tileEntry['states'] = $tile['states'];
+            }
 
             $manifest[sprintf('tile-%d', $tile['id'])] = $tileEntry;
 
@@ -588,8 +699,19 @@ class ExtractTileCommand extends Command
             }
         }
 
-        // Save manifest at the type level (ground/objects)
-        file_put_contents(sprintf('%s/svg/%s/manifest.json', $this->outputBase, $type), json_encode($manifest, JSON_PRETTY_PRINT));
+        // Save manifest at the type level (ground/objects). A filtered run
+        // only re-extracted a handful of tiles; the entries it did not touch
+        // are still valid and must survive, or the compile stage loses the
+        // Flash bounds of every other tile.
+        $manifestPath = sprintf('%s/svg/%s/manifest.json', $this->outputBase, $type);
+
+        if ($this->only !== null && file_exists($manifestPath)) {
+            $existing = json_decode(file_get_contents($manifestPath), true) ?? [];
+            $manifest = array_merge($existing, $manifest);
+            $manifest['metadata']['totalTiles'] = count($manifest) - 1;
+        }
+
+        file_put_contents($manifestPath, json_encode($manifest, JSON_PRETTY_PRINT));
     }
 
     private function displaySummary(array $totalStats, SymfonyStyle $io): void

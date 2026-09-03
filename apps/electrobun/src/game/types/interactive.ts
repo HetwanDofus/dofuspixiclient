@@ -3,6 +3,12 @@ export interface InteractiveSkill {
   id: number;
   /** `SK[id].d` from the skills bundle — "Entrer", "Ouvrir", "Utiliser"… */
   label: string;
+  /**
+   * `SK[id].j` — the job the skill belongs to, `1` (None) for the ones
+   * anybody may use. It is what tells a resource's harvest apart from a
+   * door's "Entrer" without knowing anything about the character.
+   */
+  jobId: number;
 }
 
 /**

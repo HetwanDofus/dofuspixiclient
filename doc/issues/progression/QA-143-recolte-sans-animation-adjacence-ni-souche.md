@@ -9,7 +9,7 @@ session: 7
 opened: 2026-09-01
 closed:
 fixed_in:
-related: [QA-087, QA-123, QA-129]
+related: [QA-087, QA-123, QA-129, QA-145, QA-146]
 files:
   - apps/electrobun/src/game/game-client.ts
   - apps/electrobun/src/game/scene/player/renderer.ts

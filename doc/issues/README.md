@@ -91,16 +91,16 @@ causes racines et les notes de méthode, mais plus le détail par entrée.
 
 _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
-**144 entrées**, dont **140 encore ouvertes**.
+**147 entrées**, dont **143 encore ouvertes**.
 
 ## Par gravité
 
 | Gravité | Restantes | Total |
 |---|---|---|
 | P0 — bloque la session (crash, impossible d'avancer) | 4 | 4 |
-| P1 — fonctionnalité cassée ou absente sur un flux principal | 59 | 59 |
+| P1 — fonctionnalité cassée ou absente sur un flux principal | 61 | 61 |
 | P2 — comportement divergent du 1.29 canonique, contournable | 55 | 55 |
-| P3 — finition, confort, cosmétique | 22 | 23 |
+| P3 — finition, confort, cosmétique | 23 | 24 |
 | Sans gravité — vérifications sans défaut | 0 | 3 |
 
 ## Par statut
@@ -110,7 +110,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | `open` — observé, non reproduit méthodiquement | 45 |
 | `confirmed` — reproduit, preuve au dossier | 17 |
 | `in-progress` — correctif engagé | 13 |
-| `fixed` — correctif livré, reste à revérifier manette en main | 65 |
+| `fixed` — correctif livré, reste à revérifier manette en main | 68 |
 | `closed` — vérifié, clos | 3 |
 | `wontfix` — écarté, avec la raison en fiche | 1 |
 
@@ -118,7 +118,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 
 | Domaine | Restantes | Total |
 |---|---|---|
-| [`audio/`](audio/) | 0 | 1 |
+| [`audio/`](audio/) | 1 | 2 |
 | [`auth/`](auth/) | 3 | 3 |
 | [`camera-zoom/`](camera-zoom/) | 3 | 3 |
 | [`chat/`](chat/) | 5 | 5 |
@@ -129,11 +129,11 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [`input/`](input/) | 4 | 5 |
 | [`inventory/`](inventory/) | 4 | 4 |
 | [`network/`](network/) | 9 | 9 |
-| [`progression/`](progression/) | 11 | 11 |
+| [`progression/`](progression/) | 12 | 12 |
 | [`server-runtime/`](server-runtime/) | 8 | 8 |
 | [`session/`](session/) | 3 | 3 |
 | [`world-content/`](world-content/) | 11 | 11 |
-| [`world-render/`](world-render/) | 11 | 11 |
+| [`world-render/`](world-render/) | 12 | 12 |
 | [`worldmap/`](worldmap/) | 8 | 9 |
 
 ## P0 — bloque la session (crash, impossible d'avancer)
@@ -208,6 +208,8 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-136](progression/QA-136-cases-taux-et-xp-d-artisanat.md) | P1 | progression | gap | fixed | Cases de craft, taux de réussite et expérience d'artisanat n'existent pas |
 | [QA-137](hud-panels/QA-137-pas-de-fenetre-d-atelier.md) | P1 | hud-panels | gap | fixed | Pas de fenêtre d'atelier |
 | [QA-143](progression/QA-143-recolte-sans-animation-adjacence-ni-souche.md) | P1 | progression | bug | fixed | La récolte se joue sur la ressource, sans animation ni souche, et reste annulable |
+| [QA-145](world-render/QA-145-etats-des-objets-interactifs-non-extraits.md) | P1 | world-render | bug | fixed | L'arbre coupé reste figé à mi-chute et ne laisse aucune souche |
+| [QA-146](progression/QA-146-approche-d-une-ressource-par-une-cellule-de-bord.md) | P1 | progression | bug | fixed | L'approche d'une ressource peut se faire par une cellule qui change de carte |
 
 ## P2 — comportement divergent du 1.29 canonique, contournable
 
@@ -296,6 +298,7 @@ _Généré par `just issues` — ne pas éditer à la main entre les marqueurs._
 | [QA-122](exchange/QA-122-pas-de-liste-noire.md) | P3 | exchange | feature | open | Pas de bouton « Ignorer » sur une proposition d'échange, faute de liste noire |
 | [QA-139](exchange/QA-139-livre-des-artisans-et-options-metier.md) | P3 | exchange | feature | fixed | Pas de livre des artisans ni d'options de métier |
 | [QA-141](progression/QA-141-le-metier-de-chasseur-n-existe-pas.md) | P3 | progression | feature | fixed | Le métier de Chasseur n'existe pas — et ses données non plus |
+| [QA-147](audio/QA-147-la-recolte-est-muette.md) | P3 | audio | feature | fixed | La récolte est muette |
 
 ## Sans gravité — vérifications sans défaut
 

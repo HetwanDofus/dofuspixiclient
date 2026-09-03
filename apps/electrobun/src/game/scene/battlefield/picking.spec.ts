@@ -48,7 +48,7 @@ const doorData: InteractiveObjectData = {
   id: 128,
   name: "Porte",
   type: 5,
-  skills: [{ id: 84, label: "Entrer" }],
+  skills: [{ id: 84, label: "Entrer", jobId: 1 }],
 };
 
 describe("BattlefieldPicking — map reload", () => {
@@ -121,42 +121,69 @@ describe("BattlefieldPicking — map reload", () => {
 });
 
 describe("BattlefieldPicking — resource frames", () => {
-  test("GDF frame 3 stops on the stable stump instead of the empty tail", () => {
-    const picking = new BattlefieldPicking({
+  // The ash tree as it is published: a still to stand on, a still while it is
+  // being cut, the 23-frame fall, the stump it rests on, then the regrowth.
+  const TREE_STATES = [
+    { frame: 1, start: 0, count: 1 },
+    { frame: 2, start: 1, count: 1 },
+    { frame: 3, start: 2, count: 23 },
+    { frame: 4, start: 25, count: 1 },
+    { frame: 5, start: 26, count: 18 },
+  ];
+
+  function makePicking(): BattlefieldPicking {
+    return new BattlefieldPicking({
       pickingSystem: () => makePickingSystem(),
       interactiveObjects: () => new Map(),
       npcLang: () => new Map(),
       worldActorRenderer: () => null,
       app: () => null,
     });
-    const resource = new AnimatedSprite({
-      textures: Array.from({ length: 8 }, () => Texture.EMPTY),
+  }
+
+  function makeResource(): AnimatedSprite {
+    const sprite = new AnimatedSprite({
+      textures: Array.from({ length: 44 }, () => Texture.EMPTY),
       autoUpdate: false,
     });
-    resource.loop = false;
-    resource.stop();
-    picking.registerTile(resource, 7500, 154);
+    sprite.loop = false;
+    sprite.stop();
+    return sprite;
+  }
+
+  test("GDF frame 3 plays the fall and rests on the stump", () => {
+    const picking = makePicking();
+    const resource = makeResource();
+    picking.registerTile(resource, 7500, 154, TREE_STATES);
 
     picking.setCellInteractive(154, 3, false);
 
-    expect(resource.currentFrame).toBe(4);
+    // The felling runs; it is the last frame of that run — the stump — the
+    // tree is left on, never the first frame of the state after it.
+    expect(resource.playing).toBe(true);
+    expect(resource.currentFrame).toBe(2);
+
+    resource.currentFrame = 24;
+    expect(resource.playing).toBe(false);
+    expect(resource.currentFrame).toBe(24);
+  });
+
+  test("a resource being harvested keeps standing", () => {
+    const picking = makePicking();
+    const resource = makeResource();
+    picking.registerTile(resource, 7500, 154, TREE_STATES);
+
+    picking.setCellInteractive(154, 2, false);
+
+    expect(resource.currentFrame).toBe(1);
     expect(resource.playing).toBe(false);
   });
 
   test("the ready frame restores the standing resource", () => {
-    const picking = new BattlefieldPicking({
-      pickingSystem: () => makePickingSystem(),
-      interactiveObjects: () => new Map(),
-      npcLang: () => new Map(),
-      worldActorRenderer: () => null,
-      app: () => null,
-    });
-    const resource = new AnimatedSprite({
-      textures: [Texture.EMPTY, Texture.EMPTY, Texture.EMPTY],
-      autoUpdate: false,
-    });
-    resource.gotoAndStop(2);
-    picking.registerTile(resource, 7500, 154);
+    const picking = makePicking();
+    const resource = makeResource();
+    resource.gotoAndStop(24);
+    picking.registerTile(resource, 7500, 154, TREE_STATES);
 
     picking.setCellInteractive(154, 0, true);
 
@@ -164,43 +191,38 @@ describe("BattlefieldPicking — resource frames", () => {
     expect(resource.playing).toBe(false);
   });
 
-  test("a depletion received during map loading registers directly as a stump", () => {
-    const picking = new BattlefieldPicking({
-      pickingSystem: () => makePickingSystem(),
-      interactiveObjects: () => new Map(),
-      npcLang: () => new Map(),
-      worldActorRenderer: () => null,
-      app: () => null,
-    });
+  test("a depletion received during map loading registers as the stump", () => {
+    // Nobody watched this tree fall — it was already down when we walked in,
+    // so its state is taken at rest rather than replayed.
+    const picking = makePicking();
     picking.setCellInteractive(154, 3, false);
-    const resource = new AnimatedSprite({
-      textures: Array.from({ length: 8 }, () => Texture.EMPTY),
-      autoUpdate: false,
-    });
+    const resource = makeResource();
 
-    picking.registerTile(resource, 7500, 154);
+    picking.registerTile(resource, 7500, 154, TREE_STATES);
 
-    expect(resource.currentFrame).toBe(4);
+    expect(resource.currentFrame).toBe(24);
     expect(resource.playing).toBe(false);
   });
 
   test("a map change does not carry a stump to the same cell on another map", () => {
-    const picking = new BattlefieldPicking({
-      pickingSystem: () => makePickingSystem(),
-      interactiveObjects: () => new Map(),
-      npcLang: () => new Map(),
-      worldActorRenderer: () => null,
-      app: () => null,
-    });
+    const picking = makePicking();
     picking.setCellInteractive(154, 3, false);
     picking.clearCellStates();
-    const resource = new AnimatedSprite({
-      textures: [Texture.EMPTY, Texture.EMPTY, Texture.EMPTY, Texture.EMPTY],
-      autoUpdate: false,
-    });
+    const resource = makeResource();
 
-    picking.registerTile(resource, 7500, 154);
+    picking.registerTile(resource, 7500, 154, TREE_STATES);
 
     expect(resource.currentFrame).toBe(0);
+  });
+
+  test("a tile with no state table is dimmed, not reframed", () => {
+    const picking = makePicking();
+    const resource = makeResource();
+    picking.registerTile(resource, 7500, 154);
+
+    picking.setCellInteractive(154, 3, false);
+
+    expect(resource.currentFrame).toBe(0);
+    expect(resource.alpha).toBeLessThan(1);
   });
 });

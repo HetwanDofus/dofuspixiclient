@@ -109,7 +109,12 @@ export interface SpellExtras {
   sounds: { frame: number; soundId: string }[];
   animationMeta: Record<
     string,
-    { stopFrame?: number; fadingFrame?: number; isComposite?: boolean; hasMorphShapes?: boolean }
+    {
+      stopFrame?: number;
+      fadingFrame?: number;
+      isComposite?: boolean;
+      hasMorphShapes?: boolean;
+    }
   >;
   /** Per-animation canvas dims + offsets the client needs to position sprites. */
   animations: Record<string, SpellExtrasAnimation>;
@@ -148,6 +153,21 @@ export interface TileExtrasAnimation {
   pages?: Array<{ file: string; width: number; height: number }>;
 }
 
+/**
+ * One state of an interactive element, as a run of the tile's frames.
+ *
+ * A tree, a vein or a crop is a state machine the server drives with
+ * `GDF;<cell>;<frame>`: `frame` is that 1-based number, and the run it names
+ * is either a single resting image (`count === 1`) or the transition into
+ * that state — the tree falling, the crop growing back — whose last frame is
+ * where the element comes to rest.
+ */
+export interface TileExtrasState {
+  frame: number;
+  start: number;
+  count: number;
+}
+
 export interface TileExtras {
   version: number;
   spriteId: string;
@@ -155,6 +175,8 @@ export interface TileExtras {
   fpsHint?: number;
   autoplay?: boolean;
   loop?: boolean;
+  /** Present on interactive elements only — see {@link TileExtrasState}. */
+  states?: TileExtrasState[];
   animations: Record<string, TileExtrasAnimation>;
 }
 

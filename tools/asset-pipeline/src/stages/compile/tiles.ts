@@ -39,6 +39,8 @@ export interface TileCompileEntry {
 export interface TileCompileOptions {
   kind: TileKind;
   filterId?: number;
+  /** Compile only these tile ids — the set form of `filterId`. */
+  filterIds?: number[];
   /** Delete the tile's raw per-frame dir after compile (default true). */
   cleanupRaw?: boolean;
 }
@@ -106,17 +108,20 @@ export async function compileTiles(
       skipped++;
       continue;
     }
+    if (opts.filterIds?.length && !opts.filterIds.includes(tileId)) {
+      skipped++;
+      continue;
+    }
 
     const svgDir = resolve(svgRoot, name);
-    const classification =
-      classifications.get(`${opts.kind}:${name}`) ?? {};
+    const classification = classifications.get(`${opts.kind}:${name}`) ?? {};
     const extractEntry = extractManifest.get(tileId);
     // Prefer the PHP manifest's dims — it already holds Flash's bounds
     // (bounds.width/20, bounds.height/20) and dodges any rounding drift the
     // SVG's own `width=`/`height=` attributes pick up when re-serialized.
     const dims = extractEntry
       ? { width: extractEntry.width, height: extractEntry.height }
-      : (await readFirstFrameDims(svgDir)) ?? { width: 0, height: 0 };
+      : ((await readFirstFrameDims(svgDir)) ?? { width: 0, height: 0 });
 
     const dofassetPath = resolve(outputDir, `${tileId}.dofasset`);
 
@@ -132,7 +137,14 @@ export async function compileTiles(
         /* empty */
       }
 
-      const behavior = classification.behavior ?? inferBehavior(opts.kind, frameCount);
+      // States win over the classification file: a tile the extractor read
+      // as an interactive state machine *is* one, whatever a hand-written
+      // entry from before that pass says (half the gathering resources were
+      // filed as `animated`, which sent the client down the wrong path).
+      const states = extractEntry?.states;
+      const behavior = states
+        ? ("resource" as const)
+        : (classification.behavior ?? inferBehavior(opts.kind, frameCount));
       const extras = buildTileExtras({
         tileId,
         behavior,
@@ -140,6 +152,7 @@ export async function compileTiles(
         width: dims.width,
         height: dims.height,
         frameCount,
+        states,
       });
 
       const result = compileSpriteFromFrames(svgDir, {
@@ -222,6 +235,7 @@ function buildTileExtras(args: {
   width: number;
   height: number;
   frameCount: number;
+  states?: Array<{ frame: number; start: number; count: number }>;
 }): ExtrasPayload {
   // Per-frame entries for the client's SpritesheetManifest reconstruction.
   // Each frame uses the first-frame dimensions — tiles ship uniform frame
@@ -245,6 +259,7 @@ function buildTileExtras(args: {
       version: 1,
       spriteId: String(args.tileId),
       behavior: args.behavior,
+      ...(args.states ? { states: args.states } : {}),
       fpsHint: args.classification.fps,
       autoplay: args.classification.autoplay,
       loop: args.classification.loop,

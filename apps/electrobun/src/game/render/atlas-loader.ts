@@ -1,6 +1,6 @@
-import { readTileExtras, type TileExtras } from "@dofus/dofasset-format";
 import type { Renderer, Texture } from "pixi.js";
 import type { VelloRenderer } from "vello-wasm";
+import { readTileExtras, type TileExtras } from "@dofus/dofasset-format";
 
 import type { TileManifest } from "@/game/types";
 import { createLogger } from "@/utils/logger";
@@ -362,6 +362,7 @@ function spritesheetManifestFromExtras(
     fps_hint: extras.fpsHint,
     autoplay: extras.autoplay,
     loop: extras.loop,
+    states: extras.states,
     animations,
   };
 }

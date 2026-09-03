@@ -27,7 +27,7 @@ type IoBundle = {
 };
 
 type SkillsBundle = {
-  data?: { SK?: Record<string, { d?: string }> };
+  data?: { SK?: Record<string, { d?: string; j?: number }> };
 };
 
 let byGfx: Map<number, InteractiveObjectData> | null = null;
@@ -60,6 +60,7 @@ function parseBundles(
       skills: (entry.sk ?? []).map((id) => ({
         id,
         label: labels[String(id)]?.d ?? String(id),
+        jobId: labels[String(id)]?.j ?? 0,
       })),
     });
   }

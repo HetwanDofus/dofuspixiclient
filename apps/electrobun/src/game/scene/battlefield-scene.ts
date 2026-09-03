@@ -503,7 +503,13 @@ export class Battlefield {
         // Only layer 2 carries elements — the interactive bit is
         // `layerObject2Interactive`, there is no layer-1 equivalent.
         if (layer === 2 && this.isInteractiveTile(tileId, cellId)) {
-          this.picking.registerTile(sprite, tileId, cellId);
+          // The tile's own state table travels with it: `GDF` names a 1.29
+          // frame, and only the published tile knows which of its frames
+          // that state runs over.
+          const states = this.atlasLoader?.getTileManifestSync(
+            `objects_${tileId}`
+          )?.states;
+          this.picking.registerTile(sprite, tileId, cellId, states);
         }
 
         // Register sprite with debug overlay
@@ -701,7 +707,8 @@ export class Battlefield {
     spriteId: number,
     cellId: number,
     animation: string,
-    durationMs: number
+    durationMs: number,
+    onCycle?: () => void
   ): void {
     const renderer = this.worldActors.getRenderer();
     if (!renderer) {
@@ -713,7 +720,25 @@ export class Battlefield {
     if (fromCell !== undefined && width) {
       renderer.setDirection(spriteId, getDirection(fromCell, cellId, width));
     }
-    renderer.setTimedLoopAnimation(spriteId, animation, durationMs);
+    renderer.setTimedLoopAnimation(spriteId, animation, durationMs, onCycle);
+  }
+
+  /**
+   * The job that harvests the element standing on `cellId`, `0` for a cell
+   * that carries none. Read off the element itself rather than the actor's
+   * tool, so it is known for every harvester on the map and not just ours.
+   */
+  getCellHarvestJob(cellId: number): number {
+    const gfxId = this.picking.getCellGfxId(cellId);
+
+    if (gfxId === undefined) {
+      return 0;
+    }
+
+    const skills = this.interactiveObjectsData.get(gfxId)?.skills ?? [];
+
+    // `1` is the "None" job every door and zaap skill carries.
+    return skills.find((skill) => skill.jobId > 1)?.jobId ?? 0;
   }
 
   /** Where a HUD overlay for this sprite belongs — see `getSpriteAnchor`. */

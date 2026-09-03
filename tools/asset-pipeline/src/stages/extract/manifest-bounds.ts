@@ -13,6 +13,12 @@ export interface FlashBoundsEntry {
   offsetY: number;
   /** Present for tile/sprite manifests; 0 when absent. */
   frameCount: number;
+  /**
+   * Where each state of an interactive element sits in the exported frames —
+   * `frame` is the 1-based number the server names in `GDF`. Present only for
+   * tiles the extractor recognised as state machines (trees, veins, crops).
+   */
+  states?: Array<{ frame: number; start: number; count: number }>;
 }
 
 /**
@@ -48,12 +54,21 @@ export async function loadFlashBoundsManifest(
     if (!Number.isFinite(id)) continue;
     const entry = value as Partial<FlashBoundsEntry> | undefined;
     if (!entry) continue;
+    const states = Array.isArray(entry.states)
+      ? entry.states.map((state) => ({
+          frame: Number(state.frame) || 0,
+          start: Number(state.start) || 0,
+          count: Number(state.count) || 0,
+        }))
+      : undefined;
+
     out.set(id, {
       width: Number(entry.width) || 0,
       height: Number(entry.height) || 0,
       offsetX: Number(entry.offsetX) || 0,
       offsetY: Number(entry.offsetY) || 0,
       frameCount: Number(entry.frameCount) || 0,
+      ...(states ? { states } : {}),
     });
   }
   return out;

@@ -1,6 +1,6 @@
 import { Assets, type Texture } from "pixi.js";
 
-import type { TileBehavior, TileManifest } from "@/game/types";
+import type { TileBehavior, TileManifest, TileState } from "@/game/types";
 
 /**
  * Spritesheet manifest format (per-tile manifest.json)
@@ -16,6 +16,11 @@ export interface SpritesheetManifest {
   autoplay?: boolean;
   /** Whether animations loop */
   loop?: boolean;
+  /**
+   * The states of an interactive element — a run of frames per `GDF` frame
+   * number. Present on `resource` tiles only.
+   */
+  states?: TileState[];
   animations: Record<
     string,
     AtlasManifest & {

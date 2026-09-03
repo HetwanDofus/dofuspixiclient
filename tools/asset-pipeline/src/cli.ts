@@ -31,6 +31,14 @@ import { extractLangs } from "./stages/langs/extract.ts";
 import { syncLangsToServer } from "./stages/langs/server-sync.ts";
 import { publishCategory, publishLangs } from "./stages/publish/index.ts";
 
+/** `--ids 7500,7503` — the tile stages take a set, not a single id. */
+function parseIdList(value: string): number[] {
+  return value
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((id) => Number.isFinite(id));
+}
+
 type ExtractMode =
   | "items"
   | "staticFlat"
@@ -154,11 +162,12 @@ program
   .description("Run the extract stage for a single category")
   .option("--type <n>", "Filter by parent-dir type (items)", parseInt)
   .option("--id <n>", "Filter by numeric id", parseInt)
+  .option("--ids <list>", "Comma-separated numeric ids (tiles)", parseIdList)
   .option("--clean", "Wipe cache output before extracting", false)
   .action(
     async (
       categoryName: string,
-      opts: { type?: number; id?: number; clean: boolean }
+      opts: { type?: number; id?: number; ids?: number[]; clean: boolean }
     ) => {
       const category = categoryByName(categoryName);
       if (!category) {
@@ -273,7 +282,11 @@ program
         )
         .with("tiles", async () => {
           const kind = tileKindFor(category.name);
-          const result = await extractTiles({ kind, clean: opts.clean });
+          const result = await extractTiles({
+            kind,
+            clean: opts.clean,
+            ...(opts.ids ? { only: opts.ids } : {}),
+          });
           const sectionKey = category.name;
           const catalog = await loadCatalog();
           const existing = catalog.byCategory[sectionKey];
@@ -312,11 +325,12 @@ program
   .description("Compile extracted assets into .dofasset binaries")
   .option("--type <n>", "Filter by parent-dir type (items)", parseInt)
   .option("--id <n>", "Filter by numeric id", parseInt)
+  .option("--ids <list>", "Comma-separated numeric ids (tiles)", parseIdList)
   .option("--symbol <name>", "Filter by bundle symbol (accessories)")
   .action(
     async (
       categoryName: string,
-      opts: { type?: number; id?: number; symbol?: string }
+      opts: { type?: number; id?: number; ids?: number[]; symbol?: string }
     ) => {
       const category = categoryByName(categoryName);
       if (!category) {
@@ -413,7 +427,11 @@ program
         })
         .with("tiles", async () => {
           const kind = tileKindFor(category.name);
-          const result = await compileTiles({ kind, filterId: opts.id });
+          const result = await compileTiles({
+            kind,
+            filterId: opts.id,
+            ...(opts.ids ? { filterIds: opts.ids } : {}),
+          });
           const catalog = await loadCatalog();
           const sectionKey = category.name;
           const existing = catalog.byCategory[sectionKey];

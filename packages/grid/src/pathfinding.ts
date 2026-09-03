@@ -1,5 +1,6 @@
 import { cellToCoord, cellToRowCol } from "./cell.ts";
 import { DIR_CHANGE_PENALTY, DIR_COSTS, getDirOffsets } from "./directions.ts";
+import { isMapChangeCell } from "./edge.ts";
 import { isValidDirection } from "./neighbors.ts";
 
 const MAX_PATH_LENGTH = 500;
@@ -26,6 +27,7 @@ interface PathNode {
  */
 export class DofusPathfinding {
   private mapWidth: number;
+  private mapHeight: number;
   private totalRows: number;
   private dirOffsets: number[];
   private walkableSet: Set<number>;
@@ -33,6 +35,7 @@ export class DofusPathfinding {
 
   constructor(mapWidth: number, mapHeight: number, walkableCellIds: number[]) {
     this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
     this.totalRows = 2 * mapHeight - 1;
     this.dirOffsets = getDirOffsets(mapWidth);
     this.walkableSet = new Set(walkableCellIds);
@@ -193,6 +196,12 @@ export class DofusPathfinding {
    * that cell puts the character inside the tree/vein. Each reachable
    * neighbour is therefore tried as a destination and the shortest route is
    * returned. A character already beside the resource stays put.
+   *
+   * Cells that hand the player to the next map are never chosen: the tree at
+   * the bottom of the map is often closest from the row below it, and landing
+   * there ends the walk on another map with the harvest silently dropped
+   * (QA-146). The start cell is exempt — no walk happens, so no transition
+   * can fire.
    */
   findAdjacentPath(startId: number, targetId: number): number[] | null {
     let best: number[] | null = null;
@@ -202,6 +211,12 @@ export class DofusPathfinding {
         continue;
       }
       if (neighbor !== startId && this.occupiedCells.has(neighbor)) {
+        continue;
+      }
+      if (
+        neighbor !== startId &&
+        isMapChangeCell(neighbor, this.mapWidth, this.mapHeight)
+      ) {
         continue;
       }
 

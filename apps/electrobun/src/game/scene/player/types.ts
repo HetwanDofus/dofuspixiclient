@@ -165,6 +165,23 @@ export interface ActivePlayer {
    */
   onAnimLastFrame: (() => void) | null;
   /**
+   * Per-cycle hook for a *looping* animation, fired at the same
+   * applyEnd frame `onAnimComplete` uses — the frame the tool lands
+   * its blow. It is how a harvest sounds once per swing rather than
+   * once per action: the animation the server asked for is the clock,
+   * so the axe is heard when it is seen to bite.
+   *
+   * Unlike the one-shot hooks it is not cleared when it fires; the
+   * timer that ends the action clears it, and so does any explicit
+   * `setAnimation` (walking away stops the sound).
+   */
+  onAnimCycle: (() => void) | null;
+  /**
+   * False while `onAnimCycle` waits for the animation to come back
+   * round below its trigger frame, so one cycle rings exactly once.
+   */
+  animCycleArmed: boolean;
+  /**
    * Snapshot of `currentAnimData` taken when the most recent
    * `setAnimation` call was made. The lifecycle gate fires hooks only
    * after `currentAnimData` has been swapped to a different reference

@@ -47,4 +47,18 @@ export interface TileManifest {
   baseZOrder?: "above" | "below";
   /** Multi-page atlas page files + dimensions. Absent = single-page atlas. */
   pages?: Array<{ file: string; width: number; height: number }>;
+  /**
+   * Where each state of an interactive element sits in `frames`, keyed by the
+   * 1.29 frame number the server names in `GDF`. Present on `resource` tiles
+   * only; see `TileExtrasState` in `@dofus/dofasset-format`.
+   */
+  states?: TileState[];
+}
+
+/** One run of `TileManifest.frames` — a resting image, or a transition. */
+export interface TileState {
+  /** The 1-based frame number `GDF` carries (1 = ready, 3 = spent…). */
+  frame: number;
+  start: number;
+  count: number;
 }

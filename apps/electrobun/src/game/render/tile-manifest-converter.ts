@@ -1,4 +1,9 @@
-import type { FrameInfo, TileBehavior, TileManifest, TileType } from "@/game/types";
+import type {
+  FrameInfo,
+  TileBehavior,
+  TileManifest,
+  TileType,
+} from "@/game/types";
 
 import type { CachedTileData } from "./atlas-cache";
 
@@ -65,6 +70,7 @@ export function convertToTileManifest(
     offsetX: -renderMeta.anchorX,
     offsetY: -renderMeta.anchorY,
     frames,
+    ...(manifest.states ? { states: manifest.states } : {}),
     baseFrame: undefined,
     baseZOrder: atlas.baseZOrder,
     pages: atlas.pages,

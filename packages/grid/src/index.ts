@@ -38,7 +38,11 @@ export {
   getDirection,
   getDirOffsets,
 } from "./directions.ts";
-export { findOppositeEdgeCell, getEdgeTransitionDir } from "./edge.ts";
+export {
+  findOppositeEdgeCell,
+  getEdgeTransitionDir,
+  isMapChangeCell,
+} from "./edge.ts";
 export { getNeighbors, isValidDirection } from "./neighbors.ts";
 export { DofusPathfinding } from "./pathfinding.ts";
 export { GRID_VERSION } from "./version.ts";

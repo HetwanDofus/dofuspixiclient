@@ -77,9 +77,16 @@ Two caveats:
 
 `apps/electrobun/src/game/audio/audio-manager.ts` mirrors
 `dofus.sounds.AudioManager`: `playMusic(id, saveOld?)`, `backToOldMusic()`,
-`playEnvironment(id)`, `playEffect(id)`, with a 4-second cross-fade between
-tracks and three independent channels (music / environment / effects) each with
-its own volume and mute.
+`playEnvironment(id)`, `playEffect(id)`, `playSound(linkname)`, with a
+4-second cross-fade between tracks and three independent channels (music /
+environment / effects) each with its own volume and mute.
+
+`playSound` is the by-name door: a sound an animation triggers names itself
+by its SWF symbol (`cassage_bois`, `flotteur`), which retail folds into the
+lang bundle's keyname — spaces, accents and dashes out, upper case — and looks
+up in `AUEC`. The 139 effects with no `AUE` id stay unreachable: retail falls
+back to the packed sound of the same linkname, which this client does not
+ship.
 
 `saveOld` exists for fights: stash the map theme and its position, play the
 battle theme, then resume the map theme where it left off. The fight code does
@@ -88,6 +95,22 @@ not call it yet.
 Every `HTMLAudioElement` touch lives in `sound.ts` behind a `Sound` interface,
 and the timers are injected, so `audio-manager.spec.ts` drives fades and the
 random noise scheduler on a fake clock with no DOM.
+
+### Harvesting
+
+1.29 has no harvest sound *event*: `GA;501` only loops the tool animation, and
+what you hear comes from the clips. Only fishing got that treatment — every
+fishing spot plays `flotteur` when taken and `fish_out` when it gives — while
+the axe animation `anim17` and every tree are silent.
+
+`harvest-sounds.ts` extends that deliberately, with 1.29's own effects: one
+pair per gathering job, fishing keeping the pair its spots already play. The
+job is read off the *resource* (`SK[skill].j`, through the gfx on the cell),
+so a bystander hears the same thing as the harvester. The swing rings on the
+looping animation's `applyEnd` frame — the canonical "the action lands here" —
+once per cycle, and stops when the animation does; the outcome rings on `GDF`
+frame 3, and only for a harvest this client saw start. See
+`doc/issues/audio/QA-147-la-recolte-est-muette.md`.
 
 ### Autoplay
 

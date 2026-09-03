@@ -5,7 +5,11 @@ import type { NpcLangData } from "@/game/lang/npc-lang";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
 import type { ContextMenuOption } from "@/game/stores/context-menu-store";
-import type { InteractiveObjectData, PickResult } from "@/game/types";
+import type {
+  InteractiveObjectData,
+  PickResult,
+  TileState,
+} from "@/game/types";
 import { jobOfSkill, jobsLangSnapshot } from "@/game/lang/jobs-lang";
 import {
   hideContextMenu,
@@ -30,6 +34,17 @@ const log = createLogger("BattlefieldPicking");
  */
 /** How much a spent element is dimmed, for want of a stump frame. */
 const DEPLETED_TILE_ALPHA = 0.45;
+
+/**
+ * The `GDF` frame numbers the server sends, mirroring `InteractiveFrame` in
+ * `apps/gameserver-ts/src/core/modules/harvest/harvest.constants.ts`.
+ */
+const InteractiveFrame = {
+  Ready: 0,
+  Locked: 2,
+  InUse: 3,
+  Readying: 5,
+} as const;
 
 const NPC_ACTION_TALK = 3;
 const NPC_ACTION_BIGSTORE_SELL = 5;
@@ -129,6 +144,10 @@ export class BattlefieldPicking {
   private readonly pickableIdToGroupSpriteIds = new Map<number, number[]>();
   /** cellId → the layer-2 sprite standing on it, for `GDF`. */
   private readonly cellIdToTileSprite = new Map<number, Sprite>();
+  /** cellId → the gfx standing on it, for anything keyed by the element. */
+  private readonly cellIdToGfxId = new Map<number, number>();
+  /** cellId → that element's `GDF` frame → frame-range table. */
+  private readonly cellIdToTileStates = new Map<number, TileState[]>();
   /** Cells whose element is spent; a click on one falls through to a walk. */
   private readonly depletedCells = new Set<number>();
   /** Last `GDF` frame per cell, retained across an async map/zoom rebuild. */
@@ -243,8 +262,16 @@ export class BattlefieldPicking {
    * Register an interactive tile (zaap, door, chest…). The cell id is what the
    * server is told when the player picks an action — `GA;500;<cellId>;<skillId>`
    * names the cell, never the sprite — so it has to be kept here.
+   *
+   * `states` is the element's `GDF` frame → frame-range table, published with
+   * the tile; without it the sprite can only be dimmed.
    */
-  registerTile(sprite: Sprite, gfxId: number, cellId: number): number {
+  registerTile(
+    sprite: Sprite,
+    gfxId: number,
+    cellId: number,
+    states?: TileState[]
+  ): number {
     const pickableId = this.nextPickableId++;
     const pickingSystem = this.deps.pickingSystem();
 
@@ -256,16 +283,28 @@ export class BattlefieldPicking {
     this.pickableIdToGfxId.set(pickableId, gfxId);
     this.pickableIdToCellId.set(pickableId, cellId);
     this.cellIdToTileSprite.set(cellId, sprite);
+    this.cellIdToGfxId.set(cellId, gfxId);
+    if (states?.length) {
+      this.cellIdToTileStates.set(cellId, states);
+    }
     this.tilePickableIds.add(pickableId);
 
     // The map payload is the same for everyone and carries no state, so a
     // cell that was already depleted when this map loaded is dressed here
-    // rather than waiting for a `GDF` that will not come again.
+    // rather than waiting for a `GDF` that will not come again. It is dressed
+    // *still*, on the state's last frame: the tree was felled before we
+    // arrived, so its fall is not ours to watch.
     const frame = this.cellFrames.get(cellId);
     if (frame !== undefined) {
-      this.applyCellFrame(sprite, frame, !this.depletedCells.has(cellId));
+      this.applyCellFrame(
+        cellId,
+        sprite,
+        frame,
+        !this.depletedCells.has(cellId),
+        false
+      );
     } else if (this.depletedCells.has(cellId)) {
-      this.applyCellFrame(sprite, 3, false);
+      this.applyCellFrame(cellId, sprite, InteractiveFrame.InUse, false, false);
     }
 
     return pickableId;
@@ -274,12 +313,11 @@ export class BattlefieldPicking {
   /**
    * `GDF` — an element changed state.
    *
-   * 1.29 swaps the sprite to another frame of the same clip. Resource assets
-   * retain their authored timeline in the atlas: frame 2 is the visually
-   * locked standing resource and frame 3 contains the depletion clip. The
-   * flattened atlas continues past its stable stump/empty-vein image into
-   * child-particle frames, so we stop on that stable image explicitly. Old
-   * single-frame objects keep the dimmed fallback.
+   * 1.29 answers this with `gotoAndStop(frame)` on the element's clip, and
+   * the clip does the rest: a state is either a resting image or a
+   * transition into one — the tree falling and leaving its stump, the crop
+   * growing back. The published tile carries those runs as `states`, so all
+   * that is left here is to hold a still or play a run once (QA-145).
    */
   setCellInteractive(
     cellId: number,
@@ -297,34 +335,89 @@ export class BattlefieldPicking {
     const sprite = this.cellIdToTileSprite.get(cellId);
 
     if (sprite) {
-      this.applyCellFrame(sprite, frame, interactive);
+      this.applyCellFrame(cellId, sprite, frame, interactive, true);
     }
   }
 
+  /**
+   * Dress the element's sprite for one state.
+   *
+   * `animate` separates the two ways a state is reached: a `GDF` that lands
+   * while we are watching plays the transition, and a state we walked in on
+   * is taken at its last frame — the resting image it leaves behind.
+   */
   private applyCellFrame(
+    cellId: number,
     sprite: Sprite,
     frame: number,
-    interactive: boolean
+    interactive: boolean,
+    animate: boolean
   ): void {
     if (!(sprite instanceof AnimatedSprite)) {
       sprite.alpha = interactive ? 1 : DEPLETED_TILE_ALPHA;
       return;
     }
 
+    const state = this.stateFor(cellId, frame);
+
+    if (!state) {
+      // No state table: a tile published before the states pass, or one
+      // whose clip is a single image. Dimming is all that is left.
+      sprite.alpha = interactive ? 1 : DEPLETED_TILE_ALPHA;
+      return;
+    }
+
     sprite.alpha = 1;
     sprite.loop = false;
-    const lastFrame = Math.max(0, sprite.totalFrames - 1);
+    sprite.onFrameChange = undefined;
 
-    if (interactive || frame <= 1) {
-      sprite.gotoAndStop(0);
-    } else if (frame === 2) {
-      sprite.gotoAndStop(Math.min(1, lastFrame));
-    } else {
-      // Original frame 3 is a stopped parent MovieClip whose nested clip
-      // settles on flattened frame 4. Letting AnimatedSprite run to its last
-      // child-particle frame makes trees disappear instead of leaving a stump.
-      sprite.gotoAndStop(Math.min(frame + 1, lastFrame));
+    // A tile published before its state table would leave the run pointing
+    // past the strip; clamping keeps a stale pair from throwing.
+    const start = Math.max(0, Math.min(state.start, sprite.totalFrames - 1));
+    const last = Math.max(
+      start,
+      Math.min(state.start + state.count - 1, sprite.totalFrames - 1)
+    );
+
+    if (state.count <= 1 || !animate || last === start) {
+      sprite.gotoAndStop(last);
+      return;
     }
+
+    // Pixi plays to the end of the whole strip, so the run's own end has to
+    // stop it: the frames past it belong to the next state.
+    sprite.onFrameChange = (current) => {
+      if (current < last) {
+        return;
+      }
+
+      sprite.onFrameChange = undefined;
+      sprite.gotoAndStop(last);
+    };
+    sprite.gotoAndPlay(start);
+  }
+
+  /**
+   * The run of frames a `GDF` frame names on that cell.
+   *
+   * The server speaks 1.29's frame numbers, where 0 means "the resting
+   * state" — `gotoAndStop("0")` lands on frame 1 in Flash, the clip's first.
+   * Anything the tile does not publish a state for falls back to that one.
+   */
+  private stateFor(cellId: number, frame: number): TileState | undefined {
+    const states = this.cellIdToTileStates.get(cellId);
+
+    if (!states?.length) {
+      return undefined;
+    }
+
+    const wanted = Math.max(1, frame);
+
+    return (
+      states.find((state) => state.frame === wanted) ??
+      states.find((state) => state.frame === 1) ??
+      states[0]
+    );
   }
 
   /** Register a world actor's sprite so clicks/hovers route to it. */
@@ -571,8 +664,15 @@ export class BattlefieldPicking {
     this.pickableIdToGfxId.clear();
     this.pickableIdToCellId.clear();
     this.cellIdToTileSprite.clear();
+    this.cellIdToGfxId.clear();
+    this.cellIdToTileStates.clear();
     // `depletedCells` and `cellFrames` deliberately survive: the server may
     // send GDF while the async map/zoom rebuild has no tile sprite yet.
+  }
+
+  /** The layer-2 gfx standing on a cell, if this map put one there. */
+  getCellGfxId(cellId: number): number | undefined {
+    return this.cellIdToGfxId.get(cellId);
   }
 
   /** Drop resource state from the previous map before accepting new GDFs. */

@@ -75,3 +75,30 @@ export function findOppositeEdgeCell(
     })
     .otherwise(() => cellId);
 }
+
+/**
+ * Whether standing on `cellId` hands the player to the neighbouring map.
+ *
+ * The server decides a transition from geometry alone: any cell in the two
+ * outermost rows or columns is an exit — see `detectExitDirection` in
+ * `apps/gameserver-ts/src/core/modules/maps/maps.edge.ts`, whose test this
+ * mirrors exactly (both row parities carry border cells, and the walkable
+ * exits of a real 1.29 map all sit on short rows). `getEdgeTransitionDir`
+ * above answers a different, narrower question — which direction a *long-row*
+ * border cell leaves through — and is not a substitute.
+ */
+export function isMapChangeCell(
+  cellId: number,
+  mapWidth: number,
+  mapHeight: number
+): boolean {
+  const { row, col, isLong } = cellToRowCol(cellId, mapWidth);
+  const lastRow = 2 * mapHeight - 2;
+
+  return (
+    row <= 1 ||
+    row >= lastRow - 1 ||
+    col === 0 ||
+    col === (isLong ? mapWidth - 1 : mapWidth - 2)
+  );
+}

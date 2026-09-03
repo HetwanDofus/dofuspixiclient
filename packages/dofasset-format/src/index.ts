@@ -15,6 +15,7 @@ export {
   type SpellExtrasAnimation,
   type TileExtras,
   type TileExtrasAnimation,
+  type TileExtrasState,
 } from "./binary-reader.ts";
 export { applyColorZones } from "./color-mapper.ts";
 export { deduplicate, type AnimationInput } from "./deduplicator.ts";

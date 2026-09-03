@@ -41,6 +41,13 @@ interface AudioLang {
   AUM: Record<string, LangSound>;
   AUE: Record<string, LangSound>;
   AUA: Record<string, LangAmbiance>;
+  /**
+   * `AUEC` — effect keyname → `AUE` id. The animations that trigger their
+   * own sound name it by its SWF linkage name, and this is the only table
+   * that turns that name into an id. Optional because a bundle predating
+   * the constants still plays every id-addressed sound.
+   */
+  AUEC?: Record<string, number>;
 }
 
 /** Injected so `AudioManager`'s scheduling is testable without real time. */
@@ -137,7 +144,8 @@ export class AudioManager {
           log.debug(
             `audio lang loaded: ${Object.keys(lang.AUM).length} musics, ` +
               `${Object.keys(lang.AUE).length} effects, ` +
-              `${Object.keys(lang.AUA).length} ambiances`
+              `${Object.keys(lang.AUA).length} ambiances, ` +
+              `${Object.keys(lang.AUEC ?? {}).length} effect names`
           );
         }
       })
@@ -245,6 +253,36 @@ export class AudioManager {
     sound.setVolume(this.levelFor(channel, entry.v));
     sound.setMuted(this.mutes[channel]);
     sound.play();
+  }
+
+  /**
+   * Fire a one-shot effect by its **linkage name** — `AudioManager.playSound`
+   * (`assets/sources/client-code/dofus/sounds/AudioManager.as:206`).
+   *
+   * A sound an animation triggers names itself the way its SWF symbol does
+   * (`cassage_bois`, `flotteur`, `hache_2m`), never by id: retail folds that
+   * name into the lang bundle's keyname — spaces, accents and dashes out,
+   * upper case — and looks it up in `AUEC`.
+   *
+   * A name that resolves to nothing is dropped. Retail then falls back to
+   * the packed sound of the same linkname, which this client does not ship:
+   * the 139 effects that have no `AUE` id are unreachable here.
+   */
+  playSound(name: string, channel: Channel = "effects"): void {
+    const keyname = name
+      .replace(/[ -]/g, "_")
+      .replace(/é/g, "e")
+      .replace(/à/g, "a")
+      .toUpperCase();
+
+    const id = this.lang?.AUEC?.[keyname];
+
+    if (id === undefined) {
+      log.warn(`No effect named ${keyname} in the lang bundle`);
+      return;
+    }
+
+    this.playEffect(id, channel);
   }
 
   setVolume(channel: Channel, volume: number): void {
@@ -442,5 +480,12 @@ async function defaultLoadLang(): Promise<AudioLang | null> {
 
   if (!data?.AUM || !data.AUE || !data.AUA) return null;
 
-  return { AUM: data.AUM, AUE: data.AUE, AUA: data.AUA };
+  // `AUEC` travels with them: without it every sound an animation names by
+  // its linkage name resolves to nothing (QA-147).
+  return {
+    AUM: data.AUM,
+    AUE: data.AUE,
+    AUA: data.AUA,
+    ...(data.AUEC ? { AUEC: data.AUEC } : {}),
+  };
 }

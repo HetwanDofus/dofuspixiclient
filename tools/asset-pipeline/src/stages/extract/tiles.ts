@@ -1,4 +1,12 @@
-import { mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
 import { logger } from "../../logger.ts";
@@ -17,6 +25,12 @@ export interface TileExtractEntry {
 export interface TileExtractOptions {
   kind: TileKind;
   clean?: boolean;
+  /**
+   * Extract only these tile ids. Everything already in the cache — SVG dirs
+   * and manifest entries alike — is left alone, so a targeted re-extract
+   * never costs the other ten thousand tiles their Flash bounds.
+   */
+  only?: number[];
 }
 
 export interface TileExtractResult {
@@ -55,6 +69,7 @@ export async function extractTiles(
 
   const args: string[] = ["--output", stagingRoot];
   if (opts.clean) args.push("--clean");
+  if (opts.only?.length) args.push("--only", opts.only.join(","));
 
   logger.info(
     { kind: opts.kind, svgRoot, stagingRoot },
@@ -101,15 +116,23 @@ export async function extractTiles(
   }
 
   // Preserve the PHP-written manifest (carries per-tile Flash bounds: offsetX,
-  // offsetY, width, height) next to the SVG dirs so the compile stage can
-  // bake real offsets into Tile Extras instead of defaulting to 0.
+  // offsetY, width, height, and the state ranges of interactive elements)
+  // next to the SVG dirs so the compile stage can bake real offsets into Tile
+  // Extras instead of defaulting to 0. A filtered run only re-extracted a few
+  // tiles, so its manifest is merged into the one already there rather than
+  // replacing it.
+  const manifestPath = resolve(svgRoot, "manifest.json");
   try {
-    await rename(
-      resolve(srcKindDir, "manifest.json"),
-      resolve(svgRoot, "manifest.json")
+    if (opts.only?.length) {
+      await mergeManifest(resolve(srcKindDir, "manifest.json"), manifestPath);
+    } else {
+      await rename(resolve(srcKindDir, "manifest.json"), manifestPath);
+    }
+  } catch (err) {
+    logger.warn(
+      { kind: opts.kind, err: (err as Error).message },
+      "stage tile manifest failed"
     );
-  } catch {
-    // manifest absent (older PHP run or empty extraction) — silent
   }
 
   // Drop the staging root — the other kind's sub-tree was either already
@@ -125,6 +148,33 @@ export async function extractTiles(
   );
 
   return { outputDir: svgRoot, entries, durationMs };
+}
+
+/**
+ * Fold a partial extractor manifest into the cached one, entry by entry.
+ * `metadata` is taken from the new run; every `tile-<id>` key it carries
+ * replaces its counterpart and the rest survive untouched.
+ */
+async function mergeManifest(
+  stagedPath: string,
+  targetPath: string
+): Promise<void> {
+  const staged = JSON.parse(await readFile(stagedPath, "utf-8")) as Record<
+    string,
+    unknown
+  >;
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(await readFile(targetPath, "utf-8")) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    // no cached manifest yet — the staged one stands on its own
+  }
+
+  const merged = { ...existing, ...staged };
+  await writeFile(targetPath, JSON.stringify(merged, null, 2));
 }
 
 export interface TileClassificationEntry {

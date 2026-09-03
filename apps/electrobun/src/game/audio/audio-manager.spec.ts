@@ -135,6 +135,7 @@ const LANG = {
     "1": { bg: [515], n: [510, 511], mind: 15, maxd: 30 },
     "2": { bg: [515], n: [], mind: 15, maxd: 30 },
   },
+  AUEC: { CASSAGE_BOIS: 510 },
 };
 
 const FADE_MS = 4000;
@@ -314,6 +315,59 @@ describe("AudioManager", () => {
       const before = sounds.created.length;
       clock.advance(120_000);
       expect(sounds.created).toHaveLength(before);
+    });
+  });
+
+  // `AudioManager.playSound` — the name an animation triggers itself by.
+  describe("effects by linkage name", () => {
+    it("folds the linkname into the keyname AUEC is keyed by", () => {
+      audio.playSound("cassage-bois");
+
+      const [effect] = sounds.created;
+      expect(effect).toMatchObject({
+        url: "/assets/sound/effects/fx_510.mp3",
+        loop: false,
+        playing: true,
+      });
+      expect(effect!.level).toBeCloseTo((0.5 * 20) / 100, 5);
+    });
+
+    it("drops a name the bundle does not know", () => {
+      audio.playSound("scie_a_metaux");
+
+      expect(sounds.created).toHaveLength(0);
+    });
+  });
+
+  // The default loader is the one the game actually runs; an injected lang
+  // bundle proves nothing about what it keeps (QA-147).
+  describe("the shipped bundle", () => {
+    it("keeps the effect names, not just the ids", async () => {
+      const bundle = {
+        data: {
+          AUM: LANG.AUM,
+          AUE: LANG.AUE,
+          AUA: LANG.AUA,
+          AUEC: LANG.AUEC,
+        },
+      };
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify(bundle))) as unknown as typeof fetch;
+
+      try {
+        const loaded = new AudioManager({
+          createSound: sounds.factory,
+          timers: clock,
+        });
+        await loaded.init();
+        loaded.playSound("cassage_bois");
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+
+      expect(sounds.created).toHaveLength(1);
+      expect(sounds.created[0]?.url).toBe("/assets/sound/effects/fx_510.mp3");
     });
   });
 
